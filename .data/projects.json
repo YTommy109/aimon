@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1d5cf9c5-03f7-4040-89cf-624055d08da3",
+    "name": "テストプロジェクト001",
+    "source": "/Users/tokutomi/develop/pwc/aiman/tmp_test_data",
+    "ai_tool": "translate_to_en_v1",
+    "status": "Completed",
+    "result": {
+      "processed_files": [
+        "english_document.txt",
+        "document2.txt",
+        "document1.txt"
+      ],
+      "message": "Processing successful. Results saved to gemini_results.md"
+    },
+    "created_at": "2025-06-26T22:46:36.424345",
+    "executed_at": "2025-06-26T22:47:14.746184",
+    "finished_at": "2025-06-26T22:47:19.627246"
+  }
+]

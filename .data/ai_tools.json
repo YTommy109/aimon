@@ -1,0 +1,17 @@
+[
+  {
+    "id": "summarize_v1",
+    "name_ja": "要約",
+    "description": "テキストファイルを要約します。"
+  },
+  {
+    "id": "translate_to_en_v1",
+    "name_ja": "英語に翻訳",
+    "description": "テキストファイルを英語に翻訳します。"
+  },
+  {
+    "id": "analyze_sentiment_v1",
+    "name_ja": "感情分析",
+    "description": "テキストファイルの感情を分析します。"
+  }
+]

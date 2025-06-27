@@ -1,0 +1,64 @@
+[project]
+name = "aiman"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+
+dependencies = [
+    "streamlit>=1.0",
+    "pydantic>=2.0",
+    "pandas>=2.0",
+    "streamlit-autorefresh>=1.0",
+    "google-generativeai>=0.5.0",
+    "streamlit-modal==0.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-watcher>=0.4.3",
+]
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "app"
+]
+testpaths = [
+    "tests",
+    "tests-ci",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "ANN"] # pycodestyle(E,W), pyflakes(F), flake8-annotations(ANN)を追加
+ignore = []
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = [
+    "streamlit_autorefresh.*",
+    "streamlit_modal.*",
+    "pandas.*",
+    "pydantic.*",
+    "pytest.*",
+    "google.*",
+    "streamlit.*",
+]
+ignore_missing_imports = true

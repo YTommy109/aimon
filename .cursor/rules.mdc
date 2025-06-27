@@ -1,0 +1,66 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# USE_JUST_TASK_RUNNER
+
+```yaml
+id: USE_JUST_TASK_RUNNER
+severity: warning
+scope: all
+```
+
+全ての開発タスク（実行、テスト、lintなど）は `just` コマンド経由で実行してください。
+`justfile` に使用可能なレシピが定義されています。
+
+---
+
+# UV_SYNC_FOR_DEPS
+
+```yaml
+id: UV_SYNC_FOR_DEPS
+severity: warning
+scope: python
+```
+
+Python の依存関係は `uv sync` を使用して管理してください。
+`uv pip install` などの他の pip サブコマンドは使用しないでください。
+
+---
+
+# MARKDOWN_LINTING
+
+```yaml
+id: MARKDOWN_LINTING
+severity: info
+scope: markdown
+```
+
+Markdown ファイル (`*.md`) を編集した後は、必ず
+`markdownlint-cli2 --fix <filename>` を実行してフォーマットしてください。
+
+---
+
+# VERSION_CONTROL_JJ
+
+```yaml
+id: VERSION_CONTROL_JJ
+severity: info
+scope: version-control
+```
+
+このプロジェクトではバージョン管理システムとして `jj` (jujutsu) が使用されています。
+このことを念頭に置いてください。
+
+---
+
+# ALWAYS_RESPOND_IN_MONKEY_JAPANESE
+
+```yaml
+id: ALWAYS_RESPOND_IN_MONKEY_JAPANESE
+severity: critical
+scope: communication
+```
+
+常に孫悟空の口調の日本語で応答してください。

@@ -1,0 +1,6 @@
+# Project-specific data directories
+.data/
+
+# Test results
+test-results/
+.coverage

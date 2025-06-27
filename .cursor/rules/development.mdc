@@ -1,0 +1,218 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# USE_JUST_TASK_RUNNER
+
+```yaml
+id: USE_JUST_TASK_RUNNER
+severity: warning
+scope: all
+```
+
+全ての開発タスク（実行、テスト、lintなど）は `just` コマンド経由で実行してください。
+`justfile` に使用可能なレシピが定義されています。
+
+---
+
+# UV_SYNC_FOR_DEPS
+
+```yaml
+id: UV_SYNC_FOR_DEPS
+severity: warning
+scope: python
+```
+
+Python の依存関係は `uv sync` を使用して管理してください。
+`uv pip install` などの他の pip サブコマンドは使用しないでください。
+
+---
+
+# MARKDOWN_LINTING
+
+```yaml
+id: MARKDOWN_LINTING
+severity: info
+scope: markdown
+```
+
+Markdown ファイル (`*.md`) を編集した後は、必ず
+`markdownlint-cli2 --fix <filename>` を実行してフォーマットしてください。
+
+---
+
+# VERSION_CONTROL_JJ
+
+```yaml
+id: VERSION_CONTROL_JJ
+severity: info
+scope: version-control
+```
+
+このプロジェクトではバージョン管理システムとして `jj` (jujutsu) が使用されています。
+このことを念頭に置いてください。
+
+---
+
+# ALWAYS_RESPOND_IN_MONKEY_JAPANESE
+
+```yaml
+id: ALWAYS_RESPOND_IN_MONKEY_JAPANESE
+severity: critical
+scope: communication
+```
+
+常に孫悟空の口調の日本語で応答してください。
+
+---
+
+# VERIFY_FILE_PATHS_ON_DEBUG
+
+```yaml
+id: VERIFY_FILE_PATHS_ON_DEBUG
+severity: warning
+scope: all
+```
+
+ファイル関連のデバッグ時は、まずファイルパスとディレクトリ構成を検証する
+
+ファイルI/O関連の問題（ファイルが見つからない、パーミッションエラー等）のデバッグに行き詰まった際は、まず`ls -R`などのコマンドを実行して、対象となるファイルの正確なパスや、関連するディレクトリの構造を必ず確認すること。ドキュメントに記載がない、あるいは情報が古い可能性がある場合は、AIが勝手に推測するのをやめ、ユーザーに確認するか、探索コマンドを提案する。
+
+---
+
+# RESPECT_JUSTFILE_CONVENTIONS
+
+```yaml
+id: RESPECT_JUSTFILE_CONVENTIONS
+severity: warning
+scope: all
+```
+
+`justfile`が存在する場合、その規約を尊重する
+
+プロジェクトに`justfile`が存在する場合、コマンドを実行する前にまず`just`や`just --list`で利用可能なレシピを確認し、定義済みのレシピを優先的に使用する。生のコマンドを直接実行したり、`justfile`を無闇に書き換えたりしないこと。
+
+---
+
+# PREFER_ROBUST_E2E_SELECTORS
+
+```yaml
+id: PREFER_ROBUST_E2E_SELECTORS
+severity: warning
+scope: python
+```
+
+E2Eテストでは、`data-testid`のような実装に依存したセレクタよりも、ユーザーの操作に近い`get_by_role`や`get_by_text`のような堅牢なセレクタを優先する。
+
+これにより、内部的なHTML構造の変更に強く、壊れにくいテストになる。
+
+推奨される優先順位:
+1. `page.get_by_role()`
+2. `page.get_by_text()`
+3. `page.get_by_label()`
+4. `page.locator()` (最終手段)
+
+---
+
+# JAPANESE_E2E_TEST_NAMES
+
+```yaml
+id: JAPANESE_TEST_NAMES
+severity: info
+scope: python
+```
+
+テストの関数名は、テスト内容が明確にわかる日本語で命名する。
+
+例: `def test_プロジェクトが存在しない場合にメッセージが表示される()`
+
+---
+
+# AVOID_REDUNDANT_DOCSTRINGS
+
+```yaml
+id: AVOID_REDUNDANT_DOCSTRINGS
+severity: info
+scope: python
+```
+
+関数名で内容が自明な場合、冗長な docstring は書かない。
+
+---
+
+# E2E_TESTS_USE_GHERKIN
+
+```yaml
+id: E2E_TESTS_USE_GHERKIN
+severity: info
+scope: python
+```
+
+E2Eテストのテストケース内では、振る舞いを明確にするためにGherkin記法 (`Given`, `When`, `Then`) のコメントを使用する。
+
+```python
+# Given
+# ... 前提条件の設定 ...
+
+# When
+# ... 操作の実行 ...
+
+# Then
+# ... 結果の検証 ...
+```
+
+---
+
+# UNIT_TESTS_USE_AAA
+
+```yaml
+id: UNIT_TESTS_USE_AAA
+severity: info
+scope: python
+```
+
+ユニットテストおよびインテグレーションテストでは、テストの構造を明確にするために AAA (Arrange, Act, Assert) パターンのコメントを使用する。
+
+```python
+# Arrange
+# ... テスト対象のオブジェクトやデータの準備 ...
+
+# Act
+# ... テスト対象のメソッドを実行 ...
+
+# Assert
+# ... 結果を検証 ...
+```
+
+---
+
+# USE_GOOGLE_STYLE_DOCSTRINGS
+
+```yaml
+id: USE_GOOGLE_STYLE_DOCSTRINGS
+severity: info
+scope: python
+```
+
+プロダクトコードの関数やメソッドには、Google スタイルの docstring を記述する。
+テストコードはこのルールの対象外とする。
+
+`Args`、`Returns`、`Raises` などのセクションを用いて、引数、返り値、送出される可能性のある例外を明確に記述する。
+
+```python
+def my_function(arg1: str, arg2: int) -> bool:
+    """関数の概要を記述します。
+
+    Args:
+        arg1: 引数1の説明。
+        arg2: 引数2の説明。
+
+    Returns:
+        返り値の説明。Trueの場合は成功。
+
+    Raises:
+        ValueError: arg2が負の場合。
+    """
+    # ...
+```

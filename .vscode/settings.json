@@ -1,5 +1,8 @@
 {
   "files.associations": {
     "*.mdc": "markdown"
-  }
+  },
+  "cSpell.words": [
+    "mypy"
+  ]
 }

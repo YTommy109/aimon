@@ -21,6 +21,7 @@ def data_manager(tmp_path: Path) -> DataManager:
     return DataManager(data_file)
 
 
+@pytest.mark.ci
 def test_プロジェクトの作成からワーカー処理を経てステータスと結果が正しく更新される(
     data_manager: DataManager, tmp_path: Path
 ) -> None:

@@ -14,7 +14,11 @@ from app.page_logic import handle_project_creation, handle_project_execution
 setup_logger()
 logger = logging.getLogger('aiman')
 
-data_manager = DataManager(Config.get_data_file_path())
+
+@st.cache_resource
+def get_data_manager() -> DataManager:
+    """セッションごとに一意のDataManagerインスタンスを取得します。"""
+    return DataManager(Config.get_data_file_path())
 
 
 def refresh_running_workers() -> None:
@@ -68,7 +72,7 @@ def _render_project_creation_form() -> None:
         st.header('プロジェクト作成')
         project_name = st.text_input('プロジェクト名')
         source_dir = st.text_input('対象ディレクトリのパス')
-        ai_tools = data_manager.get_ai_tools()
+        ai_tools = get_data_manager().get_ai_tools()
         ai_tool_options = {
             tool.id: f'{tool.name_ja} ({tool.description})' for tool in ai_tools
         }
@@ -82,7 +86,7 @@ def _render_project_creation_form() -> None:
         if st.button('プロジェクト作成'):
             if selected_ai_tool_id:
                 project, message = handle_project_creation(
-                    project_name, source_dir, selected_ai_tool_id, data_manager
+                    project_name, source_dir, selected_ai_tool_id, get_data_manager()
                 )
                 if project:
                     st.success(message)
@@ -178,7 +182,9 @@ def _render_project_execution_controls(projects: list[Project]) -> None:
     )
     if st.button('選択したプロジェクトを実行'):
         worker, message = handle_project_execution(
-            selected_project_id_str, data_manager, st.session_state.running_workers
+            selected_project_id_str,
+            get_data_manager(),
+            st.session_state.running_workers,
         )
         if worker:
             st.session_state.running_workers[worker.project_id] = worker
@@ -211,7 +217,7 @@ def main_page() -> None:
 
     # --- プロジェクト一覧と実行コントロール ---
     projects = sorted(
-        data_manager.get_projects(), key=lambda p: p.created_at, reverse=True
+        get_data_manager().get_projects(), key=lambda p: p.created_at, reverse=True
     )
 
     _render_project_list(projects, modal)

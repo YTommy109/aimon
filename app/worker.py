@@ -221,10 +221,16 @@ class Worker(Process):
                         if isinstance(item, Image.Image):
                             buffered = io.BytesIO()
                             item.save(buffered, format='PNG')
-                            img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-                            prompt_for_json.append({'type': 'image', 'figure': str(idx), 'data': img_b64})
+                            img_b64 = base64.b64encode(buffered.getvalue()).decode(
+                                'utf-8'
+                            )
+                            prompt_for_json.append(
+                                {'type': 'image', 'figure': str(idx), 'data': img_b64}
+                            )
                     with open(prompt_json_path, 'w', encoding='utf-8') as f_prompt:
-                        json.dump(prompt_for_json, f_prompt, ensure_ascii=False, indent=2)
+                        json.dump(
+                            prompt_for_json, f_prompt, ensure_ascii=False, indent=2
+                        )
 
                     response = model.generate_content(prompt)
 

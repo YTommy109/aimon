@@ -144,7 +144,7 @@ def _render_project_list(projects: list[Project], modal: Modal) -> None:
         is_running = p.id in st.session_state.running_workers
         status_icon = _get_status_icon(p, is_running)
 
-        row_cols = st.columns((1, 4, 2, 2, 1))
+        row_cols = st.columns((1, 4, 1, 1, 1, 1))  # [No., プロジェクト名, 作成日時, 実行日時, 詳細, 実行]
         row_cols[0].write(str(i + 1))
         row_cols[1].write(f'{status_icon} {p.name}')
         row_cols[2].write(
@@ -153,47 +153,22 @@ def _render_project_list(projects: list[Project], modal: Modal) -> None:
         row_cols[3].write(
             p.executed_at.strftime('%Y/%m/%d %H:%M') if p.executed_at else ''
         )
-        if row_cols[4].button('詳細', key=f'detail_{p.id}'):
+        detail_btn = row_cols[4].button('詳細', key=f'detail_{p.id}')
+        exec_btn = False
+        if p.executed_at is None:
+            exec_btn = row_cols[5].button('実行', key=f'run_{p.id}')
+        if detail_btn:
             st.session_state.modal_project = p
             modal.open()
-
-
-def _render_project_execution_controls(projects: list[Project]) -> None:
-    """プロジェクト実行コントロールを描画します。
-
-    Args:
-        projects: プロジェクトのリスト。
-    """
-    st.divider()
-
-    # --- 実行ボタン ---
-    pending_projects = [p for p in projects if p.status == 'Pending']
-
-    def get_project_display_name(project_id: UUID) -> str:
-        for i, p in enumerate(projects):
-            if p.id == project_id:
-                return f'No.{i + 1}: {p.name}'
-        return '不明なプロジェクト'
-
-    selected_project_id_str = st.selectbox(
-        '実行するプロジェクトを選択してください',
-        options=[p.id for p in pending_projects],
-        format_func=get_project_display_name,
-        index=None,
-        placeholder='選択...',
-    )
-    if st.button('選択したプロジェクトを実行'):
-        worker, message = handle_project_execution(
-            selected_project_id_str,
-            get_data_manager(),
-            st.session_state.running_workers,
-        )
-        if worker:
-            st.session_state.running_workers[worker.project_id] = worker
-            st.info(message)
-            st.rerun()
-        else:
-            st.warning(message)
+        if exec_btn:
+            worker, message = handle_project_execution(
+                p.id, get_data_manager(), st.session_state.running_workers
+            )
+            if worker:
+                st.info(message)
+                st.rerun()
+            else:
+                st.warning(message)
 
 
 def main_page() -> None:
@@ -223,9 +198,6 @@ def main_page() -> None:
     )
 
     _render_project_list(projects, modal)
-
-    if projects:  # プロジェクトが存在する場合のみ実行コントロールを表示
-        _render_project_execution_controls(projects)
 
 
 if __name__ == '__main__':

@@ -27,9 +27,7 @@ class TestProjectWorkflow:
             expect(modal.locator('text="AIツール"')).to_be_visible()
             expect(modal.locator('text="ステータス"')).to_be_visible()
 
-    def test_プロジェクトのステータスアイコンの表示をテスト(
-        self, page_with_app: Page
-    ) -> None:
+    def test_プロジェクトのステータスアイコンの表示をテスト(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         # 前提：プロジェクトが1つ以上存在する
@@ -51,9 +49,7 @@ class TestProjectWorkflow:
             # 少なくとも1つのステータスアイコンが表示されている
             assert has_status_icon
 
-    def test_プロジェクト実行コントロールの表示をテスト(
-        self, page_with_app: Page
-    ) -> None:
+    def test_プロジェクト実行コントロールの表示をテスト(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         project_list = page.get_by_role('strong', name='プロジェクト名')
@@ -64,16 +60,10 @@ class TestProjectWorkflow:
         # Then
         if project_list.is_visible():
             # 実行プロジェクト選択のセレクトボックスを確認
-            expect(
-                page.locator('text="実行するプロジェクトを選択してください"')
-            ).to_be_visible()
-            expect(
-                page.get_by_role('button', name='選択したプロジェクトを実行')
-            ).to_be_visible()
+            expect(page.locator('text="実行するプロジェクトを選択してください"')).to_be_visible()
+            expect(page.get_by_role('button', name='選択したプロジェクトを実行')).to_be_visible()
 
-    def test_ナビゲーションとインタラクションのテスト(
-        self, page_with_app: Page
-    ) -> None:
+    def test_ナビゲーションとインタラクションのテスト(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')
@@ -99,9 +89,7 @@ class TestProjectWorkflow:
 class TestErrorHandling:
     """エラーハンドリングをテストするクラス"""
 
-    def test_無効な入力に対するエラーハンドリングをテスト(
-        self, page_with_app: Page
-    ) -> None:
+    def test_無効な入力に対するエラーハンドリングをテスト(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 
@@ -109,9 +97,7 @@ class TestErrorHandling:
         page.get_by_role('button', name='プロジェクト作成').click()
 
         # Then
-        expect(page.get_by_text('AIツールを選択してください。')).to_be_visible(
-            timeout=5000
-        )
+        expect(page.get_by_text('AIツールを選択してください。')).to_be_visible(timeout=5000)
 
     def test_ネットワークエラーに対する耐性をテスト(self, page_with_app: Page) -> None:
         # Given

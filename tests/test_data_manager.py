@@ -1,10 +1,12 @@
+"""DataManagerのテスト。"""
+
 import json
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
-from app.data_manager import DataManager, ProjectNotFoundError
+from app.model import DataManager, ProjectNotFoundError, ProjectStatus
 
 
 @pytest.fixture
@@ -40,7 +42,7 @@ def test_プロジェクトを正しく作成して取得できる(data_manager:
     assert retrieved_project.name == name
     assert retrieved_project.source == source
     assert retrieved_project.ai_tool == ai_tool
-    assert retrieved_project.status == 'Pending'
+    assert retrieved_project.status == ProjectStatus.PENDING
 
     all_projects = data_manager.get_projects()
     assert len(all_projects) == 1
@@ -52,12 +54,12 @@ def test_プロジェクトのステータスと結果を更新できる(data_ma
     project = data_manager.create_project('Update Test', '/src', 'ToolX')
 
     # Act: ステータスを更新
-    data_manager.update_project_status(project.id, 'Processing')
+    data_manager.update_project_status(project.id, ProjectStatus.PROCESSING)
     updated_project_1 = data_manager.get_project(project.id)
 
     # Assert: ステータスが更新されたことを確認
     assert updated_project_1 is not None
-    assert updated_project_1.status == 'Processing'
+    assert updated_project_1.status == ProjectStatus.PROCESSING
 
     # Act: 結果を更新
     result_data = {'summary': 'This is a test.'}
@@ -95,7 +97,7 @@ def test_存在しないプロジェクトの更新でProjectNotFoundErrorが発
 
     # Act & Assert
     with pytest.raises(ProjectNotFoundError):
-        data_manager.update_project_status(non_existent_id, 'Processing')
+        data_manager.update_project_status(non_existent_id, ProjectStatus.PROCESSING)
 
     with pytest.raises(ProjectNotFoundError):
         data_manager.update_project_result(non_existent_id, {'result': 'test'})

@@ -1,17 +1,19 @@
+"""ページのビジネスロジックを定義するモジュール。"""
+
 import logging
-from typing import Tuple
+from typing import Final
 from uuid import UUID
 
-from app.data_manager import DataManager, Project
-from app.worker import Worker
+from app.model import DataManager, Project
+from app.worker import Worker, WorkerError
 
 logger = logging.getLogger('aiman')
-running_workers: dict[UUID, Worker] = {}
+running_workers: Final[dict[UUID, Worker]] = {}
 
 
 def handle_project_creation(
     name: str, source: str, ai_tool: str, data_manager: DataManager
-) -> Tuple[Project | None, str]:
+) -> tuple[Project | None, str]:
     """プロジェクト作成フォームのロジックを処理します。
 
     入力値を検証し、問題なければプロジェクトを作成します。
@@ -25,9 +27,12 @@ def handle_project_creation(
     Returns:
         作成されたプロジェクトオブジェクトと、表示用のメッセージのタプル。
         作成に失敗した場合は、プロジェクトオブジェクトはNoneになります。
+
+    Raises:
+        ValueError: 入力値が不正な場合。
     """
     if not all([name, source, ai_tool]):
-        return None, 'すべてのフィールドを入力してください。'
+        raise ValueError('すべてのフィールドを入力してください。')
 
     try:
         project = data_manager.create_project(name, source, ai_tool)
@@ -41,7 +46,7 @@ def handle_project_execution(
     project_id: UUID | None,
     data_manager: DataManager,
     running_workers: dict[UUID, Worker],
-) -> Tuple[Worker | None, str]:
+) -> tuple[Worker | None, str]:
     """プロジェクト実行ボタンのロジックを処理します。
 
     プロジェクトIDの検証、多重実行の防止を行い、問題なければワーカースレッドを開始します。
@@ -54,18 +59,26 @@ def handle_project_execution(
     Returns:
         開始されたワーカーインスタンスと、表示用のメッセージのタプル。
         開始に失敗した場合は、ワーカーインスタンスはNoneになります。
+
+    Raises:
+        ValueError: プロジェクトIDが指定されていない場合。
+        RuntimeError: プロジェクトが既に実行中の場合。
+        WorkerError: ワーカーの起動に失敗した場合。
     """
     if not project_id:
-        return None, 'プロジェクトを選択してください。'
+        raise ValueError('プロジェクトを選択してください。')
 
     if project_id in running_workers:
-        return None, 'このプロジェクトは既に実行中です。'
+        raise RuntimeError('このプロジェクトは既に実行中です。')
 
     try:
         worker = Worker(project_id, data_manager)
         running_workers[project_id] = worker
         worker.start()
         return worker, f'プロジェクト {project_id} を実行します。'
-    except Exception as e:
-        # TODO: より具体的な例外処理
+    except WorkerError as e:
+        logger.error(f'ワーカーの起動に失敗しました: {e}')
         return None, f'ワーカーの起動に失敗しました: {e}'
+    except Exception as e:
+        logger.error(f'予期せぬエラーが発生しました: {e}')
+        return None, f'予期せぬエラーが発生しました: {e}'

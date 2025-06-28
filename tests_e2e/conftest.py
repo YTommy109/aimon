@@ -2,14 +2,14 @@
 
 import os
 import shutil
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from playwright.sync_api import Page, expect
 
 
 @pytest.fixture(autouse=True)
-def clean_test_data_before_each_test() -> Generator[None, None, None]:
+def clean_test_data_before_each_test() -> None:
     """各テストの前にテスト用データディレクトリを削除して、クリーンな状態でテストを開始します。"""
     # 環境変数 `DATA_DIR_TEST` からテスト用ディレクトリのパスを取得。
     # 未設定の場合はデフォルト値 '.data_test' を使用。
@@ -17,7 +17,7 @@ def clean_test_data_before_each_test() -> Generator[None, None, None]:
 
     if os.path.exists(test_data_dir):
         shutil.rmtree(test_data_dir)
-    yield
+    return
 
 
 @pytest.fixture
@@ -27,9 +27,9 @@ def page_with_app(page: Page, base_url: str) -> Generator[Page, None, None]:
     # ファイル削除などを反映させるため、一度リロードを挟んで状態を確実にする
     page.reload()
     # Streamlitアプリが完全に読み込まれるまで待つ
-    expect(
-        page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
-    ).to_be_visible(timeout=10000)
+    expect(page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')).to_be_visible(
+        timeout=10000
+    )
 
     yield page
 

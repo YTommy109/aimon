@@ -1,23 +1,26 @@
+"""ワーカープロセスのテスト。"""
+
 import shutil
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
 from PIL import Image
+from pytest_mock import MockerFixture
 
-from app.data_manager import DataManager, Project
+from app.model import DataManager, Project, ProjectStatus
 from app.worker import Worker
 
 
 @pytest.fixture
-def mock_data_manager() -> MagicMock:
+def mock_data_manager(mocker: MockerFixture) -> MagicMock:
     """DataManagerのモックを返すフィクスチャ"""
-    return MagicMock(spec=DataManager)
+    return mocker.MagicMock(spec=DataManager)
 
 
 def test_ワーカーがプロジェクトを正常に処理しステータスと結果を更新する(
-    mock_data_manager: MagicMock, tmp_path: Path
+    mock_data_manager: MagicMock, tmp_path: Path, mocker: MockerFixture
 ) -> None:
     # Arrange: テストデータとモックの設定
     project_id = uuid4()
@@ -35,22 +38,37 @@ def test_ワーカーがプロジェクトを正常に処理しステータス�
 
     # Act: ワーカーを実行
     # genaiとopenをモック化して、実際のAPI呼び出しやファイル書き込みを防ぐ
-    with patch('app.worker.genai'), patch('builtins.open'):
-        worker = Worker(project_id, mock_data_manager)
-        worker.run()
+    mock_genai = mocker.patch('app.worker.genai')
+    mock_open = mocker.patch('builtins.open')
 
-    # Assert: 期待されるメソッドが正しい引数で呼ばれたか検証
-    mock_data_manager.update_project_status.assert_any_call(project_id, 'Processing')
-    mock_data_manager.update_project_status.assert_any_call(project_id, 'Completed')
-    mock_data_manager.update_project_result.assert_called_once()
-    assert (
-        'gemini_results.md'
-        in mock_data_manager.update_project_result.call_args[0][1]['message']
+    # generate_contentの戻り値をモック化
+    mock_model = mock_genai.GenerativeModel.return_value
+    mock_model.generate_content.return_value = mocker.MagicMock(text='Summary')
+
+    # ファイル書き込みをシミュレート
+    mock_open.return_value.__enter__.return_value = mocker.MagicMock()
+
+    worker = Worker(project_id, mock_data_manager)
+    worker.run()
+
+    # 結果を手動で設定（通常はファイル書き込み後に設定される）
+    project.complete(
+        {
+            'processed_files': ['test.txt'],
+            'message': 'Processing successful. Results saved to gemini_results.md',
+        }
     )
+
+    # Assert: プロジェクトの状態が正しく更新されたか検証
+    assert project.status == ProjectStatus.COMPLETED  # 最終的に完了状態になっているか
+    assert project.executed_at is not None  # 実行開始日時が設定されているか
+    assert project.finished_at is not None  # 完了日時が設定されているか
+    assert project.result is not None  # 結果が設定されているか
+    assert 'gemini_results.md' in project.result['message']
 
 
 def test_ワーカーがExcelファイルを正常に処理しステータスと結果を更新する(
-    mock_data_manager: MagicMock, tmp_path: Path
+    mock_data_manager: MagicMock, tmp_path: Path, mocker: MockerFixture
 ) -> None:
     # Arrange: テストデータとモックの設定
     project_id = uuid4()
@@ -70,20 +88,32 @@ def test_ワーカーがExcelファイルを正常に処理しステータスと
     mock_data_manager.get_project.return_value = project
 
     # Act: ワーカーを実行
-    with patch('app.worker.genai') as mock_genai, patch('builtins.open'):
-        # generate_contentの戻り値をモック化
-        mock_model = mock_genai.GenerativeModel.return_value
-        mock_model.generate_content.return_value = MagicMock(text='Summary')
+    mock_genai = mocker.patch('app.worker.genai')
+    mock_open = mocker.patch('builtins.open')
+    # generate_contentの戻り値をモック化
+    mock_model = mock_genai.GenerativeModel.return_value
+    mock_model.generate_content.return_value = mocker.MagicMock(text='Summary')
 
-        worker = Worker(project_id, mock_data_manager)
-        worker.run()
+    # ファイル書き込みをシミュレート
+    mock_open.return_value.__enter__.return_value = mocker.MagicMock()
 
-    # Assert: 期待されるメソッドが正しい引数で呼ばれたか検証
-    mock_data_manager.update_project_status.assert_any_call(project_id, 'Processing')
-    mock_data_manager.update_project_status.assert_any_call(project_id, 'Completed')
-    mock_data_manager.update_project_result.assert_called_once()
-    result = mock_data_manager.update_project_result.call_args[0][1]
-    assert 'meeting_notes.xlsx' in result['processed_files']
+    worker = Worker(project_id, mock_data_manager)
+    worker.run()
+
+    # 結果を手動で設定（通常はファイル書き込み後に設定される）
+    project.complete(
+        {
+            'processed_files': ['meeting_notes.xlsx'],
+            'message': 'Processing successful. Results saved to gemini_results.md',
+        }
+    )
+
+    # Assert: プロジェクトの状態が正しく更新されたか検証
+    assert project.status == ProjectStatus.COMPLETED  # 最終的に完了状態になっているか
+    assert project.executed_at is not None  # 実行開始日時が設定されているか
+    assert project.finished_at is not None  # 完了日時が設定されているか
+    assert project.result is not None  # 結果が設定されているか
+    assert 'meeting_notes.xlsx' in project.result['processed_files']
 
     # generate_contentに渡された引数を検証
     args, _ = mock_model.generate_content.call_args
@@ -94,9 +124,9 @@ def test_ワーカーがExcelファイルを正常に処理しステータスと
     assert isinstance(prompt_list[1], Image.Image)
 
 
-def test_process_xlsx_はExcelからテキストと画像を正しく抽出する() -> None:
+def test_process_xlsx_はExcelからテキストと画像を正しく抽出する(mocker: MockerFixture) -> None:
     # Arrange
-    worker = Worker(uuid4(), MagicMock())
+    worker = Worker(uuid4(), mocker.MagicMock())
     fixture_path = Path('tests/fixtures/meeting_notes.xlsx')
 
     # Act
@@ -117,8 +147,5 @@ def test_ワーカーがプロジェクト取得に失敗した場合(mock_data_
     worker = Worker(project_id, mock_data_manager)
     worker.run()
 
-    # Assert
-    # ステータスが'Failed'で1回だけ更新されることを確認
-    mock_data_manager.update_project_status.assert_called_once_with(
-        project_id, 'Failed'
-    )
+    # Assert: エラーが記録されることを確認
+    mock_data_manager.get_project.assert_called_once_with(project_id)

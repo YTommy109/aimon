@@ -1,7 +1,7 @@
 import argparse
 
 from app.config import Config
-from app.main_page import main_page
+from app.main_page import render_main_page
 
 # Streamlitはスクリプトを再実行する可能性があるため、引数の解釈と
 # グローバルな状態の設定を、他のアプリケーションモジュールをインポートする前に行う。
@@ -10,9 +10,7 @@ from app.main_page import main_page
 
 def main() -> None:
     """アプリケーションのエントリポイント。"""
-    parser = argparse.ArgumentParser(
-        description='Streamlit app with selectable environment.'
-    )
+    parser = argparse.ArgumentParser(description='Streamlit app with selectable environment.')
     parser.add_argument(
         '--app-env',
         type=str,
@@ -24,7 +22,7 @@ def main() -> None:
 
     Config.APP_ENV = args.app_env
 
-    main_page()
+    render_main_page()
 
 
 if __name__ == '__main__':

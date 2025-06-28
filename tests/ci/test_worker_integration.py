@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.data_manager import DataManager
+from app.model import DataManager, ProjectStatus
 from app.worker import Worker
 
 
@@ -36,7 +36,7 @@ def test_プロジェクトの作成からワーカー処理を経てステー�
         source=str(source_dir),
         ai_tool='TestTool',
     )
-    assert project.status == 'Pending'
+    assert project.status == ProjectStatus.PENDING
 
     # Act: Run the worker process with a mocked genai
     mock_response = MagicMock()
@@ -55,7 +55,7 @@ def test_プロジェクトの作成からワーカー処理を経てステー�
     # Assert: Verify the project has been updated
     updated_project = data_manager.get_project(project.id)
     assert updated_project is not None
-    assert updated_project.status == 'Completed'
+    assert updated_project.status == ProjectStatus.COMPLETED
     assert updated_project.result is not None
     assert 'processed_files' in updated_project.result
     assert len(updated_project.result['processed_files']) == 2

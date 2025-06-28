@@ -40,9 +40,7 @@ class TestMainPage:
         expect(sidebar.locator('text="AIツールを選択"')).to_be_visible()
         expect(sidebar.get_by_role('button', name='プロジェクト作成')).to_be_visible()
 
-    def test_プロジェクト一覧セクションが表示されることを確認(
-        self, page_with_app: Page
-    ) -> None:
+    def test_プロジェクト一覧セクションが表示されることを確認(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 
@@ -59,9 +57,7 @@ class TestMainPage:
         # どちらかが表示されていることを確認
         expect(project_info.or_(project_header)).to_be_visible()
 
-    def test_ページの自動更新機能が動作することを確認(
-        self, page_with_app: Page
-    ) -> None:
+    def test_ページの自動更新機能が動作することを確認(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 
@@ -75,9 +71,7 @@ class TestMainPage:
 class TestProjectCreation:
     """プロジェクト作成機能をテストするクラス"""
 
-    def test_プロジェクト作成フォームのバリデーションをテスト(
-        self, page_with_app: Page
-    ) -> None:
+    def test_プロジェクト作成フォームのバリデーションをテスト(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')
@@ -91,9 +85,7 @@ class TestProjectCreation:
         # 警告メッセージが表示されることを確認
         expect(page.locator('text="AIツールを選択してください。"')).to_be_visible()
 
-    def test_プロジェクト作成フォームの入力フィールドをテスト(
-        self, page_with_app: Page
-    ) -> None:
+    def test_プロジェクト作成フォームの入力フィールドをテスト(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')

@@ -72,6 +72,8 @@ def _render_project_creation_form() -> None:
         st.header('プロジェクト作成')
         project_name = st.text_input('プロジェクト名')
         source_dir = st.text_input('対象ディレクトリのパス')
+        # 入力値の前後空白を除去
+        source_dir = source_dir.strip()
         ai_tools = get_data_manager().get_ai_tools()
         ai_tool_options = {
             tool.id: f'{tool.name_ja} ({tool.description})' for tool in ai_tools

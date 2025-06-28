@@ -1,0 +1,11 @@
+[
+  {
+    "type": "text",
+    "data": "以下の文章と図の内容を日本語で3行で要約し、各図の内容も簡単に解説してください。\n\n---\n---シート: 2025年5月会議---\n\n2025年5月度 定例会議 議事録\t\t\t\t\n日時\t\t2025年5月28日 10:00〜11:30\t\t\n場所\t\tオンライン (Zoom)\t\t\n参加者\t\tTanaka, Suzuki, Sato, Nakamura\t\t\n時刻\t発言者\t発言内容\tToDo\t備考\n\t\t\t\t\n10:05\tTanaka\tProgress on system update explained.\tPrepare next materials\t\n10:20\tSato\tRaised concerns about cost estimation.\t\tFollow-up needed\n10:40\tNakamura\tDiscussion on design proposals.\tSubmit revised plan\t\n[図:1]\t\t\t\t"
+  },
+  {
+    "type": "image",
+    "figure": "1",
+    "data": "iVBORw0KGgoAAAANSUhEUgAAAZAAAADICAIAAABJdyC1AAADt0lEQVR4nO3b2YqjQABA0XbIfwe/3GEQgmiiZpYkt+ech0bscnmpS5V0D9M0fQEU/Hj3CwCcJVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpBx2f/1OI6vehOAX67X69cDVljAd1lhHQYP4G853NJZYQEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmXd79AwDAM88E0TWdGHg4D3hCs20x+zSx98eOWz1o+GgivsOb5vKrJ3Rm+Pb88szreWbzchq3G38bs33P72+XBasz25N37bN/KOgs++hvWdoquzgzDcHhmf6rPZVzl6anj1ZntwapEy5fZuc/ytVdXAaWP7vPs3c78p2b1sgLbZdrqVqv7b5d7+1u85YU2g/A5PuKj+/5mcDYvgu5uNg+3YE8t4pYDfrtWdoXwoSus5eT8k3l+eNVtvbN91uG3rdW1yzOPHnRmFbbdDKoVfOgK6+6c3NmdPfq5f8Nnn3V44aOrtgc7Y84/Dvg+W8Lzf+UE/OfeHyydAk7yrzlAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAxuXMoHEc//2bABywwgIyhmma3v0OAKdYYQEZggVkCBaQIVhAhmABGYIFZAgWkCFYwFfFT+NFMef7baeKAAAAAElFTkSuQmCC"
+  }
+]

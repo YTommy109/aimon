@@ -20,7 +20,7 @@ logger = logging.getLogger('aiman')
 
 @st.cache_resource
 def get_data_manager(
-    config_provider: Callable[[], DataManager] = lambda: DataManager(config.data_file_path),
+    config_provider: Callable[[], DataManager] = lambda: DataManager(config.data_dir_path),
 ) -> DataManager:
     """セッションごとに一意のDataManagerインスタンスを取得します。
 

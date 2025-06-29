@@ -14,10 +14,9 @@ def data_manager(tmp_path: Path) -> DataManager:
     """テスト用のDataManagerインスタンスを作成する"""
     data_dir = tmp_path / '.data'
     data_dir.mkdir()
-    data_file = data_dir / 'projects.json'
     # ai_tools.jsonも作成しておく
     (data_dir / 'ai_tools.json').touch()
-    return DataManager(data_file)
+    return DataManager(data_dir)
 
 
 def test_データファイルが空でも正しく初期化される(data_manager: DataManager) -> None:
@@ -25,6 +24,19 @@ def test_データファイルが空でも正しく初期化される(data_manag
     projects = data_manager.get_projects()
     # Assert
     assert projects == []
+
+
+def test_プロジェクトファイルが正しいパスにあることを確認する(data_manager: DataManager) -> None:
+    """プロジェクトファイルが正しいパスに保存されているか確認するテスト"""
+    projects_path = data_manager.data_dir / 'projects.json'
+    ai_tools_path = data_manager.data_dir / 'ai_tools.json'
+
+    assert projects_path.is_file(), f'{projects_path} should be a file.'
+    assert ai_tools_path.is_file(), f'{ai_tools_path} should be a file.'
+
+    # Check that there's no directory with the same name
+    assert not projects_path.is_dir(), f'{projects_path} should not be a directory.'
+    assert not ai_tools_path.is_dir(), f'{ai_tools_path} should not be a directory.'
 
 
 def test_プロジェクトを正しく作成して取得できる(data_manager: DataManager) -> None:
@@ -101,3 +113,45 @@ def test_存在しないプロジェクトの更新でProjectNotFoundErrorが発
 
     with pytest.raises(ProjectNotFoundError):
         data_manager.update_project_result(non_existent_id, {'result': 'test'})
+
+
+def test_projects_jsonがディレクトリとして存在する場合にエラーが発生する(
+    tmp_path: Path,
+) -> None:
+    """projects.jsonがディレクトリとして存在する場合にエラーが発生することをテストする"""
+    data_dir = tmp_path / '.data'
+    projects_dir = data_dir / 'projects.json'
+    projects_dir.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match='projects.jsonがディレクトリとして存在します'):
+        DataManager(data_dir)
+
+
+def test_data_dirがファイルとして存在する場合に適切に処理される(
+    tmp_path: Path,
+) -> None:
+    """data_dirがファイルとして存在する場合にディレクトリに変換されることをテストする"""
+    data_file = tmp_path / '.data'
+    data_file.write_text('[]')  # 空のプロジェクトリスト
+
+    data_manager = DataManager(data_file)
+
+    assert data_file.is_dir()  # ファイルがディレクトリに変換された
+    assert (data_file / 'projects.json').exists()  # 元のデータが移動された
+    assert (data_file / 'ai_tools.json').exists()  # ai_tools.jsonが作成された
+
+    projects = data_manager.get_projects()
+    assert len(projects) == 0  # 空のリストで初期化された
+
+
+def test_write_json_でディレクトリが存在する場合にエラーが発生する(
+    data_manager: DataManager,
+) -> None:
+    """_write_jsonでターゲットがディレクトリの場合にエラーが発生することをテストする"""
+    # Arrange: ターゲットパスにディレクトリを作成
+    test_dir = data_manager.data_dir / 'test_file.json'
+    test_dir.mkdir()
+
+    # Act & Assert
+    with pytest.raises(ValueError, match='がディレクトリとして存在します'):
+        data_manager._write_json(test_dir, [])

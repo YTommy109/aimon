@@ -3,9 +3,10 @@ Integration tests for the worker and data manager.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+from pytest_mock import MockerFixture
 
 from app.model import DataManager, ProjectStatus
 from app.worker import Worker
@@ -16,14 +17,13 @@ def data_manager(tmp_path: Path) -> DataManager:
     """テスト用のDataManagerインスタンスを作成する"""
     data_dir = tmp_path / '.data'
     data_dir.mkdir()
-    data_file = data_dir / 'projects.json'
     (data_dir / 'ai_tools.json').touch()
-    return DataManager(data_file)
+    return DataManager(data_dir)
 
 
 @pytest.mark.ci
 def test_プロジェクトの作成からワーカー処理を経てステータスと結果が正しく更新される(
-    data_manager: DataManager, tmp_path: Path
+    data_manager: DataManager, tmp_path: Path, mocker: MockerFixture
 ) -> None:
     # Arrange: Create a project and mock source files
     source_dir = tmp_path / 'source_files'
@@ -48,9 +48,9 @@ def test_プロジェクトの作成からワーカー処理を経てステー�
     mock_genai = MagicMock()
     mock_genai.GenerativeModel.return_value = mock_model
 
-    with patch('app.worker.genai', mock_genai):
-        worker = Worker(project.id, data_manager)
-        worker.run()
+    mocker.patch('app.worker.genai', mock_genai)
+    worker = Worker(project.id, data_manager)
+    worker.run()
 
     # Assert: Verify the project has been updated
     updated_project = data_manager.get_project(project.id)

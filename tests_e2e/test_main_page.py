@@ -16,10 +16,10 @@ class TestMainPage:
 
         # Then
         # ページタイトルの確認
-        expect(page).to_have_title(re.compile('AI-MAN'))
+        expect(page).to_have_title(re.compile('AI Meeting Assistant'))
 
         # メインヘッダーの確認
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible()
 
     def test_サイドバーにプロジェクト作成フォームが表示されることを確認(
@@ -64,7 +64,7 @@ class TestMainPage:
         # Then
         # Streamlitの自動更新機能が正しく設定されているかを確認
         # 実際の更新処理は環境によって異なるため、基本的な要素の存在を確認
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible()
 
 
@@ -178,7 +178,7 @@ class TestResponsiveDesign:
         # Then
         # メインコンテンツとサイドバーが適切に表示されることを確認
         expect(page.locator('[data-testid="stSidebar"]')).to_be_visible()
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible()
 
     def test_モバイルレイアウトの表示をテスト(self, page_with_app: Page) -> None:
@@ -190,7 +190,7 @@ class TestResponsiveDesign:
 
         # Then
         # メインコンテンツが表示されることを確認
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible()
 
         # モバイルではサイドバーが折りたたまれる場合があるため、

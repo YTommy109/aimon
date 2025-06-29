@@ -38,9 +38,19 @@ class DataManager:
         self.projects_path = self.data_dir / 'projects.json'
         self.ai_tools_path = self.data_dir / 'ai_tools.json'
 
+        # projects.jsonがディレクトリとして存在する場合はエラー
+        if self.projects_path.exists() and self.projects_path.is_dir():
+            raise ValueError(
+                'projects.jsonがディレクトリとして存在します。ファイルである必要があります。'
+            )
+
         # プロジェクトファイルが存在しない場合は空のリストで初期化
         if not self.projects_path.exists():
             self._write_json(self.projects_path, [])
+
+        # AI toolsファイルが存在しない場合は空のリストで初期化
+        if not self.ai_tools_path.exists():
+            self._write_json(self.ai_tools_path, [])
 
     def get_projects(self) -> list[Project]:
         """保存されているすべてのプロジェクトを取得します。"""
@@ -136,5 +146,14 @@ class DataManager:
 
     def _write_json(self, path: Path, data: list[dict[str, Any]]) -> None:
         """JSONファイルに書き込みます。"""
+        # ターゲットがディレクトリの場合はエラー
+        if path.exists() and path.is_dir():
+            raise ValueError(
+                f'{path}がディレクトリとして存在します。ファイルである必要があります。'
+            )
+
+        # 親ディレクトリが存在することを確認
+        path.parent.mkdir(parents=True, exist_ok=True)
+
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2, default=str)

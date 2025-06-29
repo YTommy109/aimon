@@ -108,7 +108,7 @@ class TestErrorHandling:
 
         # Then
         # ページの基本要素が正しく読み込まれていることを確認
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible()
 
 
@@ -122,7 +122,7 @@ class TestPerformance:
 
         # When
         # メインコンテンツの読み込み完了を待つ
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible(timeout=10000)
 
         # Then
@@ -139,9 +139,9 @@ class TestPerformance:
 
         # Then
         # 自動更新が設定されていてもページが正常に動作することを確認
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         initial_title = header.text_content()
-        assert initial_title == 'AI-MAN: AI Multi-Agent Network'
+        assert initial_title == 'AI Meeting Assistant 🤖'
 
 
 class TestAccessibility:
@@ -187,7 +187,7 @@ class TestAccessibility:
         page = page_with_app
 
         # When
-        header = page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')
+        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
 
         # Then
         expect(header).to_be_visible()

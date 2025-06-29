@@ -27,9 +27,7 @@ def page_with_app(page: Page, base_url: str) -> Generator[Page, None, None]:
     # ファイル削除などを反映させるため、一度リロードを挟んで状態を確実にする
     page.reload()
     # Streamlitアプリが完全に読み込まれるまで待つ
-    expect(page.get_by_role('heading', name='AI-MAN: AI Multi-Agent Network')).to_be_visible(
-        timeout=10000
-    )
+    expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(timeout=10000)
 
     yield page
 

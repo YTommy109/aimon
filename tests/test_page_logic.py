@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.errors import ProjectAlreadyRunningError, RequiredFieldsEmptyError
 from app.model import Project, ProjectStatus
 from app.page_logic import handle_project_creation, handle_project_execution
 
@@ -43,7 +44,7 @@ def test_プロジェクト作成時に入力が不足している場合にエ�
     ai_tool = 'test_tool'
 
     # Act & Assert
-    with pytest.raises(ValueError, match='すべてのフィールドを入力してください'):
+    with pytest.raises(RequiredFieldsEmptyError, match='すべてのフィールドを入力してください'):
         handle_project_creation(name, source, ai_tool, mock_data_manager)
 
     mock_data_manager.create_project.assert_not_called()
@@ -108,14 +109,6 @@ def test_プロジェクト実行が正常に成功する(
     assert project.status == ProjectStatus.PENDING  # 実行前は Pending 状態
 
 
-def test_プロジェクトIDが未選択の場合にエラーメッセージを返す(
-    mock_data_manager: MagicMock,
-) -> None:
-    # Act & Assert
-    with pytest.raises(ValueError, match='プロジェクトを選択してください'):
-        handle_project_execution(None, mock_data_manager, running_workers={})
-
-
 def test_プロジェクトが既に実行中の場合にエラーメッセージを返す(
     mock_data_manager: MagicMock,
 ) -> None:
@@ -124,7 +117,9 @@ def test_プロジェクトが既に実行中の場合にエラーメッセー�
     running_workers = {project_id: MagicMock()}
 
     # Act & Assert
-    with pytest.raises(RuntimeError, match='このプロジェクトは既に実行中です'):
+    with pytest.raises(
+        ProjectAlreadyRunningError, match=f'プロジェクト {project_id} は既に実行中です'
+    ):
         handle_project_execution(
             project_id,
             mock_data_manager,

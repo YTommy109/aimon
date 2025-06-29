@@ -34,29 +34,33 @@ start env='':
     esac
 
 # 統合テストランナー
-# just test     -> pytest (ユニットテストとCIテスト)
-# just test ut  -> ユニットテスト
-# just test ci  -> CIテスト
-# just test e2e -> E2Eテスト
+# just test     -> pytest --testmon (変更の影響範囲のみテスト)
+# just test ut  -> ユニットテスト (変更の影響範囲のみ)
+# just test ci  -> CIテスト (変更の影響範囲のみ)
+# just test all -> 全件テスト
 test suite='':
     #!/usr/bin/env zsh
     set -euo pipefail
 
     case '{{suite}}' in
         '')
-            echo "Running unit and CI tests..."
-            pytest
+            echo "Running affected tests only..."
+            pytest --testmon
             ;;
         'ut')
-            echo "Running unit tests (excluding CI tests)..."
-            pytest -m "not ci" tests
+            echo "Running affected unit tests (excluding CI tests)..."
+            pytest --testmon -m "not ci" tests
             ;;
         'ci')
-            echo "Running CI tests..."
-            pytest -m "ci" tests/ci
+            echo "Running affected CI tests..."
+            pytest --testmon -m "ci" tests/ci
+            ;;
+        'all')
+            echo "Running all tests..."
+            pytest
             ;;
         *)
-            echo "Unknown test suite: '{{suite}}'. Available: 'ut', 'ci'"
+            echo "Unknown test suite: '{{suite}}'. Available: 'ut', 'ci', 'all'"
             exit 1
             ;;
     esac
@@ -67,7 +71,7 @@ test-e2e mode='':
     #!/usr/bin/env zsh
     set -euo pipefail
 
-    PYTEST_CMD="pytest tests-e2e --base-url {{BASE_URL}}"
+    PYTEST_CMD="pytest tests_e2e --base-url {{BASE_URL}}"
 
     case '{{mode}}' in
         '')
@@ -128,7 +132,7 @@ test-all mode='':
     echo "Running mypy..."
     just mypy
     echo "Running tests..."
-    just test
+    just test all
     
     case '{{mode}}' in
         '')
@@ -143,3 +147,6 @@ test-all mode='':
             exit 1
             ;;
     esac
+
+@watch:
+    fswatch -o app tests | xargs -n1 -I{} just test

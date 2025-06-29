@@ -4,6 +4,9 @@ source .venv/bin/activate
 # このファイルを .envrc にコピーして、あなたの環境に合わせて値を設定してください。
 # direnvなどのツールは、このファイルを読み込んで自動的に環境変数を設定します。
 
+# Pythonモジュールのインポートパス
+export PYTHONPATH="."
+
 # 開発環境で使用するデータディレクトリのパス
 export DATA_DIR=".data"
 

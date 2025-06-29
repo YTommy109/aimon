@@ -7,21 +7,11 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
 
+from app.errors import ProjectNotFoundError
+
 from .entities import AITool, Project, ProjectStatus
 
 logger = logging.getLogger('aiman')
-
-
-class DataManagerError(Exception):
-    """DataManager関連のベース例外クラス。"""
-
-    pass
-
-
-class ProjectNotFoundError(DataManagerError):
-    """指定されたプロジェクトが見つからない場合の例外。"""
-
-    pass
 
 
 class DataManager:
@@ -100,7 +90,7 @@ class DataManager:
         """指定されたプロジェクトのステータスを更新します。"""
         project = self.get_project(project_id)
         if project is None:
-            raise ProjectNotFoundError(f'Project with id {project_id} not found')
+            raise ProjectNotFoundError(project_id)
 
         if status == ProjectStatus.PROCESSING:
             project.start_processing()
@@ -115,7 +105,7 @@ class DataManager:
         """指定されたプロジェクトの実行結果を更新します。"""
         project = self.get_project(project_id)
         if project is None:
-            raise ProjectNotFoundError(f'Project with id {project_id} not found')
+            raise ProjectNotFoundError(project_id)
 
         project.complete(result)  # 結果を設定して完了状態に
         self._save_project(project)

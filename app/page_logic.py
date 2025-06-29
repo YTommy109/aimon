@@ -4,8 +4,13 @@ import logging
 from typing import Final
 from uuid import UUID
 
+from app.errors import (
+    ProjectAlreadyRunningError,
+    RequiredFieldsEmptyError,
+    WorkerError,
+)
 from app.model import DataManager, Project
-from app.worker import Worker, WorkerError
+from app.worker import Worker
 
 logger = logging.getLogger('aiman')
 running_workers: Final[dict[UUID, Worker]] = {}
@@ -29,10 +34,10 @@ def handle_project_creation(
         作成に失敗した場合は、プロジェクトオブジェクトはNoneになります。
 
     Raises:
-        ValueError: 入力値が不正な場合。
+        RequiredFieldsEmptyError: 必須フィールドが入力されていない場合。
     """
     if not all([name, source, ai_tool]):
-        raise ValueError('すべてのフィールドを入力してください。')
+        raise RequiredFieldsEmptyError()
 
     try:
         project = data_manager.create_project(name, source, ai_tool)
@@ -43,7 +48,7 @@ def handle_project_creation(
 
 
 def handle_project_execution(
-    project_id: UUID | None,
+    project_id: UUID,
     data_manager: DataManager,
     running_workers: dict[UUID, Worker],
 ) -> tuple[Worker | None, str]:
@@ -61,15 +66,11 @@ def handle_project_execution(
         開始に失敗した場合は、ワーカーインスタンスはNoneになります。
 
     Raises:
-        ValueError: プロジェクトIDが指定されていない場合。
-        RuntimeError: プロジェクトが既に実行中の場合。
+        ProjectAlreadyRunningError: プロジェクトが既に実行中の場合。
         WorkerError: ワーカーの起動に失敗した場合。
     """
-    if not project_id:
-        raise ValueError('プロジェクトを選択してください。')
-
     if project_id in running_workers:
-        raise RuntimeError('このプロジェクトは既に実行中です。')
+        raise ProjectAlreadyRunningError(project_id)
 
     try:
         worker = Worker(project_id, data_manager)
@@ -82,3 +83,31 @@ def handle_project_execution(
     except Exception as e:
         logger.error(f'予期せぬエラーが発生しました: {e}')
         return None, f'予期せぬエラーが発生しました: {e}'
+
+
+class PageLogic:
+    """ページの表示ロジックを管理するクラス。"""
+
+    def __init__(self, data_manager: DataManager) -> None:
+        """
+        PageLogicを初期化します。
+
+        Args:
+            data_manager: データマネージャーのインスタンス。
+        """
+        self.data_manager = data_manager
+
+    def validate_project_form(self, name: str, source: str, ai_tool: str) -> None:
+        """
+        プロジェクトフォームの入力値を検証します。
+
+        Args:
+            name: プロジェクト名。
+            source: ソースディレクトリのパス。
+            ai_tool: 使用するAIツール。
+
+        Raises:
+            RequiredFieldsEmptyError: 必須フィールドが入力されていない場合。
+        """
+        if not all([name, source, ai_tool]):
+            raise RequiredFieldsEmptyError()

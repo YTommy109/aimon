@@ -21,7 +21,6 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-mock>=3.0",
-    "pytest-watcher>=0.4.3",
     "playwright>=1.40.0",
     "pytest-playwright>=0.4.0",
     "types-openpyxl>=3.1.5.20250602",
@@ -70,15 +69,12 @@ known-first-party = ["app"]
 [tool.mypy]
 python_version = "3.12"
 disallow_untyped_defs = true
+# strict = true
 
 [[tool.mypy.overrides]]
 module = [
+    "google.*",
     "streamlit_autorefresh.*",
     "streamlit_modal.*",
-    "pandas.*",
-    "pydantic.*",
-    "pytest.*",
-    "google.*",
-    "streamlit.*",
 ]
 ignore_missing_imports = true

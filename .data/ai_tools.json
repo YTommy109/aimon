@@ -2,16 +2,26 @@
   {
     "id": "summarize_v1",
     "name_ja": "要約",
-    "description": "テキストファイルを要約します。"
+    "description": "テキストファイルを簡潔にまとめ、重要なポイントを抽出します。"
   },
   {
     "id": "translate_to_en_v1",
-    "name_ja": "英語に翻訳",
-    "description": "テキストファイルを英語に翻訳します。"
+    "name_ja": "英語翻訳",
+    "description": "日本語のテキストファイルを自然な英語に翻訳します。"
   },
   {
     "id": "analyze_sentiment_v1",
     "name_ja": "感情分析",
-    "description": "テキストファイルの感情を分析します。"
+    "description": "テキストの感情や論調を分析し、ポジティブ・ネガティブ・ニュートラルに分類します。"
+  },
+  {
+    "id": "extract_keywords_v1",
+    "name_ja": "キーワード抽出",
+    "description": "テキストから重要なキーワードやフレーズを自動的に抽出します。"
+  },
+  {
+    "id": "generate_outline_v1",
+    "name_ja": "アウトライン生成",
+    "description": "長文のテキストから論理的な構造に基づいたアウトラインを生成します。"
   }
 ]

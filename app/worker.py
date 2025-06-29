@@ -13,35 +13,25 @@ from uuid import UUID
 
 import google.generativeai as genai
 import openpyxl
+import pandas as pd
 from PIL import Image
 
-from app.model import DataManager, Project, ProjectNotFoundError
+from app.model import DataManager, Project
 
 from .config import config
-
-
-class WorkerError(Exception):
-    """Worker関連のベース例外クラス。"""
-
-    pass
-
-
-class ProjectProcessingError(WorkerError):
-    """プロジェクト処理中のエラー。"""
-
-    pass
-
-
-class APIConfigurationError(WorkerError):
-    """API設定関連のエラー。"""
-
-    pass
-
-
-class FileProcessingError(WorkerError):
-    """ファイル処理中のエラー。"""
-
-    pass
+from .errors import (
+    APICallFailedError,
+    APIConfigurationError,
+    APIConfigurationFailedError,
+    APIKeyNotSetError,
+    FileDeletingError,
+    FileProcessingError,
+    FileReadingError,
+    FileWritingError,
+    ProjectNotFoundError,
+    ProjectProcessingError,
+    WorkerError,
+)
 
 
 class Worker(Process):
@@ -76,7 +66,7 @@ class Worker(Process):
         try:
             project = self.data_manager.get_project(self.project_id)
             if not project:
-                raise ProjectProcessingError(f'Project with id {self.project_id} not found.')
+                raise ProjectProcessingError(self.project_id)
 
             project.start_processing()
             self.data_manager._save_project(project)
@@ -102,17 +92,15 @@ class Worker(Process):
         try:
             with self._handle_project_processing() as project:
                 if not config.GEMINI_API_KEY:
-                    raise APIConfigurationError('GEMINI_API_KEY environment variable not set.')
+                    raise APIKeyNotSetError()
 
                 genai.configure(api_key=config.GEMINI_API_KEY)
                 model = genai.GenerativeModel(config.GEMINI_MODEL_NAME)
 
                 self._execute_gemini_summarize(project, model)
 
-        except (WorkerError, ProjectNotFoundError) as e:
+        except (WorkerError, Exception) as e:
             self.logger.error(f'Worker error: {e}')
-        except Exception as e:
-            self.logger.error(f'Unexpected error in worker: {e}')
 
     def _process_xlsx(self, file_path: Path) -> tuple[str, list[Image.Image]]:
         """
@@ -126,12 +114,12 @@ class Worker(Process):
             抽出されたテキストと画像のリストのタプル。
 
         Raises:
-            FileProcessingError: ファイルの読み込みや処理に失敗した場合。
+            FileProcessingError: ファイルの処理に失敗した場合。
         """
         try:
             workbook = openpyxl.load_workbook(file_path)
         except Exception as e:
-            raise FileProcessingError(f'Excelファイルの読み込みに失敗しました: {e}')
+            raise FileReadingError(str(e))
 
         full_text: list[str] = []
         images: list[Image.Image] = []
@@ -206,10 +194,7 @@ class Worker(Process):
             try:
                 output_file.unlink()
             except Exception as e:
-                raise FileProcessingError(f'既存の出力ファイルの削除に失敗しました: {e}')
-
-        # サポートする拡張子
-        supported_extensions = ['*.txt', '*.xlsx']
+                raise FileDeletingError(str(e))
 
         try:
             with open(output_file, 'w', encoding='utf-8') as f_out:
@@ -217,7 +202,7 @@ class Worker(Process):
 
                 # 複数の拡張子を検索
                 files_to_process: list[Path] = []
-                for ext in supported_extensions:
+                for ext in ['*.txt', '*.xlsx']:
                     files_to_process.extend(source_path.glob(ext))
 
                 for file_path in files_to_process:
@@ -226,8 +211,11 @@ class Worker(Process):
                         content: str = ''
                         images: list[Image.Image] = []
                         if file_path.suffix == '.txt':
-                            with open(file_path, encoding='utf-8') as f_in:
-                                content = f_in.read()
+                            try:
+                                with open(file_path, encoding='utf-8') as f_in:
+                                    content = f_in.read()
+                            except Exception as e:
+                                raise FileReadingError(str(e))
                         elif file_path.suffix == '.xlsx':
                             content, images = self._process_xlsx(file_path)
 
@@ -263,13 +251,16 @@ class Worker(Process):
                                         'data': img_b64,
                                     }
                                 )
-                        with open(prompt_json_path, 'w', encoding='utf-8') as f_prompt:
-                            json.dump(prompt_for_json, f_prompt, ensure_ascii=False, indent=2)
+                        try:
+                            with open(prompt_json_path, 'w', encoding='utf-8') as f_prompt:
+                                json.dump(prompt_for_json, f_prompt, ensure_ascii=False, indent=2)
+                        except Exception as e:
+                            raise FileWritingError(str(e))
 
                         try:
                             response = model.generate_content(prompt)
                         except Exception as e:
-                            raise APIConfigurationError(f'Gemini APIの呼び出しに失敗しました: {e}')
+                            raise APICallFailedError(e)
 
                         f_out.write(f'## ファイル: {file_path.name}\n\n')
                         f_out.write('### 要約結果\n\n')
@@ -290,7 +281,7 @@ class Worker(Process):
                         f_out.write('---\n\n')
 
         except Exception as e:
-            raise FileProcessingError(f'出力ファイルの書き込みに失敗しました: {e}')
+            raise FileWritingError(str(e))
 
         result = {
             'processed_files': processed_files,
@@ -298,3 +289,78 @@ class Worker(Process):
         }
 
         self.data_manager.update_project_result(self.project_id, result)
+
+    def _read_excel_file(self, file_path: Path) -> pd.DataFrame:
+        """
+        Excelファイルを読み込みます。
+
+        Args:
+            file_path: 読み込むExcelファイルのパス。
+
+        Returns:
+            読み込んだデータフレーム。
+
+        Raises:
+            FileProcessingError: ファイルの処理に失敗した場合。
+        """
+        try:
+            return pd.read_excel(file_path)
+        except Exception as e:
+            raise FileReadingError(str(e))
+
+    def _delete_output_file(self, file_path: Path) -> None:
+        """
+        既存の出力ファイルを削除します。
+
+        Args:
+            file_path: 削除するファイルのパス。
+
+        Raises:
+            FileProcessingError: ファイルの処理に失敗した場合。
+        """
+        try:
+            file_path.unlink(missing_ok=True)
+        except Exception as e:
+            raise FileDeletingError(str(e))
+
+    def _write_output_file(self, file_path: Path, content: str) -> None:
+        """
+        出力ファイルを書き込みます。
+
+        Args:
+            file_path: 書き込むファイルのパス。
+            content: 書き込む内容。
+
+        Raises:
+            FileProcessingError: ファイルの処理に失敗した場合。
+        """
+        try:
+            file_path.write_text(content, encoding='utf-8')
+        except Exception as e:
+            raise FileWritingError(str(e))
+
+    def process_project(self) -> None:
+        """
+        プロジェクトを処理します。
+
+        Raises:
+            ProjectProcessingError: プロジェクトの処理中にエラーが発生した場合。
+            FileProcessingError: ファイルの処理に失敗した場合。
+            APIConfigurationError: APIの設定や呼び出しに失敗した場合。
+        """
+        try:
+            project = self.data_manager.get_project(self.project_id)
+            if project is None:
+                raise ProjectNotFoundError(self.project_id)
+
+            # Geminiモデルの初期化
+            try:
+                genai.configure(api_key=config.GEMINI_API_KEY)
+                model = genai.GenerativeModel('gemini-pro-vision')
+            except Exception as e:
+                raise APIConfigurationFailedError(e)
+
+            self._execute_gemini_summarize(project, model)
+
+        except Exception as e:
+            raise ProjectProcessingError(self.project_id) from e

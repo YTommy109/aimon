@@ -2,7 +2,6 @@
 
 import os
 import shutil
-from collections.abc import Generator
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -21,7 +20,7 @@ def clean_test_data_before_each_test() -> None:
 
 
 @pytest.fixture
-def page_with_app(page: Page, base_url: str) -> Generator[Page, None, None]:
+def page_with_app(page: Page, base_url: str) -> Page:
     """アプリケーションにアクセス済みのPageオブジェクトを返します"""
     page.goto(base_url)
     # ファイル削除などを反映させるため、一度リロードを挟んで状態を確実にする
@@ -29,8 +28,4 @@ def page_with_app(page: Page, base_url: str) -> Generator[Page, None, None]:
     # Streamlitアプリが完全に読み込まれるまで待つ
     expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(timeout=10000)
 
-    yield page
-
-    # --- Teardown ---
-    # テスト終了後、WebSocketが閉じるのを待つ時間を与える
-    page.wait_for_timeout(1000)
+    return page

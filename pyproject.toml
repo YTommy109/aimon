@@ -46,7 +46,7 @@ testpaths = [
 python_files = [
     "test_*.py"
 ]
-addopts = "--browser chromium --browser firefox --browser webkit"
+# addopts = "--browser chromium --browser firefox --browser webkit"
 
 [tool.ruff]
 line-length = 100

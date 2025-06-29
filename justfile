@@ -66,7 +66,7 @@ test suite='':
     esac
 
 # E2Eテストの実行
-# just test-e2e [headed|debug]
+# just test-e2e [headed|debug|smoke|core|ui|performance|accessibility]
 test-e2e mode='':
     #!/usr/bin/env zsh
     set -euo pipefail
@@ -75,7 +75,7 @@ test-e2e mode='':
 
     case '{{mode}}' in
         '')
-            # No extra args
+            # 全テスト実行
             ;;
         'headed')
             PYTEST_CMD="$PYTEST_CMD --headed"
@@ -83,8 +83,27 @@ test-e2e mode='':
         'debug')
             PYTEST_CMD="$PYTEST_CMD --headed --slowmo 1000"
             ;;
+        'smoke')
+            PYTEST_CMD="$PYTEST_CMD -k 'test_ページ全体の基本レイアウトが正しく表示される'"
+            ;;
+        'core')
+            PYTEST_CMD="$PYTEST_CMD -k 'test_プロジェクト作成フォーム or test_プロジェクト詳細モーダル'"
+            ;;
+        'ui')
+            PYTEST_CMD="$PYTEST_CMD -k 'test_デスクトップレイアウト or test_モバイルレイアウト'"
+            ;;
+        'performance')
+            PYTEST_CMD="$PYTEST_CMD -k 'test_ページの読み込み時間 or test_自動更新機能のパフォーマンス'"
+            ;;
+        'accessibility')
+            PYTEST_CMD="$PYTEST_CMD -k 'test_キーボードナビゲーション or test_ARIAラベル or test_カラーコントラスト'"
+            ;;
+        'single-browser')
+            PYTEST_CMD="pytest tests_e2e --base-url {{BASE_URL}} --browser chromium"
+            ;;
         *)
-            echo "Unknown test-e2e mode: '{{mode}}'. Available: 'headed', 'debug'"
+            echo "Unknown test-e2e mode: '{{mode}}'"
+            echo "Available: 'headed', 'debug', 'smoke', 'core', 'ui', 'performance', 'accessibility', 'single-browser'"
             exit 1
             ;;
     esac

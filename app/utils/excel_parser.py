@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import openpyxl
+from openpyxl.worksheet.worksheet import Worksheet
 from PIL import Image
 
 from app.errors import FileProcessingError, FileReadingError
@@ -21,6 +22,147 @@ class ExcelParser:
         self._text_content: str = ''
         self._images: list[Image.Image] = []
         self._parsed_data: dict[str, Any] = {}
+
+    def _process_sheet_images(
+        self, sheet: Worksheet, file_path: Path, image_count: int
+    ) -> tuple[dict[tuple[int, int], str], list[dict[str, Any]], list[Image.Image], int]:
+        """
+        シート内の画像を処理します。
+
+        Args:
+            sheet: 処理対象のシート。
+            file_path: Excelファイルのパス。
+            image_count: 現在の画像カウント。
+
+        Returns:
+            画像マーカー辞書、シート画像情報、画像リスト、更新された画像カウントのタプル。
+        """
+        image_markers: dict[tuple[int, int], str] = {}
+        sheet_images: list[dict[str, Any]] = []
+        images: list[Image.Image] = []
+
+        if sheet._images:  # type: ignore
+            for img in sheet._images:  # type: ignore
+                # openpyxlの画像オブジェクトからPillowの画像オブジェクトに変換
+                try:
+                    img_bytes = io.BytesIO(img._data())
+                    img_pil = Image.open(img_bytes)
+                    images.append(img_pil)
+
+                    # 画像のアンカーから位置を取得
+                    row = img.anchor._from.row + 1
+                    col = img.anchor._from.col + 1
+                    marker = f'[図:{image_count}]'
+                    image_markers[(row, col)] = marker
+
+                    # 画像情報を保存
+                    sheet_images.append(
+                        {'figure_number': image_count, 'row': row, 'col': col, 'marker': marker}
+                    )
+                    image_count += 1
+                except Exception as e:
+                    self.logger.warning(f'{file_path}の画像処理に失敗しました: {e}')
+
+        return image_markers, sheet_images, images, image_count
+
+    def _process_sheet_cells(self, sheet: Worksheet) -> dict[tuple[int, int], str]:
+        """
+        シート内のセルを処理します。
+
+        Args:
+            sheet: 処理対象のシート。
+
+        Returns:
+            セル値の辞書。
+        """
+        cell_values: dict[tuple[int, int], str] = {}
+        for row_data in sheet.iter_rows():
+            for cell in row_data:
+                if cell.value is not None:
+                    cell_values[(cell.row, cell.column)] = str(cell.value)
+        return cell_values
+
+    def _apply_image_markers(
+        self, cell_values: dict[tuple[int, int], str], image_markers: dict[tuple[int, int], str]
+    ) -> dict[tuple[int, int], str]:
+        """
+        セル値に画像マーカーを適用します。
+
+        Args:
+            cell_values: セル値の辞書。
+            image_markers: 画像マーカーの辞書。
+
+        Returns:
+            マーカーが適用されたセル値の辞書。
+        """
+        for (row, col), marker in image_markers.items():
+            if (row, col) in cell_values:
+                cell_values[(row, col)] = marker + ' ' + cell_values[(row, col)]
+            else:
+                cell_values[(row, col)] = marker
+        return cell_values
+
+    def _build_sheet_text(self, cell_values: dict[tuple[int, int], str]) -> list[str]:
+        """
+        セル値からシートのテキストを構築します。
+
+        Args:
+            cell_values: セル値の辞書。
+
+        Returns:
+            シートのテキスト行のリスト。
+        """
+        sheet_text_lines: list[str] = []
+        if cell_values:
+            max_row = max(key[0] for key in cell_values.keys())
+            max_col = max(key[1] for key in cell_values.keys())
+            for r in range(1, max_row + 1):
+                row_text = []
+                for c in range(1, max_col + 1):
+                    row_text.append(cell_values.get((r, c), ''))
+                sheet_text_lines.append('\t'.join(row_text))
+        return sheet_text_lines
+
+    def _process_single_sheet(
+        self, sheet: Worksheet, sheet_name: str, file_path: Path, image_count: int
+    ) -> tuple[list[str], list[Image.Image], dict[str, Any], int]:
+        """
+        単一のシートを処理します。
+
+        Args:
+            sheet: 処理対象のシート。
+            sheet_name: シート名。
+            file_path: Excelファイルのパス。
+            image_count: 現在の画像カウント。
+
+        Returns:
+            テキスト行、画像、シートデータ、更新された画像カウントのタプル。
+        """
+        # 画像処理
+        image_markers, sheet_images, images, updated_count = self._process_sheet_images(
+            sheet, file_path, image_count
+        )
+
+        # セル処理
+        cell_values = self._process_sheet_cells(sheet)
+
+        # 画像マーカー適用
+        cell_values = self._apply_image_markers(cell_values, image_markers)
+
+        # テキスト構築
+        sheet_text_lines = self._build_sheet_text(cell_values)
+
+        # シートデータ構築
+        serializable_cell_values = {
+            f'{row},{col}': value for (row, col), value in cell_values.items()
+        }
+        sheet_data = {
+            'text_lines': sheet_text_lines,
+            'images': sheet_images,
+            'cell_values': serializable_cell_values,
+        }
+
+        return sheet_text_lines, images, sheet_data, updated_count
 
     def parse(self, file_path: Path) -> None:
         """
@@ -39,7 +181,7 @@ class ExcelParser:
             raise FileReadingError(f'Excelファイルの読み込みに失敗しました: {e}') from e
 
         full_text: list[str] = []
-        images: list[Image.Image] = []
+        all_images: list[Image.Image] = []
         image_count = 1
         sheets_data: dict[str, Any] = {}
 
@@ -47,74 +189,19 @@ class ExcelParser:
             sheet = workbook[sheet_name]
             full_text.append(f'---シート: {sheet_name}---\n')
 
-            # 画像の位置を特定し、マーカーを挿入するための辞書
-            image_markers: dict[tuple[int, int], str] = {}
-            sheet_images: list[dict[str, Any]] = []
-
-            if sheet._images:  # type: ignore
-                for img in sheet._images:  # type: ignore
-                    # openpyxlの画像オブジェクトからPillowの画像オブジェクトに変換
-                    try:
-                        img_bytes = io.BytesIO(img._data())
-                        img_pil = Image.open(img_bytes)
-                        images.append(img_pil)
-
-                        # 画像のアンカーから位置を取得
-                        row = img.anchor._from.row + 1
-                        col = img.anchor._from.col + 1
-                        marker = f'[図:{image_count}]'
-                        image_markers[(row, col)] = marker
-
-                        # 画像情報を保存
-                        sheet_images.append(
-                            {'figure_number': image_count, 'row': row, 'col': col, 'marker': marker}
-                        )
-                        image_count += 1
-                    except Exception as e:
-                        self.logger.warning(f'{file_path}の画像処理に失敗しました: {e}')
-
-            # セルの内容を読み込み、画像マーカーを挿入
-            cell_values: dict[tuple[int, int], str] = {}
-            for row_data in sheet.iter_rows():
-                for cell in row_data:
-                    if cell.value is not None:
-                        cell_values[(cell.row, cell.column)] = str(cell.value)
-
-            # マーカーの位置にマーカーを追加
-            for (row, col), marker in image_markers.items():
-                if (row, col) in cell_values:
-                    cell_values[(row, col)] = marker + ' ' + cell_values[(row, col)]
-                else:
-                    cell_values[(row, col)] = marker
-
-            # シートのテキストを再構築
-            sheet_text_lines: list[str] = []
-            if cell_values:
-                max_row = max(key[0] for key in cell_values.keys())
-                max_col = max(key[1] for key in cell_values.keys())
-                for r in range(1, max_row + 1):
-                    row_text = []
-                    for c in range(1, max_col + 1):
-                        row_text.append(cell_values.get((r, c), ''))
-                    sheet_text_lines.append('\t'.join(row_text))
+            sheet_text_lines, sheet_images, sheet_data, image_count = self._process_single_sheet(
+                sheet, sheet_name, file_path, image_count
+            )
 
             full_text.extend(sheet_text_lines)
-
-            # シートデータを保存（cell_valuesのキーを文字列に変換）
-            serializable_cell_values = {
-                f'{row},{col}': value for (row, col), value in cell_values.items()
-            }
-            sheets_data[sheet_name] = {
-                'text_lines': sheet_text_lines,
-                'images': sheet_images,
-                'cell_values': serializable_cell_values,
-            }
+            all_images.extend(sheet_images)
+            sheets_data[sheet_name] = sheet_data
 
         self._text_content = '\n'.join(full_text)
-        self._images = images
+        self._images = all_images
         self._parsed_data = {
             'file_path': str(file_path),
-            'total_images': len(images),
+            'total_images': len(all_images),
             'sheets': sheets_data,
         }
 

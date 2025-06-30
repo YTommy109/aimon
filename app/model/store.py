@@ -11,6 +11,9 @@ from app.errors import ProjectNotFoundError
 
 from .entities import AITool, Project, ProjectStatus
 
+# 明示的にエクスポート
+__all__ = ['DataManager', 'ProjectNotFoundError']
+
 logger = logging.getLogger('aiman')
 
 

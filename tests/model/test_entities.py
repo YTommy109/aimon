@@ -30,10 +30,10 @@ class TestProjectStatus:
 
     def test_ProjectStatusの値が正しく定義されている(self) -> None:
         # Arrange & Act & Assert
-        assert ProjectStatus.PENDING == 'Pending'
-        assert ProjectStatus.PROCESSING == 'Processing'
-        assert ProjectStatus.FAILED == 'Failed'
-        assert ProjectStatus.COMPLETED == 'Completed'
+        assert ProjectStatus.PENDING.value == 'Pending'
+        assert ProjectStatus.PROCESSING.value == 'Processing'
+        assert ProjectStatus.FAILED.value == 'Failed'
+        assert ProjectStatus.COMPLETED.value == 'Completed'
 
 
 class TestProject:

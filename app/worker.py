@@ -94,8 +94,8 @@ class Worker(Process):
                 if not config.GEMINI_API_KEY:
                     raise APIKeyNotSetError()
 
-                genai.configure(api_key=config.GEMINI_API_KEY)
-                model = genai.GenerativeModel(config.GEMINI_MODEL_NAME)
+                genai.configure(api_key=config.GEMINI_API_KEY)  # type: ignore[attr-defined]
+                model = genai.GenerativeModel(config.GEMINI_MODEL_NAME)  # type: ignore[attr-defined]
 
                 self._execute_gemini_summarize(project, model)
 
@@ -120,7 +120,7 @@ class Worker(Process):
         parser.parse(file_path)
         return parser.get_text(), parser.get_images()
 
-    def _execute_gemini_summarize(self, project: Project, model: genai.GenerativeModel) -> None:
+    def _execute_gemini_summarize(self, project: Project, model: genai.GenerativeModel) -> None:  # type: ignore[name-defined]
         """指定されたディレクトリ内のテキストファイルを要約し、結果をファイルに書き出します。
 
         Args:
@@ -300,8 +300,8 @@ class Worker(Process):
 
             # Geminiモデルの初期化
             try:
-                genai.configure(api_key=config.GEMINI_API_KEY)
-                model = genai.GenerativeModel('gemini-pro-vision')
+                genai.configure(api_key=config.GEMINI_API_KEY)  # type: ignore[attr-defined]
+                model = genai.GenerativeModel('gemini-pro-vision')  # type: ignore[attr-defined]
             except Exception as e:
                 raise APIConfigurationFailedError(e)
 

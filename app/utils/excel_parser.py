@@ -55,13 +55,13 @@ class ExcelParser:
                 for img in sheet._images:  # type: ignore
                     # openpyxlの画像オブジェクトからPillowの画像オブジェクトに変換
                     try:
-                        img_bytes = io.BytesIO(img._data())  # type: ignore
+                        img_bytes = io.BytesIO(img._data())
                         img_pil = Image.open(img_bytes)
                         images.append(img_pil)
 
                         # 画像のアンカーから位置を取得
-                        row = img.anchor._from.row + 1  # type: ignore
-                        col = img.anchor._from.col + 1  # type: ignore
+                        row = img.anchor._from.row + 1
+                        col = img.anchor._from.col + 1
                         marker = f'[図:{image_count}]'
                         image_markers[(row, col)] = marker
 

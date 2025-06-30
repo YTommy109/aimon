@@ -69,7 +69,7 @@ known-first-party = ["app"]
 [tool.mypy]
 python_version = "3.12"
 disallow_untyped_defs = true
-# strict = true
+strict = true
 
 [[tool.mypy.overrides]]
 module = [

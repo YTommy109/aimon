@@ -58,6 +58,7 @@ select = [
     "I",   # isort
     "UP",  # pyupgrade
     "PT",  # flake8-pytest-style
+    "C90", # flake8-comprehensions
 ]
 
 [tool.ruff.format]
@@ -65,6 +66,9 @@ quote-style = "single"
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 16
 
 [tool.mypy]
 python_version = "3.12"

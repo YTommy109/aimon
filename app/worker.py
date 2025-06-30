@@ -9,6 +9,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from multiprocessing import Process
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import google.generativeai as genai
@@ -50,6 +51,18 @@ class Worker(Process):
         self.data_manager = data_manager
         self.logger = logging.getLogger('aiman')
 
+    def _handle_project_error(self, project: Project | None, e: Exception) -> None:
+        """プロジェクト処理エラーをハンドリングします。"""
+        self.logger.error(f'Error processing project {self.project_id}: {e}')
+        if project:
+            error_message = str(e)
+            if isinstance(e, FileProcessingError):
+                error_message = f'ファイル処理エラー: {e}'
+            elif isinstance(e, APIConfigurationError):
+                error_message = f'API設定エラー: {e}'
+            project.fail({'error': error_message})
+            self.data_manager._save_project(project)
+
     @contextmanager
     def _handle_project_processing(self) -> Generator[Project, None, None]:
         """プロジェクト処理のコンテキストマネージャー。
@@ -74,15 +87,7 @@ class Worker(Process):
             yield project
 
         except Exception as e:
-            self.logger.error(f'Error processing project {self.project_id}: {e}')
-            if project:
-                error_message = str(e)
-                if isinstance(e, FileProcessingError):
-                    error_message = f'ファイル処理エラー: {e}'
-                elif isinstance(e, APIConfigurationError):
-                    error_message = f'API設定エラー: {e}'
-                project.fail({'error': error_message})
-                self.data_manager._save_project(project)
+            self._handle_project_error(project, e)
             raise
 
     def run(self) -> None:
@@ -183,25 +188,18 @@ class Worker(Process):
 
         return content, images
 
-    def _create_prompt_json(self, prompt: list[str | Image.Image], file_path: Path) -> None:
-        """プロンプトをJSONファイルとして保存します。
-
-        Args:
-            prompt: プロンプトのリスト。
-            file_path: 元ファイルのパス。
-
-        Raises:
-            FileWritingError: ファイル書き込みに失敗した場合。
-        """
-        prompt_json_path = file_path.parent / 'prompt.json'
-        prompt_for_json = []
-
-        # テキスト部分
+    def _add_text_to_prompt_json(
+        self, prompt: list[str | Image.Image], prompt_for_json: list[dict[str, Any]]
+    ) -> None:
+        """テキスト部分をプロンプトJSONに追加します。"""
         for item in prompt:
             if isinstance(item, str):
                 prompt_for_json.append({'type': 'text', 'data': item})
 
-        # 画像部分（figure番号を付与）
+    def _add_images_to_prompt_json(
+        self, prompt: list[str | Image.Image], prompt_for_json: list[dict[str, Any]]
+    ) -> None:
+        """画像部分をプロンプトJSONに追加します。"""
         for idx, item in enumerate(prompt):
             if isinstance(item, Image.Image):
                 buffered = io.BytesIO()
@@ -214,6 +212,22 @@ class Worker(Process):
                         'data': img_b64,
                     }
                 )
+
+    def _create_prompt_json(self, prompt: list[str | Image.Image], file_path: Path) -> None:
+        """プロンプトをJSONファイルとして保存します。
+
+        Args:
+            prompt: プロンプトのリスト。
+            file_path: 元ファイルのパス。
+
+        Raises:
+            FileWritingError: ファイル書き込みに失敗した場合。
+        """
+        prompt_json_path = file_path.parent / 'prompt.json'
+        prompt_for_json: list[dict[str, Any]] = []
+
+        self._add_text_to_prompt_json(prompt, prompt_for_json)
+        self._add_images_to_prompt_json(prompt, prompt_for_json)
 
         try:
             with open(prompt_json_path, 'w', encoding='utf-8') as f_prompt:
@@ -246,40 +260,63 @@ class Worker(Process):
                 self.logger.warning(f'File {file_path.name} is empty. Skipping.')
                 return False
 
-            prompt: list[str | Image.Image] = [
-                f'以下の文章と図の内容を日本語で3行で要約し、各図の内容も簡単に解説してください。\n\n---\n{content}'
-            ]
-            # 画像があればプロンプトに追加
-            if images:
-                prompt.extend(images)
-
-            self._create_prompt_json(prompt, file_path)
-
-            try:
-                response = model.generate_content(prompt)
-            except Exception as e:
-                raise APICallFailedError(e)
-
-            f_out.write(f'## ファイル: {file_path.name}\n\n')
-            f_out.write('### 要約結果\n\n')
-            f_out.write(response.text)
-            f_out.write('\n\n---\n\n')
-
-            time.sleep(config.API_RATE_LIMIT_DELAY)  # APIのレート制限を考慮
-            return True
+            return self._process_file_content(file_path, content, images, model, f_out)
 
         except FileProcessingError as e:
-            self.logger.error(f'Failed to process {file_path.name}: {e}')
-            f_out.write(f'## ファイル: {file_path.name}\n\n')
-            f_out.write(f'**エラー:** ファイル処理中にエラーが発生しました: {e}\n\n')
-            f_out.write('---\n\n')
-            return False
+            return self._handle_file_processing_error(file_path, f_out, e)
         except APIConfigurationError as e:
-            self.logger.error(f'API error while processing {file_path.name}: {e}')
-            f_out.write(f'## ファイル: {file_path.name}\n\n')
-            f_out.write(f'**エラー:** API呼び出し中にエラーが発生しました: {e}\n\n')
-            f_out.write('---\n\n')
-            return False
+            return self._handle_api_error(file_path, f_out, e)
+
+    def _handle_file_processing_error(
+        self, file_path: Path, f_out: io.TextIOWrapper, e: FileProcessingError
+    ) -> bool:
+        """ファイル処理エラーをハンドリングします。"""
+        self.logger.error(f'Failed to process {file_path.name}: {e}')
+        f_out.write(f'## ファイル: {file_path.name}\n\n')
+        f_out.write(f'**エラー:** ファイル処理中にエラーが発生しました: {e}\n\n')
+        f_out.write('---\n\n')
+        return False
+
+    def _handle_api_error(
+        self, file_path: Path, f_out: io.TextIOWrapper, e: APIConfigurationError
+    ) -> bool:
+        """API設定エラーをハンドリングします。"""
+        self.logger.error(f'API error while processing {file_path.name}: {e}')
+        f_out.write(f'## ファイル: {file_path.name}\n\n')
+        f_out.write(f'**エラー:** API呼び出し中にエラーが発生しました: {e}\n\n')
+        f_out.write('---\n\n')
+        return False
+
+    def _process_file_content(
+        self,
+        file_path: Path,
+        content: str,
+        images: list[Image.Image],
+        model: genai.GenerativeModel,  # type: ignore[name-defined]
+        f_out: io.TextIOWrapper,
+    ) -> bool:
+        """ファイルコンテンツを処理します。"""
+        prompt: list[str | Image.Image] = [
+            f'以下の文章と図の内容を日本語で3行で要約し、各図の内容も簡単に解説してください。\n\n---\n{content}'
+        ]
+        # 画像があればプロンプトに追加
+        if images:
+            prompt.extend(images)
+
+        self._create_prompt_json(prompt, file_path)
+
+        try:
+            response = model.generate_content(prompt)
+        except Exception as e:
+            raise APICallFailedError(e)
+
+        f_out.write(f'## ファイル: {file_path.name}\n\n')
+        f_out.write('### 要約結果\n\n')
+        f_out.write(response.text)
+        f_out.write('\n\n---\n\n')
+
+        time.sleep(config.API_RATE_LIMIT_DELAY)  # APIのレート制限を考慮
+        return True
 
     def _execute_gemini_summarize(self, project: Project, model: genai.GenerativeModel) -> None:  # type: ignore[name-defined]
         """指定されたディレクトリ内のテキストファイルを要約し、結果をファイルに書き出します。

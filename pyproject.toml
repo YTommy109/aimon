@@ -68,7 +68,7 @@ quote-style = "single"
 known-first-party = ["app"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 10
+max-complexity = 7
 
 [tool.mypy]
 python_version = "3.12"

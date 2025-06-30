@@ -1,7 +1,9 @@
 """ExcelParserのテストケース。"""
 
 import json
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import openpyxl
 import pytest
@@ -193,52 +195,52 @@ class TestExcelParser:
         with pytest.raises(FileProcessingError):
             parser.export_json(invalid_path)
 
-    def test_画像を含むExcelファイルのシミュレーション処理が正しく行われる(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # Arrange
-        test_image = Image.new('RGB', (100, 100), color='red')
-        test_file = tmp_path / 'test_with_image.xlsx'
-        workbook = openpyxl.Workbook()
-        sheet = workbook.active
-        assert sheet is not None
-        sheet['A1'] = 'Text with image'
+    def _extract_cell_values_from_sheet(
+        self, sheet: openpyxl.worksheet.worksheet.Worksheet
+    ) -> dict[tuple[int, int], str]:
+        """シートからセル値を抽出する"""
+        cell_values = {}
+        for row_data in sheet.iter_rows():
+            for cell in row_data:
+                if cell.value is not None:
+                    cell_values[(cell.row, cell.column)] = str(cell.value)
+        return cell_values
 
-        def mock_process_with_image(self: ExcelParser, file_path: Path) -> None:
-            # 通常の処理
+    def _build_text_from_cell_values(
+        self, cell_values: dict[tuple[int, int], str], full_text: list[str]
+    ) -> None:
+        """セル値からテキストを構築する"""
+        if cell_values:
+            keys = list(cell_values.keys())
+            max_row = max(key[0] for key in keys)
+            max_col = max(key[1] for key in keys)
+            for r in range(1, max_row + 1):
+                row_text = []
+                for c in range(1, max_col + 1):
+                    row_text.append(cell_values.get((r, c), ''))
+                full_text.append('\t'.join(row_text))
+
+    def _create_mock_process_with_image(
+        self, test_image: Image.Image
+    ) -> Callable[[ExcelParser, Path], None]:
+        """画像を含むExcelファイルの処理をシミュレートするモック関数を作成する"""
+
+        def mock_process_with_image(parser: ExcelParser, file_path: Path) -> None:
             workbook = openpyxl.load_workbook(file_path)
             full_text = ['---シート: Sheet---\n']
             sheet = workbook.active
             assert sheet is not None
 
-            # セルの内容を読み込み
-            cell_values = {}
-            for row_data in sheet.iter_rows():
-                for cell in row_data:
-                    if cell.value is not None:
-                        cell_values[(cell.row, cell.column)] = str(cell.value)
-
-            # 画像マーカーを追加（シミュレーション）
+            cell_values = self._extract_cell_values_from_sheet(sheet)
             cell_values[(1, 1)] = '[図:1] ' + cell_values.get((1, 1), '')
+            self._build_text_from_cell_values(cell_values, full_text)
 
-            # テキストを再構築
-            if cell_values:
-                keys = list(cell_values.keys())
-                max_row = max(key[0] for key in keys)
-                max_col = max(key[1] for key in keys)
-                for r in range(1, max_row + 1):
-                    row_text = []
-                    for c in range(1, max_col + 1):
-                        row_text.append(cell_values.get((r, c), ''))
-                    full_text.append('\t'.join(row_text))
-
-            self._text_content = '\n'.join(full_text)
-            self._images = [test_image]  # テスト画像を追加
-            # cell_valuesのキーをJSON対応文字列に変換
+            parser._text_content = '\n'.join(full_text)
+            parser._images = [test_image]
             serializable_cell_values = {
                 f'{row},{col}': value for (row, col), value in cell_values.items()
             }
-            self._parsed_data = {
+            parser._parsed_data = {
                 'file_path': str(file_path),
                 'total_images': 1,
                 'sheets': {
@@ -250,7 +252,32 @@ class TestExcelParser:
                 },
             }
 
-        monkeypatch.setattr(ExcelParser, 'parse', mock_process_with_image)
+        return mock_process_with_image
+
+    def _assert_image_simulation_results(
+        self, text: str, images: list[Image.Image], json_data: dict[str, Any]
+    ) -> None:
+        """画像シミュレーション結果のアサーションを実行する"""
+        assert '[図:1]' in text
+        assert len(images) == 1
+        assert isinstance(images[0], Image.Image)
+        assert json_data['total_images'] == 1
+        assert len(json_data['images']) == 1
+        assert json_data['images'][0]['figure_number'] == 1
+
+    def test_画像を含むExcelファイルのシミュレーション処理が正しく行われる(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Arrange
+        test_image = Image.new('RGB', (100, 100), color='red')
+        test_file = tmp_path / 'test_with_image.xlsx'
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        assert sheet is not None
+        sheet['A1'] = 'Text with image'
+
+        mock_function = self._create_mock_process_with_image(test_image)
+        monkeypatch.setattr(ExcelParser, 'parse', mock_function)
         workbook.save(test_file)
         parser = ExcelParser()
 
@@ -261,12 +288,7 @@ class TestExcelParser:
         json_data = parser.to_json()
 
         # Assert
-        assert '[図:1]' in text
-        assert len(images) == 1
-        assert isinstance(images[0], Image.Image)
-        assert json_data['total_images'] == 1
-        assert len(json_data['images']) == 1
-        assert json_data['images'][0]['figure_number'] == 1
+        self._assert_image_simulation_results(text, images, json_data)
 
     def test_複雑なExcel構造の解析が正しく行われる(self, tmp_path: Path) -> None:
         # Arrange

@@ -103,40 +103,40 @@ class FileProcessingError(WorkerError):
 class FileReadingError(FileProcessingError):
     """ファイルの読み込みに失敗した場合の例外クラス。"""
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, file_path: str) -> None:
         """
         例外を初期化します。
 
         Args:
-            message: エラーメッセージ。
+            file_path: 読み込みに失敗したファイルパス。
         """
-        super().__init__(f'Excelファイルの読み込みに失敗しました: {message}')
+        super().__init__(f'ファイル {file_path} の読み込みに失敗しました')
 
 
 class FileWritingError(FileProcessingError):
     """ファイルの書き込みに失敗した場合の例外クラス。"""
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, file_path: str) -> None:
         """
         例外を初期化します。
 
         Args:
-            message: エラーメッセージ。
+            file_path: 書き込みに失敗したファイルパス。
         """
-        super().__init__(f'出力ファイルの書き込みに失敗しました: {message}')
+        super().__init__(f'ファイル {file_path} の書き込みに失敗しました')
 
 
 class FileDeletingError(FileProcessingError):
     """ファイルの削除に失敗した場合の例外クラス。"""
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, file_path: str) -> None:
         """
         例外を初期化します。
 
         Args:
-            message: エラーメッセージ。
+            file_path: 削除に失敗したファイルパス。
         """
-        super().__init__(f'既存の出力ファイルの削除に失敗しました: {message}')
+        super().__init__(f'ファイル {file_path} の削除に失敗しました')
 
 
 class DataManagerError(WorkerError):

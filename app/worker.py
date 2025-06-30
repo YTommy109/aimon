@@ -12,11 +12,11 @@ from pathlib import Path
 from uuid import UUID
 
 import google.generativeai as genai
-import openpyxl
 import pandas as pd
 from PIL import Image
 
 from app.model import DataManager, Project
+from app.utils import ExcelParser
 
 from .config import config
 from .errors import (
@@ -105,7 +105,7 @@ class Worker(Process):
     def _process_xlsx(self, file_path: Path) -> tuple[str, list[Image.Image]]:
         """
         Excelファイルからテキストと画像を抽出します。
-        画像はファイルから抽出し、テキスト内の画像があった場所には'[図:X]'という形式でマークが挿入されます。
+        ExcelParserユーティリティを使用して処理を行います。
 
         Args:
             file_path: 処理対象のExcelファイルのパス。
@@ -116,64 +116,9 @@ class Worker(Process):
         Raises:
             FileProcessingError: ファイルの処理に失敗した場合。
         """
-        try:
-            workbook = openpyxl.load_workbook(file_path)
-        except Exception as e:
-            raise FileReadingError(str(e))
-
-        full_text: list[str] = []
-        images: list[Image.Image] = []
-        image_count = 1
-
-        for sheet_name in workbook.sheetnames:
-            sheet = workbook[sheet_name]
-            full_text.append(f'---シート: {sheet_name}---\n')
-
-            # 画像の位置を特定し、マーカーを挿入するための辞書
-            image_markers: dict[tuple[int, int], str] = {}
-            if sheet._images:  # type: ignore
-                for img in sheet._images:  # type: ignore
-                    # openpyxlの画像オブジェクトからPillowの画像オブジェクトに変換
-                    try:
-                        img_bytes = io.BytesIO(img._data())  # type: ignore
-                        img_pil = Image.open(img_bytes)
-                        images.append(img_pil)
-
-                        # 画像のアンカーから位置を取得
-                        row = img.anchor._from.row + 1  # type: ignore
-                        col = img.anchor._from.col + 1  # type: ignore
-                        marker = f'[図:{image_count}]'
-                        image_markers[(row, col)] = marker
-                        image_count += 1
-                    except Exception as e:
-                        self.logger.warning(f'Could not process an image in {file_path}: {e}')
-
-            # セルの内容を読み込み、画像マーカーを挿入
-            # セルの値とマーカーを結合するための辞書
-            cell_values: dict[tuple[int, int], str] = {}
-            for row_data in sheet.iter_rows():
-                for cell in row_data:
-                    if cell.value is not None:
-                        cell_values[(cell.row, cell.column)] = str(cell.value)
-
-            # マーカーの位置にマーカーを追加
-            for (row, col), marker in image_markers.items():
-                if (row, col) in cell_values:
-                    cell_values[(row, col)] = marker + ' ' + cell_values[(row, col)]
-                else:
-                    cell_values[(row, col)] = marker
-
-            # シートのテキストを再構築
-            if cell_values:
-                max_row = max(key[0] for key in cell_values.keys())
-                max_col = max(key[1] for key in cell_values.keys())
-                for r in range(1, max_row + 1):
-                    row_text = []
-                    for c in range(1, max_col + 1):
-                        row_text.append(cell_values.get((r, c), ''))
-                    full_text.append('\t'.join(row_text))
-
-        return '\n'.join(full_text), images
+        parser = ExcelParser()
+        parser.parse(file_path)
+        return parser.get_text(), parser.get_images()
 
     def _execute_gemini_summarize(self, project: Project, model: genai.GenerativeModel) -> None:
         """指定されたディレクトリ内のテキストファイルを要約し、結果をファイルに書き出します。
@@ -193,8 +138,8 @@ class Worker(Process):
         if output_file.exists():
             try:
                 output_file.unlink()
-            except Exception as e:
-                raise FileDeletingError(str(e))
+            except Exception:
+                raise FileDeletingError(str(output_file))
 
         try:
             with open(output_file, 'w', encoding='utf-8') as f_out:
@@ -214,8 +159,8 @@ class Worker(Process):
                             try:
                                 with open(file_path, encoding='utf-8') as f_in:
                                     content = f_in.read()
-                            except Exception as e:
-                                raise FileReadingError(str(e))
+                            except Exception:
+                                raise FileReadingError(str(file_path))
                         elif file_path.suffix == '.xlsx':
                             content, images = self._process_xlsx(file_path)
 
@@ -254,8 +199,8 @@ class Worker(Process):
                         try:
                             with open(prompt_json_path, 'w', encoding='utf-8') as f_prompt:
                                 json.dump(prompt_for_json, f_prompt, ensure_ascii=False, indent=2)
-                        except Exception as e:
-                            raise FileWritingError(str(e))
+                        except Exception:
+                            raise FileWritingError(str(prompt_json_path))
 
                         try:
                             response = model.generate_content(prompt)
@@ -280,8 +225,8 @@ class Worker(Process):
                         f_out.write(f'**エラー:** API呼び出し中にエラーが発生しました: {e}\n\n')
                         f_out.write('---\n\n')
 
-        except Exception as e:
-            raise FileWritingError(str(e))
+        except Exception:
+            raise FileWritingError(str(output_file))
 
         result = {
             'processed_files': processed_files,
@@ -305,8 +250,8 @@ class Worker(Process):
         """
         try:
             return pd.read_excel(file_path)
-        except Exception as e:
-            raise FileReadingError(str(e))
+        except Exception:
+            raise FileReadingError(str(file_path))
 
     def _delete_output_file(self, file_path: Path) -> None:
         """
@@ -320,8 +265,8 @@ class Worker(Process):
         """
         try:
             file_path.unlink(missing_ok=True)
-        except Exception as e:
-            raise FileDeletingError(str(e))
+        except Exception:
+            raise FileDeletingError(str(file_path))
 
     def _write_output_file(self, file_path: Path, content: str) -> None:
         """
@@ -336,8 +281,8 @@ class Worker(Process):
         """
         try:
             file_path.write_text(content, encoding='utf-8')
-        except Exception as e:
-            raise FileWritingError(str(e))
+        except Exception:
+            raise FileWritingError(str(file_path))
 
     def process_project(self) -> None:
         """

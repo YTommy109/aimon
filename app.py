@@ -1,6 +1,5 @@
 import argparse
 
-from app.config import Config
 from app.main_page import render_main_page
 
 # Streamlitはスクリプトを再実行する可能性があるため、引数の解釈と
@@ -20,7 +19,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    Config.APP_ENV = args.app_env
+    # configインスタンスのAPP_ENVを更新
+    from app.config import config
+
+    config.APP_ENV = args.app_env
 
     render_main_page()
 

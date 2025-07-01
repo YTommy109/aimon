@@ -4,7 +4,7 @@ import streamlit as st
 from streamlit_modal import Modal
 
 from ..model import DataManager, Project, ProjectStatus
-from ..page_logic import handle_project_execution
+from ..service.execution import handle_project_execution
 
 
 def _get_status_icon(project: Project, is_running: bool) -> str:

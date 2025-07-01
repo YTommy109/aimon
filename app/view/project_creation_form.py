@@ -3,7 +3,7 @@ from collections.abc import Callable
 import streamlit as st
 
 from app.model import DataManager
-from app.page_logic import handle_project_creation
+from app.service.project import handle_project_creation
 
 
 def render_project_creation_form(get_data_manager: Callable[[], DataManager]) -> None:

@@ -76,13 +76,28 @@ max-complexity = 5
 
 [tool.mypy]
 python_version = "3.12"
-disallow_untyped_defs = true
 strict = true
+no_implicit_optional = true     # 暗黙的な Optional を禁止
+show_error_codes = true         # エラーコードを表示（精密な制御のため）
+pretty = true                   # 色付きで見やすいエラー表示
+enable_error_code = "truthy-bool" # 暗黙的な真偽値判定を検出（バグ予防）
+disallow_any_unimported = false # 外部ライブラリの Any は許容
+disallow_any_expr = false       # 外部ライブラリからの Any 式は許容
+disallow_any_decorated = false  # デコレータからの Any は許容
+warn_unreachable = false        # 到達不能コードの警告は無効（誤検知対策）
+disallow_untyped_calls = false  # 外部ライブラリ呼び出し許容
 
+# テストはゆるめの設定
+[[tool.mypy.overrides]]
+module = ["tests.*", "tests_e2e.*"]
+disallow_untyped_defs = false
+disallow_any_explicit = false   # テストでは Any 許容
+disallow_any_generics = false   # テストではジェネリック Any 許容
+warn_return_any = false         # テストでは Any 戻り値も許容
+
+# サードパーティライブラリの型チェックを無視
 [[tool.mypy.overrides]]
 module = [
-    "google.*",
-    "streamlit_autorefresh.*",
     "streamlit_modal.*",
 ]
 ignore_missing_imports = true

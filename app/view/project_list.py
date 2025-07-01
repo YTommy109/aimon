@@ -69,7 +69,7 @@ def _render_project_row(
     row_cols = st.columns((1, 4, 1, 1, 1, 1))
     row_cols[0].write(str(index + 1))
     row_cols[1].write(f'{status_icon} {project.name}')
-    row_cols[2].write(project.created_at.strftime('%Y/%m/%d %H:%M') if project.created_at else '')
+    row_cols[2].write(project.created_at.strftime('%Y/%m/%d %H:%M'))
     row_cols[3].write(project.executed_at.strftime('%Y/%m/%d %H:%M') if project.executed_at else '')
     detail_btn = row_cols[4].button('詳細', key=f'detail_{project.id}')
     exec_btn = False

@@ -16,7 +16,7 @@ from app.worker import Worker
 @pytest.fixture
 def mock_data_manager(mocker: MockerFixture) -> MagicMock:
     """DataManagerのモックを返すフィクスチャ"""
-    return mocker.MagicMock(spec=DataManager)  # type: ignore[no-any-return]
+    return mocker.MagicMock(spec=DataManager)
 
 
 def test_ワーカーがプロジェクトを正常に処理しステータスと結果を更新する(

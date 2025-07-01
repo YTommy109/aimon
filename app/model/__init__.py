@@ -1,4 +1,4 @@
-"""モデルレイヤーの公開インターフェース。"""
+"""データモデルを提供するパッケージ。"""
 
 from app.errors import DataManagerError, ProjectNotFoundError
 

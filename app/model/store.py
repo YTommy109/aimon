@@ -8,8 +8,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from app.errors import ProjectNotFoundError
-
-from .entities import AITool, Project, ProjectStatus
+from app.model.entities import AITool, Project, ProjectStatus
 
 # 明示的にエクスポート
 __all__ = ['DataManager', 'ProjectNotFoundError']

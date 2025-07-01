@@ -16,11 +16,8 @@ import google.generativeai as genai
 import pandas as pd
 from PIL import Image
 
-from app.model import DataManager, Project
-from app.utils import ExcelParser
-
-from .config import config
-from .errors import (
+from app.config import config
+from app.errors import (
     APICallFailedError,
     APIConfigurationError,
     APIConfigurationFailedError,
@@ -33,6 +30,8 @@ from .errors import (
     ProjectProcessingError,
     WorkerError,
 )
+from app.model import DataManager, Project
+from app.utils import ExcelParser
 
 
 class Worker(Process):

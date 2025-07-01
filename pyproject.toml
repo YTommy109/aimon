@@ -59,7 +59,11 @@ select = [
     "UP",  # pyupgrade
     "PT",  # flake8-pytest-style
     "C90", # flake8-comprehensions
+    "TID", # flake8-tidy-imports
 ]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
 
 [tool.ruff.format]
 quote-style = "single"

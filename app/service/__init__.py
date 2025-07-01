@@ -1,7 +1,4 @@
-"""serviceパッケージ。
-
-ビジネスロジックを提供するモジュール群を含みます。
-"""
+"""サービスレイヤーの公開インターフェース。"""
 
 from .execution import handle_project_execution
 from .project import handle_project_creation

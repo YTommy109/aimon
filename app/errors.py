@@ -1,5 +1,6 @@
 """アプリケーション全体で利用するカスタム例外クラスを定義します。"""
 
+from abc import abstractmethod
 from uuid import UUID
 
 
@@ -98,6 +99,16 @@ class APICallFailedError(APIConfigurationError):
 
 class FileProcessingError(WorkerError):
     """ファイル操作に関連する基底例外クラス。"""
+
+    @abstractmethod
+    def __init__(self, message: str) -> None:
+        """
+        例外を初期化します。
+
+        Args:
+            message: エラーメッセージ。
+        """
+        super().__init__(message)
 
 
 class FileReadingError(FileProcessingError):

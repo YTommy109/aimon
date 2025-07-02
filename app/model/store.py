@@ -43,7 +43,7 @@ class DataManager:
         # projects.jsonがディレクトリとして存在する場合はエラー
         if self.projects_path.exists() and self.projects_path.is_dir():
             raise ValueError(
-                'projects.jsonがディレクトリとして存在します。ファイルである必要があります。'
+                'projects.jsonがディレクトリとして存在します。ファイルである必要があります。',
             )
 
         # プロジェクトファイルが存在しない場合は空のリストで初期化
@@ -151,7 +151,7 @@ class DataManager:
         # ターゲットがディレクトリの場合はエラー
         if path.exists() and path.is_dir():
             raise ValueError(
-                f'{path}がディレクトリとして存在します。ファイルである必要があります。'
+                f'{path}がディレクトリとして存在します。ファイルである必要があります。',
             )
 
         # 親ディレクトリが存在することを確認

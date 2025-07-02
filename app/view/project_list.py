@@ -17,16 +17,19 @@ def _get_status_icon(project: Project, is_running: bool) -> str:
     Returns:
         ステータスを表すアイコン文字列。
     """
-    if is_running:
-        return '🏃'
-    elif project.status == ProjectStatus.PROCESSING:
-        return '⏳'
-    elif project.status == ProjectStatus.COMPLETED:
-        return '✅'
-    elif project.status == ProjectStatus.FAILED:
-        return '❌'
-    else:
-        return '💬'
+    match (is_running, project.status):
+        case (True, _):
+            icon = '🏃'
+        case (False, ProjectStatus.PROCESSING):
+            icon = '⏳'
+        case (False, ProjectStatus.COMPLETED):
+            icon = '✅'
+        case (False, ProjectStatus.FAILED):
+            icon = '❌'
+        case _:
+            icon = '💬'
+
+    return icon
 
 
 def _render_header_columns() -> None:
@@ -60,7 +63,10 @@ def render_project_list(projects: list[Project], modal: Modal, data_manager: Dat
 
 
 def _render_project_row(
-    index: int, project: Project, modal: Modal, data_manager: DataManager
+    index: int,
+    project: Project,
+    modal: Modal,
+    data_manager: DataManager,
 ) -> None:
     """プロジェクトの各行を描画します。"""
     is_running = project.id in st.session_state.running_workers
@@ -70,17 +76,31 @@ def _render_project_row(
     row_cols[0].write(str(index + 1))
     row_cols[1].write(f'{status_icon} {project.name}')
     row_cols[2].write(project.created_at.strftime('%Y/%m/%d %H:%M'))
-    row_cols[3].write(project.executed_at.strftime('%Y/%m/%d %H:%M') if project.executed_at else '')
+    row_cols[3].write(
+        project.executed_at.strftime('%Y/%m/%d %H:%M') if project.executed_at is not None else '',
+    )
     detail_btn = row_cols[4].button('詳細', key=f'detail_{project.id}')
-    exec_btn = False
-    if project.executed_at is None:
-        exec_btn = row_cols[5].button('実行', key=f'run_{project.id}')
+    exec_btn = project.executed_at is None and row_cols[5].button('実行', key=f'run_{project.id}')
+
+    _handle_project_buttons(detail_btn, exec_btn, project, modal, data_manager)
+
+
+def _handle_project_buttons(
+    detail_btn: bool,
+    exec_btn: bool,
+    project: Project,
+    modal: Modal,
+    data_manager: DataManager,
+) -> None:
+    """詳細および実行ボタンのアクションを処理"""
     if detail_btn:
         st.session_state.modal_project = project
         modal.open()
     if exec_btn:
         worker, message = handle_project_execution(
-            project.id, data_manager, st.session_state.running_workers
+            project.id,
+            data_manager,
+            st.session_state.running_workers,
         )
         if worker:
             st.info(message)

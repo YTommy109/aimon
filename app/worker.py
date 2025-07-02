@@ -124,7 +124,7 @@ class Worker(Process):
         parser.parse(file_path)
         return parser.get_text(), parser.get_images()
 
-    def _prepare_output_file(self, source_path: Path, project_name: str) -> Path:
+    def _prepare_output_file(self, source_path: Path, _project_name: str) -> Path:
         """出力ファイルを準備します。
 
         Args:
@@ -142,8 +142,8 @@ class Worker(Process):
         if output_file.exists():
             try:
                 output_file.unlink()
-            except Exception:
-                raise FileDeletingError(str(output_file))
+            except Exception as e:
+                raise FileDeletingError(str(output_file)) from e
 
         return output_file
 
@@ -180,15 +180,17 @@ class Worker(Process):
             try:
                 with open(file_path, encoding='utf-8') as f_in:
                     content = f_in.read()
-            except Exception:
-                raise FileReadingError(str(file_path))
+            except Exception as e:
+                raise FileReadingError(str(file_path)) from e
         elif file_path.suffix == '.xlsx':
             content, images = self._process_xlsx(file_path)
 
         return content, images
 
     def _add_text_to_prompt_json(
-        self, prompt: list[str | Image.Image], prompt_for_json: list[dict[str, Any]]
+        self,
+        prompt: list[str | Image.Image],
+        prompt_for_json: list[dict[str, Any]],
     ) -> None:
         """テキスト部分をプロンプトJSONに追加します。"""
         for item in prompt:
@@ -196,7 +198,9 @@ class Worker(Process):
                 prompt_for_json.append({'type': 'text', 'data': item})
 
     def _add_images_to_prompt_json(
-        self, prompt: list[str | Image.Image], prompt_for_json: list[dict[str, Any]]
+        self,
+        prompt: list[str | Image.Image],
+        prompt_for_json: list[dict[str, Any]],
     ) -> None:
         """画像部分をプロンプトJSONに追加します。"""
         for idx, item in enumerate(prompt):
@@ -209,7 +213,7 @@ class Worker(Process):
                         'type': 'image',
                         'figure': str(idx),
                         'data': img_b64,
-                    }
+                    },
                 )
 
     def _create_prompt_json(self, prompt: list[str | Image.Image], file_path: Path) -> None:
@@ -231,8 +235,8 @@ class Worker(Process):
         try:
             with open(prompt_json_path, 'w', encoding='utf-8') as f_prompt:
                 json.dump(prompt_for_json, f_prompt, ensure_ascii=False, indent=2)
-        except Exception:
-            raise FileWritingError(str(prompt_json_path))
+        except Exception as e:
+            raise FileWritingError(str(prompt_json_path)) from e
 
     def _process_single_file(
         self,
@@ -257,17 +261,22 @@ class Worker(Process):
 
             if not content.strip():
                 self.logger.warning(f'File {file_path.name} is empty. Skipping.')
-                return False
-
-            return self._process_file_content(file_path, content, images, model, f_out)
+                result = False
+            else:
+                result = self._process_file_content(file_path, content, images, model, f_out)
 
         except FileProcessingError as e:
-            return self._handle_file_processing_error(file_path, f_out, e)
+            result = self._handle_file_processing_error(file_path, f_out, e)
         except APIConfigurationError as e:
-            return self._handle_api_error(file_path, f_out, e)
+            result = self._handle_api_error(file_path, f_out, e)
+
+        return result
 
     def _handle_file_processing_error(
-        self, file_path: Path, f_out: io.TextIOWrapper, e: FileProcessingError
+        self,
+        file_path: Path,
+        f_out: io.TextIOWrapper,
+        e: FileProcessingError,
     ) -> bool:
         """ファイル処理エラーをハンドリングします。"""
         self.logger.error(f'Failed to process {file_path.name}: {e}')
@@ -277,7 +286,10 @@ class Worker(Process):
         return False
 
     def _handle_api_error(
-        self, file_path: Path, f_out: io.TextIOWrapper, e: APIConfigurationError
+        self,
+        file_path: Path,
+        f_out: io.TextIOWrapper,
+        e: APIConfigurationError,
     ) -> bool:
         """API設定エラーをハンドリングします。"""
         self.logger.error(f'API error while processing {file_path.name}: {e}')
@@ -296,7 +308,7 @@ class Worker(Process):
     ) -> bool:
         """ファイルコンテンツを処理します。"""
         prompt: list[str | Image.Image] = [
-            f'以下の文章と図の内容を日本語で3行で要約し、各図の内容も簡単に解説してください。\n\n---\n{content}'
+            f'以下の文章と図の内容を日本語で3行で要約し、各図の内容も簡単に解説してください。\n\n---\n{content}',
         ]
         # 画像があればプロンプトに追加
         if images:
@@ -307,7 +319,7 @@ class Worker(Process):
         try:
             response = model.generate_content(prompt)
         except Exception as e:
-            raise APICallFailedError(e)
+            raise APICallFailedError(e) from e
 
         f_out.write(f'## ファイル: {file_path.name}\n\n')
         f_out.write('### 要約結果\n\n')
@@ -342,8 +354,8 @@ class Worker(Process):
                     if self._process_single_file(file_path, model, f_out):
                         processed_files.append(file_path.name)
 
-        except Exception:
-            raise FileWritingError(str(output_file))
+        except Exception as e:
+            raise FileWritingError(str(output_file)) from e
 
         result = {
             'processed_files': processed_files,
@@ -367,8 +379,8 @@ class Worker(Process):
         """
         try:
             return pd.read_excel(file_path)
-        except Exception:
-            raise FileReadingError(str(file_path))
+        except Exception as e:
+            raise FileReadingError(str(file_path)) from e
 
     def _delete_output_file(self, file_path: Path) -> None:
         """
@@ -382,8 +394,8 @@ class Worker(Process):
         """
         try:
             file_path.unlink(missing_ok=True)
-        except Exception:
-            raise FileDeletingError(str(file_path))
+        except Exception as e:
+            raise FileDeletingError(str(file_path)) from e
 
     def _write_output_file(self, file_path: Path, content: str) -> None:
         """
@@ -398,8 +410,8 @@ class Worker(Process):
         """
         try:
             file_path.write_text(content, encoding='utf-8')
-        except Exception:
-            raise FileWritingError(str(file_path))
+        except Exception as e:
+            raise FileWritingError(str(file_path)) from e
 
     def process_project(self) -> None:
         """
@@ -420,7 +432,7 @@ class Worker(Process):
                 genai.configure(api_key=config.GEMINI_API_KEY)  # type: ignore[attr-defined]
                 model = genai.GenerativeModel('gemini-pro-vision')  # type: ignore[attr-defined]
             except Exception as e:
-                raise APIConfigurationFailedError(e)
+                raise APIConfigurationFailedError(e) from e
 
             self._execute_gemini_summarize(project, model)
 

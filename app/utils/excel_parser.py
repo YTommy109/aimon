@@ -11,7 +11,7 @@ import openpyxl
 from openpyxl.worksheet.worksheet import Worksheet
 from PIL import Image
 
-from app.errors import FileProcessingError, FileReadingError
+from app.errors import FileReadingError, FileWritingError
 
 
 class ExcelParser:
@@ -24,7 +24,10 @@ class ExcelParser:
         self._parsed_data: dict[str, Any] = {}
 
     def _process_sheet_images(
-        self, sheet: Worksheet, file_path: Path, image_count: int
+        self,
+        sheet: Worksheet,
+        file_path: Path,
+        image_count: int,
     ) -> tuple[dict[tuple[int, int], str], list[dict[str, Any]], list[Image.Image], int]:
         """
         シート内の画像を処理します。
@@ -41,8 +44,8 @@ class ExcelParser:
         sheet_images: list[dict[str, Any]] = []
         images: list[Image.Image] = []
 
-        if sheet._images:  # type: ignore
-            for img in sheet._images:  # type: ignore
+        if sheet._images:  # type: ignore[attr-defined]
+            for img in sheet._images:  # type: ignore[attr-defined]
                 # openpyxlの画像オブジェクトからPillowの画像オブジェクトに変換
                 try:
                     img_bytes = io.BytesIO(img._data())
@@ -57,7 +60,7 @@ class ExcelParser:
 
                     # 画像情報を保存
                     sheet_images.append(
-                        {'figure_number': image_count, 'row': row, 'col': col, 'marker': marker}
+                        {'figure_number': image_count, 'row': row, 'col': col, 'marker': marker},
                     )
                     image_count += 1
                 except Exception as e:
@@ -83,7 +86,9 @@ class ExcelParser:
         return cell_values
 
     def _apply_image_markers(
-        self, cell_values: dict[tuple[int, int], str], image_markers: dict[tuple[int, int], str]
+        self,
+        cell_values: dict[tuple[int, int], str],
+        image_markers: dict[tuple[int, int], str],
     ) -> dict[tuple[int, int], str]:
         """
         セル値に画像マーカーを適用します。
@@ -114,8 +119,8 @@ class ExcelParser:
         """
         sheet_text_lines: list[str] = []
         if cell_values:
-            max_row = max(key[0] for key in cell_values.keys())
-            max_col = max(key[1] for key in cell_values.keys())
+            max_row = max(key[0] for key in cell_values)
+            max_col = max(key[1] for key in cell_values)
             for r in range(1, max_row + 1):
                 row_text = []
                 for c in range(1, max_col + 1):
@@ -124,7 +129,11 @@ class ExcelParser:
         return sheet_text_lines
 
     def _process_single_sheet(
-        self, sheet: Worksheet, sheet_name: str, file_path: Path, image_count: int
+        self,
+        sheet: Worksheet,
+        _sheet_name: str,
+        file_path: Path,
+        image_count: int,
     ) -> tuple[list[str], list[Image.Image], dict[str, Any], int]:
         """
         単一のシートを処理します。
@@ -140,7 +149,9 @@ class ExcelParser:
         """
         # 画像処理
         image_markers, sheet_images, images, updated_count = self._process_sheet_images(
-            sheet, file_path, image_count
+            sheet,
+            file_path,
+            image_count,
         )
 
         # セル処理
@@ -178,7 +189,7 @@ class ExcelParser:
         try:
             workbook = openpyxl.load_workbook(file_path)
         except Exception as e:
-            raise FileReadingError(f'Excelファイルの読み込みに失敗しました: {e}') from e
+            raise FileReadingError(str(file_path)) from e
 
         full_text: list[str] = []
         all_images: list[Image.Image] = []
@@ -190,7 +201,10 @@ class ExcelParser:
             full_text.append(f'---シート: {sheet_name}---\n')
 
             sheet_text_lines, sheet_images, sheet_data, image_count = self._process_single_sheet(
-                sheet, sheet_name, file_path, image_count
+                sheet,
+                sheet_name,
+                file_path,
+                image_count,
             )
 
             full_text.extend(sheet_text_lines)
@@ -253,10 +267,10 @@ class ExcelParser:
             output_path: 出力するJSONファイルのパス。
 
         Raises:
-            FileProcessingError: ファイルの書き込みに失敗した場合。
+            FileWritingError: ファイルの書き込みに失敗した場合。
         """
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(self.to_json(), f, ensure_ascii=False, indent=2)
         except Exception as e:
-            raise FileProcessingError(f'JSONファイルの書き込みに失敗しました: {e}') from e
+            raise FileWritingError(str(output_path)) from e

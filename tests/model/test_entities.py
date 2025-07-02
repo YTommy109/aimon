@@ -117,7 +117,6 @@ class TestProject:
 
         # Assert
         assert project.executed_at is not None
-        assert isinstance(project.executed_at, datetime)
 
     def test_completeメソッドが結果と完了時刻を設定する(self) -> None:
         # Arrange
@@ -132,7 +131,6 @@ class TestProject:
         # Assert
         assert project.result == result
         assert project.finished_at is not None
-        assert isinstance(project.finished_at, datetime)
 
     def test_failメソッドがエラー結果と完了時刻を設定する(self) -> None:
         # Arrange
@@ -147,4 +145,3 @@ class TestProject:
         # Assert
         assert project.result == error
         assert project.finished_at is not None
-        assert isinstance(project.finished_at, datetime)

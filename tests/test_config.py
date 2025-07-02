@@ -18,11 +18,11 @@ def test_デフォルト値が正しく設定される(mocker: MockerFixture) ->
 
     # Assert
     assert config.APP_ENV == 'development'
-    assert config.DATA_DIR == Path('.data')
-    assert config.DATA_DIR_TEST == Path('.data_test')
+    assert Path('.data') == config.DATA_DIR
+    assert Path('.data_test') == config.DATA_DIR_TEST
     assert config.DEFAULT_PROJECTS_FILE == 'projects.json'
     assert config.DEFAULT_AI_TOOLS_FILE == 'ai_tools.json'
-    assert config.DEFAULT_LOG_DIR == Path('log')
+    assert Path('log') == config.DEFAULT_LOG_DIR
     assert config.DEFAULT_LOG_FILE == 'app.log'
     assert config.LOG_ROTATION_DAYS == 7
     assert config.GEMINI_MODEL_NAME == 'gemini-1.5-flash'
@@ -60,7 +60,9 @@ def test_環境変数から設定値を読み込める(mocker: MockerFixture) ->
     ],
 )
 def test_development環境でのデータディレクトリパス(
-    mocker: MockerFixture, env_vars: dict[str, str], expected_path: Path
+    mocker: MockerFixture,
+    env_vars: dict[str, str],
+    expected_path: Path,
 ) -> None:
     # Arrange
     mocker.patch.dict(os.environ, {'APP_ENV': 'development', **env_vars}, clear=True)
@@ -80,7 +82,9 @@ def test_development環境でのデータディレクトリパス(
     ],
 )
 def test_test環境でのデータディレクトリパス(
-    mocker: MockerFixture, env_vars: dict[str, str], expected_path: Path
+    mocker: MockerFixture,
+    env_vars: dict[str, str],
+    expected_path: Path,
 ) -> None:
     # Arrange
     mocker.patch.dict(os.environ, {'APP_ENV': 'test', **env_vars}, clear=True)

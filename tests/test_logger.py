@@ -25,7 +25,10 @@ class TestSetupLogger:
         # Arrange
         mock_path = Path('/tmp/test.log')
         mocker.patch.object(
-            Config, 'log_file_path', new_callable=mocker.PropertyMock, return_value=mock_path
+            Config,
+            'log_file_path',
+            new_callable=mocker.PropertyMock,
+            return_value=mock_path,
         )
 
         # Act
@@ -42,7 +45,10 @@ class TestSetupLogger:
         # Arrange
         mock_path = Path('/tmp/test.log')
         mocker.patch.object(
-            Config, 'log_file_path', new_callable=mocker.PropertyMock, return_value=mock_path
+            Config,
+            'log_file_path',
+            new_callable=mocker.PropertyMock,
+            return_value=mock_path,
         )
 
         # Act

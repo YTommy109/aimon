@@ -26,7 +26,10 @@ def render_project_creation_form(get_data_manager: Callable[[], DataManager]) ->
         if st.button('プロジェクト作成'):
             if selected_ai_tool_id:
                 project, message = handle_project_creation(
-                    project_name, source_dir, selected_ai_tool_id, get_data_manager()
+                    project_name,
+                    source_dir,
+                    selected_ai_tool_id,
+                    get_data_manager(),
                 )
                 if project:
                     st.success(message)

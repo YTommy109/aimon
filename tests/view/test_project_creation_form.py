@@ -156,10 +156,13 @@ class TestRenderProjectCreationForm:
 
         # Assert
         mock_handle.assert_called_once_with(
-            'Test Project', '/test/path', 'tool1', mock_data_manager
+            'Test Project',
+            '/test/path',
+            'tool1',
+            mock_data_manager,
         )
         mock_streamlit.success.assert_called_once_with(
-            'プロジェクト「Test Project」を作成しました。'
+            'プロジェクト「Test Project」を作成しました。',
         )
         mock_streamlit.warning.assert_not_called()
 
@@ -184,10 +187,13 @@ class TestRenderProjectCreationForm:
 
         # Assert
         mock_handle.assert_called_once_with(
-            'Test Project', '/test/path', 'tool1', mock_data_manager
+            'Test Project',
+            '/test/path',
+            'tool1',
+            mock_data_manager,
         )
         mock_streamlit.warning.assert_called_once_with(
-            'プロジェクトの作成に失敗しました: エラーが発生しました'
+            'プロジェクトの作成に失敗しました: エラーが発生しました',
         )
         mock_streamlit.success.assert_not_called()
 
@@ -253,6 +259,55 @@ class TestRenderProjectCreationForm:
         options = selectbox_call[1]['options']
         assert options == []
 
+    def _setup_project_creation_mock(
+        self,
+        mock_streamlit: MagicMock,
+        mocker: MockerFixture,
+        name: str,
+        path: str,
+        tool: str,
+    ) -> tuple[MagicMock, Project]:
+        """プロジェクト作成のモックをセットアップするヘルパーメソッド"""
+        mock_streamlit.text_input.side_effect = [name, path]
+        mock_streamlit.selectbox.return_value = tool
+        mock_streamlit.button.return_value = True
+
+        project = Project(name=name, source=path, ai_tool=tool)
+        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle.return_value = (project, f'プロジェクト「{name}」を作成しました。')
+
+        return mock_handle, project
+
+    def _execute_project_creation(
+        self,
+        mock_streamlit: MagicMock,
+        mock_handle: MagicMock,
+        name: str,
+        path: str,
+        tool: str,
+    ) -> None:
+        """プロジェクト作成実行をセットアップするヘルパーメソッド"""
+        mock_streamlit.text_input.side_effect = [name, path]
+        mock_streamlit.selectbox.return_value = tool
+        mock_streamlit.button.return_value = True
+
+        project = Project(name=name, source=path, ai_tool=tool)
+        mock_handle.return_value = (project, f'プロジェクト「{name}」を作成しました。')
+
+    def _assert_project_creation_calls(
+        self,
+        mock_handle: MagicMock,
+        mock_data_manager: MagicMock,
+        expected_calls: list[tuple[str, str, str]],
+    ) -> None:
+        """プロジェクト作成呼び出しを検証するヘルパーメソッド"""
+        assert mock_handle.call_count == len(expected_calls)
+        call_args_list = mock_handle.call_args_list
+
+        for i, (name, path, tool) in enumerate(expected_calls):
+            call_args = call_args_list[i][0]
+            assert call_args == (name, path, tool, mock_data_manager)
+
     def test_複数のプロジェクト作成が連続して行える(
         self,
         mock_streamlit: MagicMock,
@@ -261,42 +316,22 @@ class TestRenderProjectCreationForm:
         mocker: MockerFixture,
     ) -> None:
         """複数のプロジェクト作成が連続して行えることをテスト。"""
-        # Arrange
+        # Arrange - 共通のhandleモックを作成
         mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
 
-        # 1回目の呼び出し
-        mock_streamlit.text_input.side_effect = ['Project 1', '/path1']
-        mock_streamlit.selectbox.return_value = 'tool1'
-        mock_streamlit.button.return_value = True
-
-        mock_project1 = Project(name='Project 1', source='/path1', ai_tool='tool1')
-        mock_handle.return_value = (mock_project1, 'プロジェクト「Project 1」を作成しました。')
-
-        # Act - 1回目
+        # Act & Assert - 1回目
+        self._execute_project_creation(mock_streamlit, mock_handle, 'Project 1', '/path1', 'tool1')
         render_project_creation_form(get_data_manager_func)
-
-        # Assert - 1回目
         assert mock_handle.call_count == 1
-        mock_streamlit.success.assert_called_with('プロジェクト「Project 1」を作成しました。')
 
-        # Arrange - 2回目の呼び出し
-        mock_streamlit.text_input.side_effect = ['Project 2', '/path2']
-        mock_streamlit.selectbox.return_value = 'tool2'
-        mock_streamlit.button.return_value = True
-
-        mock_project2 = Project(name='Project 2', source='/path2', ai_tool='tool2')
-        mock_handle.return_value = (mock_project2, 'プロジェクト「Project 2」を作成しました。')
-
-        # Act - 2回目
+        # Act & Assert - 2回目
+        self._execute_project_creation(mock_streamlit, mock_handle, 'Project 2', '/path2', 'tool2')
         render_project_creation_form(get_data_manager_func)
-
-        # Assert - 2回目
         assert mock_handle.call_count == 2
 
-        # 各呼び出しの引数を確認
-        call_args_list = mock_handle.call_args_list
-        first_call_args = call_args_list[0][0]
-        second_call_args = call_args_list[1][0]
-
-        assert first_call_args == ('Project 1', '/path1', 'tool1', mock_data_manager)
-        assert second_call_args == ('Project 2', '/path2', 'tool2', mock_data_manager)
+        # 全体の確認
+        self._assert_project_creation_calls(
+            mock_handle,
+            mock_data_manager,
+            [('Project 1', '/path1', 'tool1'), ('Project 2', '/path2', 'tool2')],
+        )

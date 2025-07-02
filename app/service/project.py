@@ -9,7 +9,10 @@ logger = logging.getLogger('aiman')
 
 
 def handle_project_creation(
-    name: str, source: str, ai_tool: str, data_manager: DataManager
+    name: str,
+    source: str,
+    ai_tool: str,
+    data_manager: DataManager,
 ) -> tuple[Project | None, str]:
     """プロジェクト作成フォームのロジックを処理します。
 

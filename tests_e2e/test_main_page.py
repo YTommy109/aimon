@@ -75,7 +75,8 @@ class TestProjectList:
     """プロジェクト一覧機能をテストするクラス"""
 
     def test_プロジェクトが存在しない場合にメッセージが表示されることをテスト(
-        self, page_with_app: Page
+        self,
+        page_with_app: Page,
     ) -> None:
         # Given
         page = page_with_app
@@ -88,7 +89,8 @@ class TestProjectList:
         expect(empty_message).to_be_visible()
 
     def test_プロジェクトが1つ以上存在する場合ヘッダーが表示されることをテスト(
-        self, page_with_app: Page
+        self,
+        page_with_app: Page,
     ) -> None:
         # Given
         page = page_with_app
@@ -105,7 +107,8 @@ class TestProjectList:
             expect(page.get_by_role('strong', name='実行日時')).to_be_visible()
 
     def test_プロジェクト一覧に実行ボタンが表示されることをテスト(
-        self, page_with_app: Page
+        self,
+        page_with_app: Page,
     ) -> None:
         page = page_with_app
         # プロジェクト一覧の行を取得
@@ -114,7 +117,8 @@ class TestProjectList:
         assert rows.count() >= 0  # 0個以上（データ状況による）
 
     def test_実行ボタン押下でプロジェクトが実行状態になることをテスト(
-        self, page_with_app: Page
+        self,
+        page_with_app: Page,
     ) -> None:
         page = page_with_app
         # 実行ボタンがあればクリック
@@ -125,7 +129,8 @@ class TestProjectList:
             expect(exec_btns.nth(0)).not_to_be_visible()
 
     def test_完了済みや実行中プロジェクトには実行ボタンが表示されない(
-        self, page_with_app: Page
+        self,
+        page_with_app: Page,
     ) -> None:
         page = page_with_app
         # 完了済みや実行中の行には「実行」ボタンがないことを確認

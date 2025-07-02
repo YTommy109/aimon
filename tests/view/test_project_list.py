@@ -7,7 +7,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from app.model import Project
-from app.view.project_list import _get_status_icon
+from app.view.project_list import _get_status_icon, render_project_list
 
 
 class TestGetStatusIcon:
@@ -152,11 +152,11 @@ class TestRenderProjectListIntegration:
         return [project1, project2]
 
     def test_プロジェクトが空の場合にメッセージを表示(
-        self, mock_streamlit: tuple[MagicMock, list[MagicMock]], mocker: MockerFixture
+        self,
+        mock_streamlit: tuple[MagicMock, list[MagicMock]],
+        mocker: MockerFixture,
     ) -> None:
         # Arrange
-        from app.view.project_list import render_project_list
-
         mock_st, _ = mock_streamlit
         projects: list[Project] = []
         mock_modal = MagicMock()
@@ -176,8 +176,6 @@ class TestRenderProjectListIntegration:
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        from app.view.project_list import render_project_list
-
         mock_st, mock_columns = mock_streamlit
         mock_modal = MagicMock()
         mock_data_manager = MagicMock()
@@ -207,8 +205,6 @@ class TestRenderProjectListIntegration:
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        from app.view.project_list import render_project_list
-
         mock_st, mock_columns = mock_streamlit
         mock_modal = MagicMock()
         mock_data_manager = MagicMock()
@@ -241,8 +237,6 @@ class TestRenderProjectListIntegration:
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        from app.view.project_list import render_project_list
-
         mock_st, mock_columns = mock_streamlit
         mock_modal = MagicMock()
         mock_data_manager = MagicMock()
@@ -278,8 +272,6 @@ class TestRenderProjectListIntegration:
         mocker: MockerFixture,
     ) -> None:
         # Arrange
-        from app.view.project_list import render_project_list
-
         mock_st, mock_columns = mock_streamlit
         mock_modal = MagicMock()
         mock_data_manager = MagicMock()
@@ -298,11 +290,11 @@ class TestRenderProjectListIntegration:
             assert len(button_calls) == 0
 
     def test_ステータスアイコンが正しく表示される(
-        self, mock_streamlit: tuple[MagicMock, list[MagicMock]], mocker: MockerFixture
+        self,
+        mock_streamlit: tuple[MagicMock, list[MagicMock]],
+        mocker: MockerFixture,
     ) -> None:
         # Arrange
-        from app.view.project_list import render_project_list
-
         mock_st, mock_columns = mock_streamlit
         mock_modal = MagicMock()
         mock_data_manager = MagicMock()

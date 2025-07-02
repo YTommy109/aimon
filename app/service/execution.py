@@ -42,10 +42,12 @@ def handle_project_execution(
         worker = Worker(project_id, data_manager)
         running_workers[project_id] = worker  # type: ignore[index]
         worker.start()
-        return worker, f'プロジェクト {project_id} を実行します。'
+        result: tuple[Worker | None, str] = (worker, f'プロジェクト {project_id} を実行します。')
     except WorkerError as e:
         logger.error(f'ワーカーの起動に失敗しました: {e}')
-        return None, f'ワーカーの起動に失敗しました: {e}'
+        result = (None, f'ワーカーの起動に失敗しました: {e}')
     except Exception as e:
         logger.error(f'予期せぬエラーが発生しました: {e}')
-        return None, f'予期せぬエラーが発生しました: {e}'
+        result = (None, f'予期せぬエラーが発生しました: {e}')
+
+    return result

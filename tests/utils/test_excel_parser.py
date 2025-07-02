@@ -196,7 +196,8 @@ class TestExcelParser:
             parser.export_json(invalid_path)
 
     def _extract_cell_values_from_sheet(
-        self, sheet: openpyxl.worksheet.worksheet.Worksheet
+        self,
+        sheet: openpyxl.worksheet.worksheet.Worksheet,
     ) -> dict[tuple[int, int], str]:
         """シートからセル値を抽出する"""
         cell_values = {}
@@ -207,7 +208,9 @@ class TestExcelParser:
         return cell_values
 
     def _build_text_from_cell_values(
-        self, cell_values: dict[tuple[int, int], str], full_text: list[str]
+        self,
+        cell_values: dict[tuple[int, int], str],
+        full_text: list[str],
     ) -> None:
         """セル値からテキストを構築する"""
         if cell_values:
@@ -221,7 +224,8 @@ class TestExcelParser:
                 full_text.append('\t'.join(row_text))
 
     def _create_mock_process_with_image(
-        self, test_image: Image.Image
+        self,
+        test_image: Image.Image,
     ) -> Callable[[ExcelParser, Path], None]:
         """画像を含むExcelファイルの処理をシミュレートするモック関数を作成する"""
 
@@ -248,14 +252,17 @@ class TestExcelParser:
                         'text_lines': full_text[1:],
                         'images': [{'figure_number': 1, 'row': 1, 'col': 1, 'marker': '[図:1]'}],
                         'cell_values': serializable_cell_values,
-                    }
+                    },
                 },
             }
 
         return mock_process_with_image
 
     def _assert_image_simulation_results(
-        self, text: str, images: list[Image.Image], json_data: dict[str, Any]
+        self,
+        text: str,
+        images: list[Image.Image],
+        json_data: dict[str, Any],
     ) -> None:
         """画像シミュレーション結果のアサーションを実行する"""
         assert '[図:1]' in text
@@ -266,7 +273,9 @@ class TestExcelParser:
         assert json_data['images'][0]['figure_number'] == 1
 
     def test_画像を含むExcelファイルのシミュレーション処理が正しく行われる(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         # Arrange
         test_image = Image.new('RGB', (100, 100), color='red')
@@ -290,9 +299,8 @@ class TestExcelParser:
         # Assert
         self._assert_image_simulation_results(text, images, json_data)
 
-    def test_複雑なExcel構造の解析が正しく行われる(self, tmp_path: Path) -> None:
-        # Arrange
-        test_file = tmp_path / 'complex.xlsx'
+    def _create_complex_excel_file(self, test_file: Path) -> None:
+        """複雑なExcelファイルを作成するヘルパーメソッド"""
         workbook = openpyxl.Workbook()
         sheet = workbook.active
         assert sheet is not None
@@ -305,6 +313,21 @@ class TestExcelParser:
         sheet['C2'] = 'Data3'
         sheet['A4'] = 'Separated Data'  # 空行を挨んだデータ
         workbook.save(test_file)
+
+    def _assert_complex_excel_results(self, text: str, json_data: dict[str, Any]) -> None:
+        """複雑なExcel構造の解析結果を検証するヘルパーメソッド"""
+        assert 'Header1\tHeader2\tHeader3' in text
+        assert 'Data1\tData2\tData3' in text
+        assert 'Separated Data' in text
+        assert 'ComplexSheet' in json_data['sheets']
+        sheet_data = json_data['sheets']['ComplexSheet']
+        assert '1,1' in sheet_data['cell_values']
+        assert sheet_data['cell_values']['1,1'] == 'Header1'
+
+    def test_複雑なExcel構造の解析が正しく行われる(self, tmp_path: Path) -> None:
+        # Arrange
+        test_file = tmp_path / 'complex.xlsx'
+        self._create_complex_excel_file(test_file)
         parser = ExcelParser()
 
         # Act
@@ -313,10 +336,4 @@ class TestExcelParser:
         json_data = parser.to_json()
 
         # Assert
-        assert 'Header1\tHeader2\tHeader3' in text
-        assert 'Data1\tData2\tData3' in text
-        assert 'Separated Data' in text
-        assert 'ComplexSheet' in json_data['sheets']
-        sheet_data = json_data['sheets']['ComplexSheet']
-        assert '1,1' in sheet_data['cell_values']
-        assert sheet_data['cell_values']['1,1'] == 'Header1'
+        self._assert_complex_excel_results(text, json_data)

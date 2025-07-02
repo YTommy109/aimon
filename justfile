@@ -169,3 +169,8 @@ test-all mode='':
 
 @watch:
     fswatch -o app tests | xargs -n1 -I{} just test
+
+# 型チェック
+# 参考: https://github.com/astral-sh/ty
+ty:
+    uvx ty check

@@ -20,7 +20,9 @@ def mock_data_manager(mocker: MockerFixture) -> MagicMock:
 
 
 def test_ワーカーがプロジェクトを正常に処理しステータスと結果を更新する(
-    mock_data_manager: MagicMock, tmp_path: Path, mocker: MockerFixture
+    mock_data_manager: MagicMock,
+    tmp_path: Path,
+    mocker: MockerFixture,
 ) -> None:
     # Arrange: テストデータとモックの設定
     project_id = uuid4()
@@ -56,7 +58,7 @@ def test_ワーカーがプロジェクトを正常に処理しステータス�
         {
             'processed_files': ['test.txt'],
             'message': 'Processing successful. Results saved to gemini_results.md',
-        }
+        },
     )
 
     # Assert: プロジェクトの状態が正しく更新されたか検証
@@ -67,10 +69,11 @@ def test_ワーカーがプロジェクトを正常に処理しステータス�
     assert 'gemini_results.md' in project.result['message']
 
 
-def test_ワーカーがExcelファイルを正常に処理しステータスと結果を更新する(
-    mock_data_manager: MagicMock, tmp_path: Path, mocker: MockerFixture
-) -> None:
-    # Arrange: テストデータとモックの設定
+def _setup_excel_test_environment(
+    tmp_path: Path,
+    mock_data_manager: MagicMock,
+) -> tuple[Project, Path]:
+    """Excelテスト用の環境をセットアップする"""
     project_id = uuid4()
     source_path = tmp_path
 
@@ -86,41 +89,48 @@ def test_ワーカーがExcelファイルを正常に処理しステータスと
         ai_tool='TestTool',
     )
     mock_data_manager.get_project.return_value = project
+    return project, excel_path
 
-    # Act: ワーカーを実行
+
+def _setup_worker_mocks(mocker: MockerFixture) -> tuple[MagicMock, MagicMock]:
+    """ワーカー実行用のモックをセットアップする"""
     mock_genai = mocker.patch('app.worker.genai')
     mock_open = mocker.patch('builtins.open')
-    # generate_contentの戻り値をモック化
     mock_model = mock_genai.GenerativeModel.return_value
     mock_model.generate_content.return_value = mocker.MagicMock(text='Summary')
-
-    # ファイル書き込みをシミュレート
     mock_open.return_value.__enter__.return_value = mocker.MagicMock()
+    return mock_genai, mock_model
 
-    worker = Worker(project_id, mock_data_manager)
+
+def test_ワーカーがExcelファイルを正常に処理しステータスと結果を更新する(
+    mock_data_manager: MagicMock,
+    tmp_path: Path,
+    mocker: MockerFixture,
+) -> None:
+    # Arrange
+    project, excel_path = _setup_excel_test_environment(tmp_path, mock_data_manager)
+    mock_genai, mock_model = _setup_worker_mocks(mocker)
+
+    # Act
+    worker = Worker(project.id, mock_data_manager)
     worker.run()
-
-    # 結果を手動で設定（通常はファイル書き込み後に設定される）
     project.complete(
         {
             'processed_files': ['meeting_notes.xlsx'],
             'message': 'Processing successful. Results saved to gemini_results.md',
-        }
+        },
     )
 
-    # Assert: プロジェクトの状態が正しく更新されたか検証
-    assert project.status == ProjectStatus.COMPLETED  # 最終的に完了状態になっているか
-    assert project.executed_at is not None  # 実行開始日時が設定されているか
-    assert project.finished_at is not None  # 完了日時が設定されているか
-    assert project.result is not None  # 結果が設定されているか
+    # Assert
+    assert project.status == ProjectStatus.COMPLETED
+    assert project.executed_at is not None
+    assert project.finished_at is not None
+    assert project.result is not None
     assert 'meeting_notes.xlsx' in project.result['processed_files']
 
-    # generate_contentに渡された引数を検証
     args, _ = mock_model.generate_content.call_args
     prompt_list = args[0]
-    # テキストにマーカーが含まれていることを確認
     assert '[図:1]' in prompt_list[0]
-    # 画像が渡されていることを確認
     assert isinstance(prompt_list[1], Image.Image)
 
 

@@ -230,9 +230,9 @@ class TestRenderProjectDetailModal:
             ai_tool='test_tool',
         )
         # setattr を使って一時的にNoneを設定してmypyの警告を回避
-        setattr(project, 'created_at', None)
-        setattr(project, 'executed_at', None)
-        setattr(project, 'finished_at', None)
+        project.created_at = None  # type: ignore[assignment]
+        project.executed_at = None
+        project.finished_at = None
 
         mock_modal.is_open.return_value = True
         mock_streamlit.session_state.modal_project = project

@@ -24,5 +24,5 @@ def render_project_detail_modal(modal: Modal) -> None:
                     - **作成日時**: `{project.created_at or 'N/A'}`
                     - **実行日時**: `{project.executed_at or 'N/A'}`
                     - **終了日時**: `{project.finished_at or 'N/A'}`
-                    """
+                    """,
                 )

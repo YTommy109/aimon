@@ -28,7 +28,9 @@ def mock_worker() -> MagicMock:
 
 
 def test_プロジェクト実行が正常に成功する(
-    mock_data_manager: MagicMock, mock_worker: MagicMock, monkeypatch: pytest.MonkeyPatch
+    mock_data_manager: MagicMock,
+    mock_worker: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange
     project_id = uuid4()
@@ -66,7 +68,8 @@ def test_プロジェクトが既に実行中の場合にエラーメッセー�
 
     # Act & Assert
     with pytest.raises(
-        ProjectAlreadyRunningError, match=f'プロジェクト {project_id} は既に実行中です'
+        ProjectAlreadyRunningError,
+        match=f'プロジェクト {project_id} は既に実行中です',
     ):
         handle_project_execution(
             project_id,

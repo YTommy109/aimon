@@ -16,7 +16,6 @@ def clean_test_data_before_each_test() -> None:
 
     if os.path.exists(test_data_dir):
         shutil.rmtree(test_data_dir)
-    return
 
 
 @pytest.fixture

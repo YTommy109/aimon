@@ -7,9 +7,9 @@ from .store import DataManager
 
 __all__ = [
     'AITool',
-    'Project',
-    'ProjectStatus',
     'DataManager',
     'DataManagerError',
+    'Project',
     'ProjectNotFoundError',
+    'ProjectStatus',
 ]

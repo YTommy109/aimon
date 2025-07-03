@@ -18,6 +18,9 @@ class AITool(BaseModel):
     id: str
     name_ja: str
     description: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(JST))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(JST))
+    disabled_at: datetime | None = None
 
 
 class ProjectStatus(StrEnum):

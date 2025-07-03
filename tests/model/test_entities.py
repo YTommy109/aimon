@@ -9,20 +9,20 @@ class TestAITool:
     """AIToolエンティティのテストクラス。"""
 
     def test_AIToolエンティティが正しく作成される(self) -> None:
-        # Arrange
-        tool_data = {
-            'id': 'test_tool',
-            'name_ja': 'テストツール',
-            'description': 'テスト用のAIツール',
-        }
-
-        # Act
-        ai_tool = AITool(**tool_data)
+        # Arrange & Act
+        ai_tool = AITool(
+            id='test_tool',
+            name_ja='テストツール',
+            description='テスト用のAIツール',
+        )
 
         # Assert
         assert ai_tool.id == 'test_tool'
         assert ai_tool.name_ja == 'テストツール'
         assert ai_tool.description == 'テスト用のAIツール'
+        assert isinstance(ai_tool.created_at, datetime)
+        assert isinstance(ai_tool.updated_at, datetime)
+        assert ai_tool.disabled_at is None
 
 
 class TestProjectStatus:

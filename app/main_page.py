@@ -63,6 +63,8 @@ def render_main_page() -> None:
 
     # プロジェクト一覧
     projects = data_manager.get_projects()
+    # 作成日時の降順でソート
+    projects.sort(key=lambda p: p.created_at, reverse=True)
     render_project_list(projects, modal, data_manager)
 
 

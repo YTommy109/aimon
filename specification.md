@@ -29,8 +29,13 @@
 
 ```text
 .
-├── .data/               # プロジェクトデータ保存用
+├── .data/               # プロジェクトデータ保存用（JSONファイル）
 ├── app/                 # アプリケーションのソースコード
+│   ├── model/           # データモデル（entities.py, store.py）
+│   ├── service/         # ビジネスロジック（execution.py, project.py）
+│   ├── utils/           # ユーティリティ（excel_parser.py）
+│   ├── view/            # UIコンポーネント（Streamlit用）
+│   └── worker.py        # 非同期処理エンジン
 ├── log/                 # アプリケーションログ
 ├── tests/              # ユニット・インテグレーションテスト
 ├── tests-e2e/          # E2Eテスト
@@ -128,13 +133,38 @@
 
 - **目的**: システムで利用可能なAIツールの定義を管理します。
 - **形式**: JSON
+- **ファイル名**: `ai_tools.json`
+- **エンティティ**: AITool (app/model/entities.py)
 - **主要項目**:
-  - ツールID (一意の識別子)
-  - ツール名 (日本語)
-  - 説明文
-  - 作成日時
-  - 更新日時
-  - 無効化日時 (論理削除用)
+  - `id` (str): ツールの一意識別子（半角英数字とハイフン）
+  - `name_ja` (str): ツールの日本語名
+  - `description` (str): ツールの説明文
+  - `created_at` (datetime): 作成日時（日本時間）
+  - `updated_at` (datetime): 最終更新日時（日本時間）
+  - `disabled_at` (datetime | None): 無効化日時（論理削除用、有効な場合はnull）
+
+- **データ例**:
+
+```json
+[
+  {
+    "id": "meeting-summarizer",
+    "name_ja": "会議議事録要約",
+    "description": "会議の音声や議事録を要約してアクションアイテムを抽出",
+    "created_at": "2024-01-15T10:30:00+09:00",
+    "updated_at": "2024-01-15T10:30:00+09:00",
+    "disabled_at": null
+  },
+  {
+    "id": "document-analyzer",
+    "name_ja": "文書分析",
+    "description": "複数の文書から重要な情報を抽出・分析",
+    "created_at": "2024-01-16T14:20:00+09:00",
+    "updated_at": "2024-01-20T09:15:00+09:00",
+    "disabled_at": "2024-01-25T16:45:00+09:00"
+  }
+]
+```
 
 ### 4.2. プロジェクト管理
 

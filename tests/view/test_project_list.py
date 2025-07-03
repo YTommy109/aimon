@@ -193,7 +193,7 @@ class TestRenderProjectListIntegration:
 
         # ヘッダーの確認
         header_calls = mock_st.columns.call_args_list[0][0][0]
-        assert header_calls == (1, 4, 2, 2, 1)
+        assert header_calls == (1, 4, 2, 2, 1, 1)
 
         # プロジェクト行の確認
         assert mock_st.columns.call_count >= 2  # ヘッダー + プロジェクト行数

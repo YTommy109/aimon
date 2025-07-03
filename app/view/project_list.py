@@ -34,11 +34,13 @@ def _get_status_icon(project: Project, is_running: bool) -> str:
 
 def _render_header_columns() -> None:
     """プロジェクト一覧のヘッダーを描画します。"""
-    header_cols = st.columns((1, 4, 2, 2, 1))
+    header_cols = st.columns((1, 4, 2, 2, 1, 1))
     header_cols[0].write('**No.**')
     header_cols[1].write('**プロジェクト名**')
     header_cols[2].write('**作成日時**')
     header_cols[3].write('**実行日時**')
+    header_cols[4].write('**詳細**')
+    header_cols[5].write('**実行**')
     st.divider()
 
 

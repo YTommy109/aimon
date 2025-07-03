@@ -3,12 +3,13 @@
 import json
 import logging
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
 
 from app.errors import ProjectNotFoundError
-from app.model.entities import AITool, Project, ProjectStatus
+from app.model.entities import JST, AITool, Project, ProjectStatus
 
 # 明示的にエクスポート
 __all__ = ['DataManager', 'ProjectNotFoundError']
@@ -98,6 +99,120 @@ class DataManager:
         tools_data = self._read_json(self.ai_tools_path)
         return [AITool.model_validate(t) for t in tools_data if t.get('disabled_at') is None]
 
+    def get_all_ai_tools(self) -> list[AITool]:
+        """全てのAIツールの一覧を取得します (無効化されたものも含む)。
+
+        Returns:
+            AIToolオブジェクトのリスト。
+        """
+        tools_data = self._read_json(self.ai_tools_path)
+        return [AITool.model_validate(t) for t in tools_data]
+
+    def create_ai_tool(self, tool_id: str, name_ja: str, description: str) -> AITool:
+        """新しいAIツールを作成します。
+
+        Args:
+            tool_id: ツールのID。
+            name_ja: ツールの日本語名。
+            description: ツールの説明。
+
+        Returns:
+            作成されたAIToolオブジェクト。
+
+        Raises:
+            ValueError: 同じIDのツールが既に存在する場合。
+        """
+        # 既存のツールチェック
+        existing_tools = self.get_all_ai_tools()
+        if any(tool.id == tool_id for tool in existing_tools):
+            raise ValueError(f'ID "{tool_id}" のツールは既に存在します。')
+
+        ai_tool = AITool(id=tool_id, name_ja=name_ja, description=description)
+        self._save_ai_tool(ai_tool)
+        return ai_tool
+
+    def update_ai_tool(
+        self, tool_id: str, name_ja: str | None = None, description: str | None = None
+    ) -> AITool:
+        """既存のAIツールを更新します。
+
+        Args:
+            tool_id: 更新するツールのID。
+            name_ja: 新しいツール名 (Noneの場合は更新しない)。
+            description: 新しい説明 (Noneの場合は更新しない)。
+
+        Returns:
+            更新されたAIToolオブジェクト。
+
+        Raises:
+            ValueError: 指定されたIDのツールが存在しない場合。
+        """
+        target_tool = self._find_ai_tool(tool_id)
+
+        # 更新処理
+        if name_ja is not None:
+            target_tool.name_ja = name_ja
+        if description is not None:
+            target_tool.description = description
+        target_tool.updated_at = datetime.now(JST)
+
+        self._save_ai_tool(target_tool)
+        return target_tool
+
+    def disable_ai_tool(self, tool_id: str) -> AITool:
+        """AIツールを無効化します (論理削除)。
+
+        Args:
+            tool_id: 無効化するツールのID。
+
+        Returns:
+            無効化されたAIToolオブジェクト。
+
+        Raises:
+            ValueError: 指定されたIDのツールが存在しない場合。
+        """
+        target_tool = self._find_ai_tool(tool_id)
+        target_tool.disabled_at = datetime.now(JST)
+        target_tool.updated_at = datetime.now(JST)
+        self._save_ai_tool(target_tool)
+        return target_tool
+
+    def enable_ai_tool(self, tool_id: str) -> AITool:
+        """AIツールを有効化します。
+
+        Args:
+            tool_id: 有効化するツールのID。
+
+        Returns:
+            有効化されたAIToolオブジェクト。
+
+        Raises:
+            ValueError: 指定されたIDのツールが存在しない場合。
+        """
+        target_tool = self._find_ai_tool(tool_id)
+        target_tool.disabled_at = None
+        target_tool.updated_at = datetime.now(JST)
+        self._save_ai_tool(target_tool)
+        return target_tool
+
+    def _find_ai_tool(self, tool_id: str) -> AITool:
+        """指定されたIDのAIツールを見つけます。
+
+        Args:
+            tool_id: 検索するツールのID。
+
+        Returns:
+            見つかったAIToolオブジェクト。
+
+        Raises:
+            ValueError: 指定されたIDのツールが存在しない場合。
+        """
+        tools = self.get_all_ai_tools()
+        for tool in tools:
+            if tool.id == tool_id:
+                return tool
+        raise ValueError(f'ID "{tool_id}" のツールが見つかりません。')
+
     def update_project_status(self, project_id: UUID, status: ProjectStatus) -> None:
         """指定されたプロジェクトのステータスを更新します。"""
         project = self.get_project(project_id)
@@ -159,3 +274,14 @@ class DataManager:
 
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+
+    def _save_ai_tool(self, ai_tool: AITool) -> None:
+        """単一のAIツールを保存します。"""
+        tools = self.get_all_ai_tools()
+        for i, tool in enumerate(tools):
+            if tool.id == ai_tool.id:
+                tools[i] = ai_tool
+                break
+        else:
+            tools.append(ai_tool)
+        self._write_json(self.ai_tools_path, [t.model_dump(mode='json') for t in tools])

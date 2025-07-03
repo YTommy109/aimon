@@ -6,7 +6,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from app.model import AITool, DataManager, Project
-from app.view.project_creation_form import render_project_creation_form
+from app.view import project_creation_form as pcf
 
 
 class TestRenderProjectCreationForm:
@@ -18,7 +18,7 @@ class TestRenderProjectCreationForm:
     @pytest.fixture
     def mock_streamlit(self, mocker: MockerFixture) -> MagicMock:
         """Streamlit関数をモックするフィクスチャ。"""
-        mock_st = mocker.patch('app.view.project_creation_form.st')
+        mock_st = mocker.patch.object(pcf, 'st')
         mock_st.session_state = {}
 
         # サイドバーのコンテキストマネージャをモック
@@ -61,7 +61,7 @@ class TestRenderProjectCreationForm:
     ) -> None:
         """フォームの基本的なUI要素が正しく表示されることをテスト。"""
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_streamlit.sidebar.__enter__.assert_called_once()
@@ -93,7 +93,7 @@ class TestRenderProjectCreationForm:
     ) -> None:
         """AIツールの選択肢が正しく設定されることをテスト。"""
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_data_manager.get_ai_tools.assert_called_once()
@@ -122,12 +122,12 @@ class TestRenderProjectCreationForm:
         mock_streamlit.selectbox.return_value = 'tool1'
         mock_streamlit.button.return_value = True
 
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
         mock_project = Project(name='Test Project', source='/path/with/spaces', ai_tool='tool1')
         mock_handle.return_value = (mock_project, 'プロジェクトを作成しました。')
 
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_handle.assert_called_once()
@@ -147,12 +147,12 @@ class TestRenderProjectCreationForm:
         mock_streamlit.selectbox.return_value = 'tool1'
         mock_streamlit.button.return_value = True
 
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
         mock_project = Project(name='Test Project', source='/test/path', ai_tool='tool1')
         mock_handle.return_value = (mock_project, 'プロジェクト「Test Project」を作成しました。')
 
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_handle.assert_called_once_with(
@@ -179,11 +179,11 @@ class TestRenderProjectCreationForm:
         mock_streamlit.selectbox.return_value = 'tool1'
         mock_streamlit.button.return_value = True
 
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
         mock_handle.return_value = (None, 'プロジェクトの作成に失敗しました: エラーが発生しました')
 
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_handle.assert_called_once_with(
@@ -209,10 +209,10 @@ class TestRenderProjectCreationForm:
         mock_streamlit.selectbox.return_value = None  # 未選択
         mock_streamlit.button.return_value = True
 
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
 
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_streamlit.warning.assert_called_once_with('AIツールを選択してください。')
@@ -231,10 +231,10 @@ class TestRenderProjectCreationForm:
         mock_streamlit.selectbox.return_value = 'tool1'
         mock_streamlit.button.return_value = False  # ボタンがクリックされていない
 
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
 
         # Act
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # Assert
         mock_handle.assert_not_called()
@@ -252,7 +252,7 @@ class TestRenderProjectCreationForm:
         mock_data_manager.get_ai_tools.return_value = []  # 空のリスト
 
         # Act & Assert (例外が発生しないことを確認)
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
 
         # セレクトボックスのオプションが空リストになっていることを確認
         selectbox_call = mock_streamlit.selectbox.call_args
@@ -273,7 +273,7 @@ class TestRenderProjectCreationForm:
         mock_streamlit.button.return_value = True
 
         project = Project(name=name, source=path, ai_tool=tool)
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
         mock_handle.return_value = (project, f'プロジェクト「{name}」を作成しました。')
 
         return mock_handle, project
@@ -317,16 +317,16 @@ class TestRenderProjectCreationForm:
     ) -> None:
         """複数のプロジェクト作成が連続して行えることをテスト。"""
         # Arrange - 共通のhandleモックを作成
-        mock_handle = mocker.patch('app.view.project_creation_form.handle_project_creation')
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
 
         # Act & Assert - 1回目
         self._execute_project_creation(mock_streamlit, mock_handle, 'Project 1', '/path1', 'tool1')
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
         assert mock_handle.call_count == 1
 
         # Act & Assert - 2回目
         self._execute_project_creation(mock_streamlit, mock_handle, 'Project 2', '/path2', 'tool2')
-        render_project_creation_form(get_data_manager_func)
+        pcf.render_project_creation_form(get_data_manager_func)
         assert mock_handle.call_count == 2
 
         # 全体の確認

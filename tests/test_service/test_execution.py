@@ -5,9 +5,11 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from pytest_mock import MockerFixture
 
 from app.errors import ProjectAlreadyRunningError, WorkerError
 from app.model import Project, ProjectStatus
+from app.service import execution
 from app.service.execution import handle_project_execution
 from app.worker import Worker
 
@@ -31,13 +33,13 @@ def mock_worker() -> MagicMock:
 def test_プロジェクト実行が正常に成功する(
     mock_data_manager: MagicMock,
     mock_worker: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
 ) -> None:
     # Arrange
     project_id = uuid4()
     # `Worker`クラスのコンストラクタが、モックされたworkerインスタンスを
     # 返すように差し替える
-    monkeypatch.setattr('app.service.execution.Worker', lambda *args: mock_worker)
+    mocker.patch.object(execution, 'Worker', return_value=mock_worker)
     mock_worker.project_id = project_id
 
     # Project インスタンスを作成し、必要な属性を設定
@@ -81,7 +83,7 @@ def test_プロジェクトが既に実行中の場合にエラーメッセー�
 
 def test_ワーカーエラーが発生した場合にNoneとエラーメッセージを返す(
     mock_data_manager: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
 ) -> None:
     # Arrange
     project_id = uuid4()
@@ -90,7 +92,7 @@ def test_ワーカーエラーが発生した場合にNoneとエラーメッセ�
     def failing_worker(*args: object) -> Never:
         raise WorkerError(error_message)
 
-    monkeypatch.setattr('app.service.execution.Worker', failing_worker)
+    mocker.patch.object(execution, 'Worker', failing_worker)
 
     # Act
     worker, message = handle_project_execution(project_id, mock_data_manager, running_workers={})
@@ -103,7 +105,7 @@ def test_ワーカーエラーが発生した場合にNoneとエラーメッセ�
 
 def test_予期せぬエラーが発生した場合にNoneとエラーメッセージを返す(
     mock_data_manager: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
 ) -> None:
     # Arrange
     project_id = uuid4()
@@ -112,7 +114,7 @@ def test_予期せぬエラーが発生した場合にNoneとエラーメッセ�
     def failing_worker(*args: object) -> Never:
         raise RuntimeError(error_message)
 
-    monkeypatch.setattr('app.service.execution.Worker', failing_worker)
+    mocker.patch.object(execution, 'Worker', failing_worker)
 
     # Act
     worker, message = handle_project_execution(project_id, mock_data_manager, running_workers={})

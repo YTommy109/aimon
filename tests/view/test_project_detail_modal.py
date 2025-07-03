@@ -8,7 +8,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from app.model import Project
-from app.view.project_detail_modal import render_project_detail_modal
+from app.view import project_detail_modal as pdm
 
 
 class TestRenderProjectDetailModal:
@@ -20,7 +20,7 @@ class TestRenderProjectDetailModal:
     @pytest.fixture
     def mock_streamlit(self, mocker: MockerFixture) -> MagicMock:
         """Streamlit関数をモックするフィクスチャ。"""
-        mock_st = mocker.patch('app.view.project_detail_modal.st')
+        mock_st = mocker.patch.object(pdm, 'st')
         mock_st.session_state.running_workers = {}
         mock_st.session_state.modal_project = None
         return mock_st
@@ -60,7 +60,7 @@ class TestRenderProjectDetailModal:
         mock_modal.is_open.return_value = False
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         mock_modal.is_open.assert_called_once()
@@ -78,7 +78,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.modal_project = None
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         mock_modal.is_open.assert_called_once()
@@ -98,7 +98,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         mock_modal.is_open.assert_called_once()
@@ -134,7 +134,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {sample_project.id: MagicMock()}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -157,7 +157,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -183,7 +183,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -210,7 +210,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -239,7 +239,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -264,7 +264,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {sample_project.id: MagicMock()}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -296,7 +296,7 @@ class TestRenderProjectDetailModal:
 
         # 1回目: プロジェクト1
         mock_streamlit.session_state.modal_project = project1
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # 1回目の確認
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -307,7 +307,7 @@ class TestRenderProjectDetailModal:
         # 2回目: プロジェクト2
         mock_streamlit.markdown.reset_mock()  # モックをリセット
         mock_streamlit.session_state.modal_project = project2
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # 2回目の確認
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -336,7 +336,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # Assert
         markdown_calls = mock_streamlit.markdown.call_args_list
@@ -364,7 +364,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit.session_state.running_workers = {}
 
         # Act & Assert (例外が発生しないことを確認)
-        render_project_detail_modal(mock_modal)
+        pdm.render_project_detail_modal(mock_modal)
 
         # 特殊文字が含まれていても正常に表示される
         markdown_calls = mock_streamlit.markdown.call_args_list

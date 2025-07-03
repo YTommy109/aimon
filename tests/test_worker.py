@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 from pytest_mock import MockerFixture
 
+from app.config import config
 from app.errors import FileReadingError
 from app.model import DataManager, Project, ProjectStatus
 from app.worker import Worker
@@ -39,7 +40,6 @@ def test_ワーカーがプロジェクトを正常に処理しステータス�
     # get_projectが呼ばれたら、設定したテスト用プロジェクトを返すように設定
     mock_data_manager.get_project.return_value = project
 
-    # Act: ワーカーを実行
     # genaiとopenをモック化して、実際のAPI呼び出しやファイル書き込みを防ぐ
     mock_genai = mocker.patch('app.worker.genai')
     mock_open = mocker.patch('builtins.open')
@@ -51,6 +51,7 @@ def test_ワーカーがプロジェクトを正常に処理しステータス�
     # ファイル書き込みをシミュレート
     mock_open.return_value.__enter__.return_value = mocker.MagicMock()
 
+    # Act: ワーカーを実行
     worker = Worker(project_id, mock_data_manager)
     worker.run()
 
@@ -115,6 +116,8 @@ def test_ワーカーがExcelファイルを正常に処理しステータスと
     # Act
     worker = Worker(project.id, mock_data_manager)
     worker.run()
+
+    # 結果を手動で設定（通常はワーカー内で設定される）
     project.complete(
         {
             'processed_files': ['meeting_notes.xlsx'],
@@ -181,7 +184,7 @@ def test_APIキーが未設定の場合にAPIKeyNotSetErrorが発生する(
     mock_data_manager.get_project.return_value = project
 
     # APIキーを未設定にする
-    mocker.patch('app.worker.config.GEMINI_API_KEY', '')
+    mocker.patch.object(config, 'GEMINI_API_KEY', '')
 
     # Act
     worker = Worker(project_id, mock_data_manager)
@@ -250,8 +253,9 @@ def test_ファイル処理エラーが発生した場合にエラーメッセ�
     mock_data_manager.get_project.return_value = project
 
     # ファイル読み取りでエラーが発生するようにモック
-    mocker.patch(
-        'app.worker.Worker._read_file_content',
+    mocker.patch.object(
+        Worker,
+        '_read_file_content',
         side_effect=FileReadingError('/test/path/test.txt'),
     )
 

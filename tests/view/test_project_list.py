@@ -7,7 +7,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from app.model import Project
-from app.view.project_list import _get_status_icon, render_project_list
+from app.view import project_list as pl
 
 
 class TestGetStatusIcon:
@@ -23,7 +23,7 @@ class TestGetStatusIcon:
         is_running = True
 
         # Act
-        result = _get_status_icon(project, is_running)
+        result = pl._get_status_icon(project, is_running)
 
         # Assert
         assert result == '🏃'
@@ -39,7 +39,7 @@ class TestGetStatusIcon:
         is_running = False
 
         # Act
-        result = _get_status_icon(project, is_running)
+        result = pl._get_status_icon(project, is_running)
 
         # Assert
         assert result == '⏳'
@@ -56,7 +56,7 @@ class TestGetStatusIcon:
         is_running = False
 
         # Act
-        result = _get_status_icon(project, is_running)
+        result = pl._get_status_icon(project, is_running)
 
         # Assert
         assert result == '✅'
@@ -73,7 +73,7 @@ class TestGetStatusIcon:
         is_running = False
 
         # Act
-        result = _get_status_icon(project, is_running)
+        result = pl._get_status_icon(project, is_running)
 
         # Assert
         assert result == '❌'
@@ -89,7 +89,7 @@ class TestGetStatusIcon:
         is_running = False
 
         # Act
-        result = _get_status_icon(project, is_running)
+        result = pl._get_status_icon(project, is_running)
 
         # Assert
         assert result == '💬'
@@ -106,7 +106,7 @@ class TestGetStatusIcon:
         is_running = True
 
         # Act
-        result = _get_status_icon(project, is_running)
+        result = pl._get_status_icon(project, is_running)
 
         # Assert
         assert result == '🏃'  # 実行中フラグが優先される
@@ -121,7 +121,7 @@ class TestRenderProjectListIntegration:
     @pytest.fixture
     def mock_streamlit(self, mocker: MockerFixture) -> tuple[MagicMock, list[MagicMock]]:
         """Streamlit関数をモックするフィクスチャ。"""
-        mock_st = mocker.patch('app.view.project_list.st')
+        mock_st = mocker.patch.object(pl, 'st')
         mock_st.session_state.running_workers = {}
         mock_st.session_state.modal_project = None
 
@@ -163,7 +163,7 @@ class TestRenderProjectListIntegration:
         mock_data_manager = MagicMock()
 
         # Act
-        render_project_list(projects, mock_modal, mock_data_manager)
+        pl.render_project_list(projects, mock_modal, mock_data_manager)
 
         # Assert
         mock_st.header.assert_called_once_with('プロジェクト一覧')
@@ -185,7 +185,7 @@ class TestRenderProjectListIntegration:
             col.button.return_value = False
 
         # Act
-        render_project_list(sample_projects, mock_modal, mock_data_manager)
+        pl.render_project_list(sample_projects, mock_modal, mock_data_manager)
 
         # Assert
         mock_st.header.assert_called_once_with('プロジェクト一覧')
@@ -222,7 +222,7 @@ class TestRenderProjectListIntegration:
         project_columns[5].button.return_value = False  # 実行ボタン
 
         # Act
-        render_project_list(sample_projects, mock_modal, mock_data_manager)
+        pl.render_project_list(sample_projects, mock_modal, mock_data_manager)
 
         # Assert
         # モーダルは各プロジェクトごとに呼ばれる可能性があるので、呼ばれたことを確認
@@ -242,7 +242,7 @@ class TestRenderProjectListIntegration:
         mock_data_manager = MagicMock()
 
         # handle_project_executionのモック
-        mock_handler = mocker.patch('app.view.project_list.handle_project_execution')
+        mock_handler = mocker.patch.object(pl, 'handle_project_execution')
         mock_handler.return_value = (MagicMock(), 'プロジェクトを実行しました')
 
         # プロジェクト行用のモックカラムを追加設定
@@ -258,7 +258,7 @@ class TestRenderProjectListIntegration:
         project_columns[5].button.return_value = True  # 実行ボタン
 
         # Act
-        render_project_list(sample_projects, mock_modal, mock_data_manager)
+        pl.render_project_list(sample_projects, mock_modal, mock_data_manager)
 
         # Assert
         mock_handler.assert_called_once()
@@ -281,7 +281,7 @@ class TestRenderProjectListIntegration:
             project.executed_at = datetime.now()
 
         # Act
-        render_project_list(sample_projects, mock_modal, mock_data_manager)
+        pl.render_project_list(sample_projects, mock_modal, mock_data_manager)
 
         # Assert
         # 実行ボタンが呼ばれていないことを確認
@@ -319,7 +319,7 @@ class TestRenderProjectListIntegration:
         projects = [completed_project, failed_project]
 
         # Act
-        render_project_list(projects, mock_modal, mock_data_manager)
+        pl.render_project_list(projects, mock_modal, mock_data_manager)
 
         # Assert
         # writeメソッドの呼び出しを確認

@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from app.main_page import render_main_page
 
@@ -19,10 +20,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # configインスタンスのAPP_ENVを更新
-    from app.config import config
-
-    config.APP_ENV = args.app_env
+    # configインスタンス生成前に環境変数にセット
+    os.environ['APP_ENV'] = args.app_env
 
     render_main_page()
 

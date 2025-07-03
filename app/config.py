@@ -3,20 +3,18 @@
 from pathlib import Path
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
     """アプリケーション設定クラス。"""
 
-    model_config = SettingsConfigDict(env_file='.env', case_sensitive=True, extra='ignore')
-
     # アプリケーション環境
     APP_ENV: str = 'development'
 
     # データディレクトリ
-    DATA_DIR: Path = Path('.data')
-    DATA_DIR_TEST: Path = Path('.data_test')
+    DATA_DIR: Path = Field(default=Path('.data'), validation_alias='DATA_DIR')
+    DATA_DIR_TEST: Path = Field(default=Path('.data_test'), validation_alias='DATA_DIR_TEST')
 
     # デフォルトファイル名
     DEFAULT_PROJECTS_FILE: str = 'projects.json'

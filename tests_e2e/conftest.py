@@ -28,3 +28,15 @@ def page_with_app(page: Page, base_url: str) -> Page:
     expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(timeout=10000)
 
     return page
+
+
+@pytest.fixture
+def page_with_ai_tool_management(page: Page, base_url: str) -> Page:
+    """AIツール管理ページにアクセス済みのPageオブジェクトを返します"""
+    page.goto(f'{base_url}/AI_Tool_Management')
+    # ファイル削除などを反映させるため、一度リロードを挟んで状態を確実にする
+    page.reload()
+    # AIツール管理ページが完全に読み込まれるまで待つ
+    expect(page.get_by_role('heading', name='AIツール管理')).to_be_visible(timeout=10000)
+
+    return page

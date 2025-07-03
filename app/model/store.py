@@ -123,7 +123,7 @@ class DataManager:
             ValueError: 同じIDのツールが既に存在する場合。
         """
         # 既存のツールチェック
-        existing_tools = self.get_all_ai_tools()
+        existing_tools = self.get_ai_tools()
         if any(tool.id == tool_id for tool in existing_tools):
             raise ValueError(f'ID "{tool_id}" のツールは既に存在します。')
 

@@ -108,6 +108,7 @@ E2Eテストでは、`data-testid`のような実装に依存したセレクタ�
 これにより、内部的なHTML構造の変更に強く、壊れにくいテストになる。
 
 推奨される優先順位:
+
 1. `page.get_by_role()`
 2. `page.get_by_text()`
 3. `page.get_by_label()`
@@ -115,7 +116,7 @@ E2Eテストでは、`data-testid`のような実装に依存したセレクタ�
 
 ---
 
-# JAPANESE_E2E_TEST_NAMES
+# JAPANESE_TEST_NAMES
 
 ```yaml
 id: JAPANESE_TEST_NAMES
@@ -125,7 +126,9 @@ scope: python
 
 テストの関数名は、テスト内容が明確にわかる日本語で命名する。
 
-例: `def test_プロジェクトが存在しない場合にメッセージが表示される()`
+例:
+    - test_プロジェクトが存在しない場合にメッセージが表示される
+    - test_プロジェクトが存在する場合に実行コントロールが表示される
 
 ---
 

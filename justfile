@@ -71,59 +71,50 @@ test-e2e mode='':
     #!/usr/bin/env zsh
     set -euo pipefail
 
-    PYTEST_CMD="pytest tests_e2e --base-url {{BASE_URL}}"
-
     case '{{mode}}' in
         '')
             # 全テスト実行
+            pytest tests_e2e --base-url {{BASE_URL}}
             ;;
         'headed')
-            PYTEST_CMD="$PYTEST_CMD --headed"
+            # ヘッドレスモード無効（ブラウザ表示）
+            pytest tests_e2e --base-url {{BASE_URL}} --headed
             ;;
         'debug')
-            PYTEST_CMD="$PYTEST_CMD --headed --slowmo 1000"
-            ;;
-        'smoke')
-            PYTEST_CMD="$PYTEST_CMD -k 'test_ページ全体の基本レイアウトが正しく表示される'"
-            ;;
-        'core')
-            PYTEST_CMD="$PYTEST_CMD -k 'test_プロジェクト作成フォーム or test_プロジェクト詳細モーダル'"
-            ;;
-        'ui')
-            PYTEST_CMD="$PYTEST_CMD -k 'test_デスクトップレイアウト or test_モバイルレイアウト'"
-            ;;
-        'performance')
-            PYTEST_CMD="$PYTEST_CMD -k 'test_ページの読み込み時間 or test_自動更新機能のパフォーマンス'"
-            ;;
-        'accessibility')
-            PYTEST_CMD="$PYTEST_CMD -k 'test_キーボードナビゲーション or test_ARIAラベル or test_カラーコントラスト'"
-            ;;
-        'single-browser')
-            PYTEST_CMD="pytest tests_e2e --base-url {{BASE_URL}} --browser chromium"
+            # デバッグモード（ブラウザ表示+スローモーション）
+            pytest tests_e2e --base-url {{BASE_URL}} --headed --slowmo 1000
             ;;
         *)
             echo "Unknown test-e2e mode: '{{mode}}'"
-            echo "Available: 'headed', 'debug', 'smoke', 'core', 'ui', 'performance', 'accessibility', 'single-browser'"
+            echo "Available: 'headed', 'debug'"
             exit 1
             ;;
     esac
-
-    eval $PYTEST_CMD
 
 # カバレッジ計測
 coverage:
     pytest --cov=app --cov-report=term-missing
 
+
+# ruff
+ruff path='':
+    #!/usr/bin/env zsh
+    set -euo pipefail
+
+    if [[ '{{path}}' == '' ]]; then
+        ruff format . && ruff check --fix .
+    else
+        ruff format {{path}} && ruff check --fix {{path}}
+    fi
+
+
 # linter/formatter
 lint:
     ruff format . && ruff check --fix .
-
-# 型チェック
-mypy:
     mypy .
 
 # 'prod'が指定された場合は本番環境の、それ以外は開発環境の依存関係を同期する
-sync mode='dev':
+sync mode='':
     #!/usr/bin/env zsh
     set -euo pipefail
 
@@ -140,18 +131,16 @@ venv:
     uv venv -p 3.12
 
 # すべてのチェックとテストを実行
-# just test-all        -> lint, mypy, test (e2eテストは省略)
-# just test-all strict -> lint, mypy, test, test-e2e (e2eテストも実行)
+# just test-all        -> lint, test (e2eテストは省略)
+# just test-all strict -> lint, test, test-e2e (e2eテストも実行)
 test-all mode='':
     #!/usr/bin/env zsh
     set -euo pipefail
     
     echo "Running lint..."
     just lint
-    echo "Running mypy..."
-    just mypy
     echo "Running tests..."
-    just test all
+    just coverage
     
     case '{{mode}}' in
         '')
@@ -169,6 +158,19 @@ test-all mode='':
 
 @watch:
     fswatch -o app tests | xargs -n1 -I{} just test
+
+playwright-mcp:
+    npx @playwright/mcp
+
+mdlint path='':
+    #!/usr/bin/env zsh
+    set -euo pipefail
+
+    if [[ '{{path}}' == '' ]]; then
+        markdownlint-cli2 --fix .
+    else
+        markdownlint-cli2 --fix {{path}}
+    fi
 
 # 型チェック
 # 参考: https://github.com/astral-sh/ty

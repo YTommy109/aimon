@@ -41,7 +41,7 @@ class TestMainPage:
 class TestProjectCreation:
     """プロジェクト作成機能をテストするクラス"""
 
-    def test_プロジェクト作成フォームのバリデーションをテスト(self, page_with_app: Page) -> None:
+    def test_プロジェクト作成フォームのバリデーション(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')
@@ -55,7 +55,7 @@ class TestProjectCreation:
         # 警告メッセージが表示されることを確認
         expect(page.locator('text="AIツールを選択してください。"')).to_be_visible()
 
-    def test_プロジェクト作成フォームの入力フィールドをテスト(self, page_with_app: Page) -> None:
+    def test_プロジェクト作成フォームの入力フィールド(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')
@@ -74,9 +74,8 @@ class TestProjectCreation:
 class TestProjectList:
     """プロジェクト一覧機能をテストするクラス"""
 
-    def test_プロジェクトが存在しない場合にメッセージが表示されることをテスト(
-        self,
-        page_with_app: Page,
+    def test_プロジェクトが存在しない場合にメッセージが表示される(
+        self, page_with_app: Page
     ) -> None:
         # Given
         page = page_with_app
@@ -88,9 +87,8 @@ class TestProjectList:
         empty_message = page.get_by_text('まだプロジェクトがありません。')
         expect(empty_message).to_be_visible()
 
-    def test_プロジェクトが1つ以上存在する場合ヘッダーが表示されることをテスト(
-        self,
-        page_with_app: Page,
+    def test_プロジェクトが1つ以上存在する場合ヘッダーが表示される(
+        self, page_with_app: Page
     ) -> None:
         # Given
         page = page_with_app
@@ -106,20 +104,14 @@ class TestProjectList:
             expect(page.get_by_role('strong', name='作成日時')).to_be_visible()
             expect(page.get_by_role('strong', name='実行日時')).to_be_visible()
 
-    def test_プロジェクト一覧に実行ボタンが表示されることをテスト(
-        self,
-        page_with_app: Page,
-    ) -> None:
+    def test_プロジェクト一覧に実行ボタンが表示される(self, page_with_app: Page) -> None:
         page = page_with_app
         # プロジェクト一覧の行を取得
         rows = page.locator('button:has-text("実行")')
         # Pendingプロジェクトが1つ以上あれば実行ボタンが表示される
         assert rows.count() >= 0  # 0個以上（データ状況による）
 
-    def test_実行ボタン押下でプロジェクトが実行状態になることをテスト(
-        self,
-        page_with_app: Page,
-    ) -> None:
+    def test_実行ボタン押下でプロジェクトが実行状態になる(self, page_with_app: Page) -> None:
         page = page_with_app
         # 実行ボタンがあればクリック
         exec_btns = page.locator('button:has-text("実行")')
@@ -129,8 +121,7 @@ class TestProjectList:
             expect(exec_btns.nth(0)).not_to_be_visible()
 
     def test_完了済みや実行中プロジェクトには実行ボタンが表示されない(
-        self,
-        page_with_app: Page,
+        self, page_with_app: Page
     ) -> None:
         page = page_with_app
         # 完了済みや実行中の行には「実行」ボタンがないことを確認
@@ -143,7 +134,7 @@ class TestProjectList:
 class TestResponsiveDesign:
     """レスポンシブデザインをテストするクラス"""
 
-    def test_デスクトップレイアウトの表示をテスト(self, page_with_app: Page) -> None:
+    def test_デスクトップレイアウトの表示(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 
@@ -156,7 +147,7 @@ class TestResponsiveDesign:
         header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
         expect(header).to_be_visible()
 
-    def test_モバイルレイアウトの表示をテスト(self, page_with_app: Page) -> None:
+    def test_モバイルレイアウトの表示(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 

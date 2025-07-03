@@ -8,8 +8,9 @@ from playwright.sync_api import Page, expect
 class TestProjectWorkflow:
     """プロジェクトの作成から実行までの一連のワークフローをテストするクラス"""
 
-    def test_プロジェクト詳細モーダルの機能をテスト(self, page_with_app: Page) -> None:
-        # Given
+    def test_プロジェクト詳細モーダルを開いた場合に情報が表示される(
+        self, page_with_app: Page
+    ) -> None:
         page = page_with_app
         # 前提：詳細ボタンが表示されるプロジェクトが1つ以上存在する
         detail_buttons = page.locator('button:has-text("詳細")')
@@ -27,8 +28,9 @@ class TestProjectWorkflow:
             expect(modal.locator('text="AIツール"')).to_be_visible()
             expect(modal.locator('text="ステータス"')).to_be_visible()
 
-    def test_プロジェクトのステータスアイコンの表示をテスト(self, page_with_app: Page) -> None:
-        # Given
+    def test_プロジェクトが存在する場合にステータスアイコンが表示される(
+        self, page_with_app: Page
+    ) -> None:
         page = page_with_app
         # 前提：プロジェクトが1つ以上存在する
         project_rows = page.locator('[data-testid="column"]:has-text("テスト")')
@@ -49,8 +51,9 @@ class TestProjectWorkflow:
             # 少なくとも1つのステータスアイコンが表示されている
             assert has_status_icon
 
-    def test_プロジェクト実行コントロールの表示をテスト(self, page_with_app: Page) -> None:
-        # Given
+    def test_プロジェクトが存在する場合に実行コントロールが表示される(
+        self, page_with_app: Page
+    ) -> None:
         page = page_with_app
         project_list = page.get_by_role('strong', name='プロジェクト名')
 
@@ -63,7 +66,9 @@ class TestProjectWorkflow:
             expect(page.locator('text="実行するプロジェクトを選択してください"')).to_be_visible()
             expect(page.get_by_role('button', name='選択したプロジェクトを実行')).to_be_visible()
 
-    def test_ナビゲーションとインタラクションのテスト(self, page_with_app: Page) -> None:
+    def test_プロジェクト名入力欄で値を入力_クリアした場合に正しく反映される(
+        self, page_with_app: Page
+    ) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')
@@ -85,11 +90,9 @@ class TestProjectWorkflow:
         expect(page.get_by_role('heading', name='プロジェクト一覧')).to_be_visible()
         expect(page.get_by_role('heading', name='プロジェクト作成')).to_be_visible()
 
-
-class TestErrorHandling:
-    """エラーハンドリングをテストするクラス"""
-
-    def test_無効な入力に対するエラーハンドリングをテスト(self, page_with_app: Page) -> None:
+    def test_AIツール未選択でプロジェクト作成ボタンを押した場合にエラーメッセージが表示される(
+        self, page_with_app: Page
+    ) -> None:
         # Given
         page = page_with_app
 
@@ -99,7 +102,9 @@ class TestErrorHandling:
         # Then
         expect(page.get_by_text('AIツールを選択してください。')).to_be_visible(timeout=5000)
 
-    def test_ネットワークエラーに対する耐性をテスト(self, page_with_app: Page) -> None:
+    def test_ネットワークエラーが発生した場合でもページが正常に表示される(
+        self, page_with_app: Page
+    ) -> None:
         # Given
         page = page_with_app
 
@@ -115,7 +120,7 @@ class TestErrorHandling:
 class TestPerformance:
     """パフォーマンス関連のテストクラス"""
 
-    def test_ページの読み込み時間をテスト(self, page_with_app: Page) -> None:
+    def test_ページを読み込んだ場合に15秒未満で表示される(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         start_time = time.time()
@@ -130,7 +135,7 @@ class TestPerformance:
         load_time = end_time - start_time
         assert load_time < 15, f'ページの読み込みが遅すぎます: {load_time:.2f}秒'
 
-    def test_自動更新機能のパフォーマンスをテスト(self, page_with_app: Page) -> None:
+    def test_自動更新機能が有効な場合にページが正常に動作する(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 
@@ -147,7 +152,7 @@ class TestPerformance:
 class TestAccessibility:
     """アクセシビリティをテストするクラス"""
 
-    def test_キーボードナビゲーションをテスト(self, page_with_app: Page) -> None:
+    def test_Tabキー操作でフォーカスが移動する(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 
@@ -166,7 +171,7 @@ class TestAccessibility:
             'SECTION',
         ], f'フォーカス可能な要素: {focused_element}'
 
-    def test_ARIAラベルの存在をテスト(self, page_with_app: Page) -> None:
+    def test_サイドバー入力欄にARIAラベルが存在する(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
         sidebar = page.locator('[data-testid="stSidebar"]')
@@ -182,7 +187,7 @@ class TestAccessibility:
         expect(page.locator('[aria-label="プロジェクト名"]')).to_be_visible()
         expect(page.locator('[aria-label="対象ディレクトリのパス"]')).to_be_visible()
 
-    def test_カラーコントラストの基本確認(self, page_with_app: Page) -> None:
+    def test_タイトルのカラーコントラストが取得できる(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
 

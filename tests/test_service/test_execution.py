@@ -1,11 +1,12 @@
 """プロジェクト実行サービスのテスト。"""
 
+from typing import Never
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
 
-from app.errors import ProjectAlreadyRunningError
+from app.errors import ProjectAlreadyRunningError, WorkerError
 from app.model import Project, ProjectStatus
 from app.service.execution import handle_project_execution
 from app.worker import Worker
@@ -76,3 +77,47 @@ def test_プロジェクトが既に実行中の場合にエラーメッセー�
             mock_data_manager,
             running_workers,
         )
+
+
+def test_ワーカーエラーが発生した場合にNoneとエラーメッセージを返す(
+    mock_data_manager: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    project_id = uuid4()
+    error_message = 'ワーカー初期化に失敗しました'
+
+    def failing_worker(*args: object) -> Never:
+        raise WorkerError(error_message)
+
+    monkeypatch.setattr('app.service.execution.Worker', failing_worker)
+
+    # Act
+    worker, message = handle_project_execution(project_id, mock_data_manager, running_workers={})
+
+    # Assert
+    assert worker is None
+    assert 'ワーカーの起動に失敗しました' in message
+    assert error_message in message
+
+
+def test_予期せぬエラーが発生した場合にNoneとエラーメッセージを返す(
+    mock_data_manager: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange
+    project_id = uuid4()
+    error_message = '予期しない例外が発生'
+
+    def failing_worker(*args: object) -> Never:
+        raise RuntimeError(error_message)
+
+    monkeypatch.setattr('app.service.execution.Worker', failing_worker)
+
+    # Act
+    worker, message = handle_project_execution(project_id, mock_data_manager, running_workers={})
+
+    # Assert
+    assert worker is None
+    assert '予期せぬエラーが発生しました' in message
+    assert error_message in message

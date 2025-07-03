@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 from pytest_mock import MockerFixture
 
+from app.errors import FileReadingError
 from app.model import DataManager, Project, ProjectStatus
 from app.worker import Worker
 
@@ -159,3 +160,113 @@ def test_ワーカーがプロジェクト取得に失敗した場合(mock_data_
 
     # Assert: エラーが記録されることを確認
     mock_data_manager.get_project.assert_called_once_with(project_id)
+
+
+def test_APIキーが未設定の場合にAPIKeyNotSetErrorが発生する(
+    mock_data_manager: MagicMock,
+    tmp_path: Path,
+    mocker: MockerFixture,
+) -> None:
+    # Arrange
+    project_id = uuid4()
+    source_path = tmp_path
+    (source_path / 'test.txt').touch()
+
+    project = Project(
+        id=project_id,
+        name='Test Project',
+        source=str(source_path),
+        ai_tool='TestTool',
+    )
+    mock_data_manager.get_project.return_value = project
+
+    # APIキーを未設定にする
+    mocker.patch('app.worker.config.GEMINI_API_KEY', '')
+
+    # Act
+    worker = Worker(project_id, mock_data_manager)
+    worker.run()
+
+    # Assert: プロジェクトがエラー状態になっていることを確認
+    mock_data_manager._save_project.assert_called()
+
+
+def test_API呼び出しが失敗した場合にAPICallFailedErrorをハンドリングする(
+    mock_data_manager: MagicMock,
+    tmp_path: Path,
+    mocker: MockerFixture,
+) -> None:
+    # Arrange
+    project_id = uuid4()
+    source_path = tmp_path
+    (source_path / 'test.txt').write_text('test content')
+
+    project = Project(
+        id=project_id,
+        name='Test Project',
+        source=str(source_path),
+        ai_tool='TestTool',
+    )
+    mock_data_manager.get_project.return_value = project
+
+    # genaiのモック設定 - generate_contentが例外を発生
+    mock_genai = mocker.patch('app.worker.genai')
+    mock_model = mock_genai.GenerativeModel.return_value
+    mock_model.generate_content.side_effect = Exception('API call failed')
+
+    # ファイル書き込みをモック
+    mock_open = mocker.patch('builtins.open')
+    mock_file = mocker.MagicMock()
+    mock_open.return_value.__enter__.return_value = mock_file
+
+    # Act
+    worker = Worker(project_id, mock_data_manager)
+    worker.run()
+
+    # Assert: APIエラーがファイルに書き込まれることを確認
+    expected_message = (
+        '**エラー:** API呼び出し中にエラーが発生しました: APIの設定が不正です: '
+        'Gemini APIの呼び出しに失敗しました: API call failed\n\n'
+    )
+    mock_file.write.assert_any_call(expected_message)
+
+
+def test_ファイル処理エラーが発生した場合にエラーメッセージを出力ファイルに書き込む(
+    mock_data_manager: MagicMock,
+    tmp_path: Path,
+    mocker: MockerFixture,
+) -> None:
+    # Arrange
+    project_id = uuid4()
+    source_path = tmp_path
+    (source_path / 'test.txt').touch()
+
+    project = Project(
+        id=project_id,
+        name='Test Project',
+        source=str(source_path),
+        ai_tool='TestTool',
+    )
+    mock_data_manager.get_project.return_value = project
+
+    # ファイル読み取りでエラーが発生するようにモック
+    mocker.patch(
+        'app.worker.Worker._read_file_content',
+        side_effect=FileReadingError('/test/path/test.txt'),
+    )
+
+    # ファイル書き込みをモック
+    mock_open = mocker.patch('builtins.open')
+    mock_file = mocker.MagicMock()
+    mock_open.return_value.__enter__.return_value = mock_file
+
+    # Act
+    worker = Worker(project_id, mock_data_manager)
+    worker.run()
+
+    # Assert: ファイル処理エラーがファイルに書き込まれることを確認
+    expected_message = (
+        '**エラー:** ファイル処理中にエラーが発生しました: '
+        'ファイル /test/path/test.txt の読み込みに失敗しました\n\n'
+    )
+    mock_file.write.assert_any_call(expected_message)

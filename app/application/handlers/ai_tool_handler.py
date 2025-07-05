@@ -2,6 +2,7 @@
 
 from app.domain.entities import AITool
 from app.domain.repositories import AIToolRepository
+from app.errors import ResourceNotFoundError
 
 # 定数定義
 MAX_TOOL_ID_LENGTH = 50
@@ -145,5 +146,8 @@ class AIToolHandler:
 
     def _is_duplicate_tool_id(self, tool_id: str) -> bool:
         """重複するツールIDの存在チェック。"""
-        existing_tool = self.ai_tool_repository.find_by_id(tool_id)
-        return existing_tool is not None
+        try:
+            self.ai_tool_repository.find_by_id(tool_id)
+            return True
+        except ResourceNotFoundError:
+            return False

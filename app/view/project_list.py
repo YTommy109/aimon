@@ -3,8 +3,9 @@
 import streamlit as st
 from streamlit_modal import Modal
 
-from app.model import DataManager, Project, ProjectStatus
-from app.service.execution import handle_project_execution
+from app.application.data_manager import DataManager
+from app.application.services.project_service import handle_project_execution
+from app.domain.entities import Project, ProjectStatus
 
 
 def _get_status_icon(project: Project, is_running: bool) -> str:
@@ -99,12 +100,11 @@ def _handle_project_buttons(
         st.session_state.modal_project = project
         modal.open()
     if exec_btn:
-        worker, message = handle_project_execution(
-            project.id,
+        updated_project, message = handle_project_execution(
+            project,
             data_manager,
-            st.session_state.running_workers,
         )
-        if worker:
+        if updated_project:
             st.info(message)
             st.rerun()
         else:

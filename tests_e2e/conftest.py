@@ -11,8 +11,8 @@ from playwright.sync_api import Page, expect
 def clean_test_data_before_each_test() -> None:
     """各テストの前にテスト用データディレクトリを削除して、クリーンな状態でテストを開始します。"""
     # 環境変数 `DATA_DIR_TEST` からテスト用ディレクトリのパスを取得。
-    # 未設定の場合はデフォルト値 '.data-test' を使用。
-    test_data_dir = os.environ.get('DATA_DIR_TEST', '.data-test')
+    # 未設定の場合はデフォルト値 '.data_test' を使用。
+    test_data_dir = os.environ.get('DATA_DIR_TEST', '.data_test')
 
     if os.path.exists(test_data_dir):
         shutil.rmtree(test_data_dir)

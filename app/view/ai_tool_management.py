@@ -4,15 +4,15 @@ from typing import Any
 
 import streamlit as st
 
-from app.model.entities import AITool
-from app.model.store import DataManager
-from app.service.ai_tool import (
+from app.application.data_manager import DataManager
+from app.application.services.ai_tool_service import (
     get_ai_tools,
     handle_ai_tool_creation,
     handle_ai_tool_disable,
     handle_ai_tool_enable,
     handle_ai_tool_update,
 )
+from app.domain.entities import AITool
 
 
 def render_ai_tool_management_page(data_manager: DataManager) -> None:
@@ -105,7 +105,7 @@ def _render_tool_info_columns(tool: AITool, cols: list[Any]) -> None:
         st.write('有効' if tool.disabled_at is None else '無効')
 
 
-def _render_tool_actions(tool: AITool, data_manager: DataManager) -> None:  # noqa: C901
+def _render_tool_actions(tool: AITool, data_manager: DataManager) -> None:
     """AIツール操作ボタンの描画。
 
     Args:

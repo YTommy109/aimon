@@ -5,7 +5,8 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
-from app.model import AITool, DataManager, Project
+from app.application.data_manager import DataManager
+from app.domain.entities import AITool, Project
 from app.view import project_creation_form as pcf
 
 
@@ -34,9 +35,9 @@ class TestRenderProjectCreationForm:
         return mock_st
 
     @pytest.fixture
-    def mock_data_manager(self) -> MagicMock:
+    def mock_data_manager(self, mocker: MockerFixture) -> MagicMock:
         """DataManagerのモックを提供するフィクスチャ。"""
-        mock_dm = MagicMock(spec=DataManager)
+        mock_dm = mocker.MagicMock(spec=DataManager)
 
         # サンプルAIツールを設定
         sample_ai_tools = [
@@ -49,9 +50,11 @@ class TestRenderProjectCreationForm:
         return mock_dm
 
     @pytest.fixture
-    def get_data_manager_func(self, mock_data_manager: MagicMock) -> MagicMock:
+    def get_data_manager_func(
+        self, mock_data_manager: MagicMock, mocker: MockerFixture
+    ) -> MagicMock:
         """get_data_manager関数のモックを提供するフィクスチャ。"""
-        return MagicMock(return_value=mock_data_manager)
+        return mocker.MagicMock(return_value=mock_data_manager)
 
     def test_フォームの基本構成が表示される(
         self,

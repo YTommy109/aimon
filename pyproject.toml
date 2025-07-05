@@ -22,6 +22,7 @@ dev = [
     "pytest-mock>=3.0",
     "playwright>=1.40.0",
     "pytest-playwright>=0.4.0",
+    "pytest-randomly>=3.16.0",
     "types-openpyxl>=3.1.5.20250602",
     "types-Pillow>=10.2.0",
     "mypy>=1.8.0",
@@ -59,34 +60,35 @@ line-length = 100 # 1行の最大文字数（可読性とモニター幅のバ�
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle エラー（コードスタイル基本）
-    "F",   # pyflakes（構文エラー、未使用import等）
-    "W",   # pycodestyle 警告（非推奨パターン等）
-    "ANN", # flake8-annotations（型注釈チェック）
-    "I",   # isort（import文の並び順チェック）
-    "UP",  # pyupgrade（Python新機能への更新推奨）
-    "PT",  # flake8-pytest-style（pytest記法チェック）
-    "C90", # mccabe complexity（循環的複雑度チェック）
-    "C4",  # flake8-comprehensions（リスト内包表記等の最適化）
-    "TID", # flake8-tidy-imports（import文の整理）
-    "SIM", # flake8-simplify（コード簡素化推奨）
-    "RET", # flake8-return（return文の最適化）
-    "ARG", # flake8-unused-arguments（未使用引数チェック）
-    "PIE", # flake8-pie（よくあるミスパターンチェック）
-    "PL",  # pylint（包括的品質チェック）
-    "RUF", # ruff-specific rules（ruff独自ルール）
-    "B",   # flake8-bugbear（潜在的バグパターンチェック）
-    "A",   # flake8-builtins（組み込み関数名の衝突チェック）
-    "COM", # flake8-commas（カンマ記法チェック）
-    "ISC", # flake8-implicit-str-concat（文字列結合チェック）
-    "T20", # flake8-print（print文使用チェック）
-    "N",   # pep8-naming（命名規則チェック）
-    "S",   # bandit（セキュリティ脆弱性チェック）
-    "FBT", # flake8-boolean-trap（boolean引数パターンチェック）
-    "ERA", # eradicate（コメントアウトされたコード検出）
-    "DTZ", # flake8-datetimez（datetime安全性チェック）
-    "PD",  # pandas-vet（pandas最適化チェック）
-    "PLR", # pylint refactor（リファクタリング推奨）
+    "E",      # pycodestyle エラー（コードスタイル基本）
+    "F",      # pyflakes（構文エラー、未使用import等）
+    "W",      # pycodestyle 警告（非推奨パターン等）
+    "ANN",    # flake8-annotations（型注釈チェック）
+    "I",      # isort（import文の並び順チェック）
+    "UP",     # pyupgrade（Python新機能への更新推奨）
+    "PT",     # flake8-pytest-style（pytest記法チェック）
+    "C90",    # mccabe complexity（循環的複雑度チェック）
+    "C4",     # flake8-comprehensions（リスト内包表記等の最適化）
+    "TID",    # flake8-tidy-imports（import文の整理/type: ignore禁止TID252も含む）
+    "SIM",    # flake8-simplify（コード簡素化推奨）
+    "RET",    # flake8-return（return文の最適化）
+    "ARG",    # flake8-unused-arguments（未使用引数チェック）
+    "PIE",    # flake8-pie（よくあるミスパターンチェック）
+    "PL",     # pylint（包括的品質チェック）
+    "RUF",    # ruff-specific rules（ruff独自ルール）
+    "B",      # flake8-bugbear（潜在的バグパターンチェック）
+    "A",      # flake8-builtins（組み込み関数名の衝突チェック）
+    "COM",    # flake8-commas（カンマ記法チェック）
+    "ISC",    # flake8-implicit-str-concat（文字列結合チェック）
+    "T20",    # flake8-print（print文使用チェック）
+    "N",      # pep8-naming（命名規則チェック）
+    "S",      # bandit（セキュリティ脆弱性チェック）
+    "FBT",    # flake8-boolean-trap（boolean引数パターンチェック）
+    "ERA",    # eradicate（コメントアウトされたコード検出・type: ignoreも検出）
+    "DTZ",    # flake8-datetimez（datetime安全性チェック）
+    "PD",     # pandas-vet（pandas最適化チェック）
+    "PLR",    # pylint refactor（リファクタリング推奨）
+    "TID252", # type: ignore禁止
 ]
 
 ignore = [
@@ -192,6 +194,9 @@ max-statements = 15 # 関数内の文の最大数（可読性保持、LLM品質�
 "app/application/handlers/ai_tool_handler.py" = [
     "PLR0911", # return文の数許可（シンプルなバリデーションロジック）
 ]
+"app/view/ai_tool_management.py" = [
+    "C901", # 複雑なUIロジックのため許容
+]
 
 # =====================================
 # mypy設定
@@ -231,10 +236,10 @@ warn_incomplete_stub = true # スタブファイルの不完全性を警告
 # テスト用設定（型チェックを緩和）
 [[tool.mypy.overrides]]
 module = ["tests.*", "tests_e2e.*"]
-disallow_untyped_defs = false       # テストでは型注釈なし関数を許可
-disallow_any_explicit = false       # テストでは明示的な Any 使用を許可
-disallow_any_generics = false       # テストではジェネリック Any を許可
-warn_return_any = false             # テストでは Any 戻り値警告を無効化
+disallow_untyped_defs = false       # テストで関数の型注釈必須制御
+disallow_any_explicit = true        # テストで明示的なAny型の使用制御
+disallow_any_generics = true        # テストでジェネリックAny型の使用制御
+warn_return_any = false             # テストでAny型の戻り値警告制御
 
 # サードパーティライブラリ用設定（型情報不完全なライブラリ対応）
 [[tool.mypy.overrides]]
@@ -275,3 +280,10 @@ exclude_lines = [
     "except ImportError:",        # オプショナル依存の処理
     "pass",                       # プレースホルダー
 ]
+
+# =====================================
+# ty設定（型チェック用ファイル除外）
+# =====================================
+[tool.ty.src]
+include = ["app", "tests", "tests_e2e", "pages"]
+exclude = [".venv"]

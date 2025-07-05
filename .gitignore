@@ -1,6 +1,6 @@
 # Project-specific data directories
 .data/
-.data-test/
+.data_test/
 tmp_test_data/
 
 # Test results

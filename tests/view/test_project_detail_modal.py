@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from pytest_mock import MockerFixture
 
-from app.model import Project
+from app.domain.entities import Project
 from app.view import project_detail_modal as pdm
 
 
@@ -26,15 +26,15 @@ class TestRenderProjectDetailModal:
         return mock_st
 
     @pytest.fixture
-    def mock_modal(self) -> MagicMock:
+    def mock_modal(self, mocker: MockerFixture) -> MagicMock:
         """Modalオブジェクトのモックを提供するフィクスチャ。"""
-        mock_modal = MagicMock()
+        mock_modal = mocker.MagicMock()
         mock_modal.is_open.return_value = False
 
         # コンテキストマネージャーとしての動作をモック
-        mock_container = MagicMock()
-        mock_modal.container.return_value.__enter__ = MagicMock(return_value=mock_container)
-        mock_modal.container.return_value.__exit__ = MagicMock(return_value=None)
+        mock_container = mocker.MagicMock()
+        mock_modal.container.return_value.__enter__ = mocker.MagicMock(return_value=mock_container)
+        mock_modal.container.return_value.__exit__ = mocker.MagicMock(return_value=None)
 
         return mock_modal
 
@@ -126,12 +126,13 @@ class TestRenderProjectDetailModal:
         mock_streamlit: MagicMock,
         mock_modal: MagicMock,
         sample_project: Project,
+        mocker: MockerFixture,
     ) -> None:
         """実行中プロジェクトのステータスが正しく表示されることをテスト。"""
         # Arrange
         mock_modal.is_open.return_value = True
         mock_streamlit.session_state.modal_project = sample_project
-        mock_streamlit.session_state.running_workers = {sample_project.id: MagicMock()}
+        mock_streamlit.session_state.running_workers = {sample_project.id: mocker.MagicMock()}
 
         # Act
         pdm.render_project_detail_modal(mock_modal)
@@ -252,6 +253,7 @@ class TestRenderProjectDetailModal:
         mock_streamlit: MagicMock,
         mock_modal: MagicMock,
         sample_project: Project,
+        mocker: MockerFixture,
     ) -> None:
         """実行中フラグがプロジェクトのステータスより優先されることをテスト。"""
         # Arrange
@@ -261,7 +263,7 @@ class TestRenderProjectDetailModal:
         mock_modal.is_open.return_value = True
         mock_streamlit.session_state.modal_project = sample_project
         # 実行中ワーカーにプロジェクトIDを追加
-        mock_streamlit.session_state.running_workers = {sample_project.id: MagicMock()}
+        mock_streamlit.session_state.running_workers = {sample_project.id: mocker.MagicMock()}
 
         # Act
         pdm.render_project_detail_modal(mock_modal)

@@ -3,7 +3,6 @@
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import openpyxl
 import pytest
@@ -11,6 +10,7 @@ from PIL import Image
 
 from app.errors import FileProcessingError, FileReadingError
 from app.utils import ExcelParser
+from app.utils.excel_parser import JsonDataDict
 
 
 class TestExcelParser:
@@ -141,7 +141,7 @@ class TestExcelParser:
         parser.parse(test_file)
 
         # Act
-        json_data = parser.to_json()
+        json_data = parser.to_dict()
 
         # Assert
         assert json_data['file_path'] == str(test_file)
@@ -155,10 +155,11 @@ class TestExcelParser:
         parser = ExcelParser()
 
         # Act
-        json_data = parser.to_json()
+        json_data = parser.to_dict()
 
         # Assert
-        assert json_data == {'images': [], 'text_content': ''}
+        assert json_data['images'] == []
+        assert json_data['text_content'] == ''
 
     def test_JSONファイルの出力が正しく行われる(self, tmp_path: Path) -> None:
         # Arrange
@@ -262,7 +263,7 @@ class TestExcelParser:
         self,
         text: str,
         images: list[Image.Image],
-        json_data: dict[str, Any],
+        json_data: JsonDataDict,
     ) -> None:
         """画像シミュレーション結果のアサーションを実行する"""
         assert '[図:1]' in text
@@ -271,6 +272,16 @@ class TestExcelParser:
         assert json_data['total_images'] == 1
         assert len(json_data['images']) == 1
         assert json_data['images'][0]['figure_number'] == 1
+
+    def _assert_complex_excel_results(self, text: str, json_data: JsonDataDict) -> None:
+        """複雑なExcel構造の解析結果を検証するヘルパーメソッド"""
+        assert 'Header1\tHeader2\tHeader3' in text
+        assert 'Data1\tData2\tData3' in text
+        assert 'Separated Data' in text
+        assert 'ComplexSheet' in json_data['sheets']
+        sheet_data = json_data['sheets']['ComplexSheet']
+        assert '1,1' in sheet_data['cell_values']
+        assert sheet_data['cell_values']['1,1'] == 'Header1'
 
     def test_画像を含むExcelファイルのシミュレーション処理が正しく行われる(
         self,
@@ -294,7 +305,7 @@ class TestExcelParser:
         parser.parse(test_file)
         text = parser.get_text()
         images = parser.get_images()
-        json_data = parser.to_json()
+        json_data = parser.to_dict()
 
         # Assert
         self._assert_image_simulation_results(text, images, json_data)
@@ -314,16 +325,6 @@ class TestExcelParser:
         sheet['A4'] = 'Separated Data'  # 空行を挨んだデータ
         workbook.save(test_file)
 
-    def _assert_complex_excel_results(self, text: str, json_data: dict[str, Any]) -> None:
-        """複雑なExcel構造の解析結果を検証するヘルパーメソッド"""
-        assert 'Header1\tHeader2\tHeader3' in text
-        assert 'Data1\tData2\tData3' in text
-        assert 'Separated Data' in text
-        assert 'ComplexSheet' in json_data['sheets']
-        sheet_data = json_data['sheets']['ComplexSheet']
-        assert '1,1' in sheet_data['cell_values']
-        assert sheet_data['cell_values']['1,1'] == 'Header1'
-
     def test_複雑なExcel構造の解析が正しく行われる(self, tmp_path: Path) -> None:
         # Arrange
         test_file = tmp_path / 'complex.xlsx'
@@ -333,7 +334,7 @@ class TestExcelParser:
         # Act
         parser.parse(test_file)
         text = parser.get_text()
-        json_data = parser.to_json()
+        json_data = parser.to_dict()
 
         # Assert
         self._assert_complex_excel_results(text, json_data)

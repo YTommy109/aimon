@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
-from app.model import Project
+from app.domain.entities import Project
 from app.view import project_list as pl
 
 
@@ -159,8 +159,8 @@ class TestRenderProjectListIntegration:
         # Arrange
         mock_st, _ = mock_streamlit
         projects: list[Project] = []
-        mock_modal = MagicMock()
-        mock_data_manager = MagicMock()
+        mock_modal = mocker.MagicMock()
+        mock_data_manager = mocker.MagicMock()
 
         # Act
         pl.render_project_list(projects, mock_modal, mock_data_manager)
@@ -177,8 +177,8 @@ class TestRenderProjectListIntegration:
     ) -> None:
         # Arrange
         mock_st, mock_columns = mock_streamlit
-        mock_modal = MagicMock()
-        mock_data_manager = MagicMock()
+        mock_modal = mocker.MagicMock()
+        mock_data_manager = mocker.MagicMock()
 
         # ボタンのモックを設定
         for col in mock_columns:
@@ -206,8 +206,8 @@ class TestRenderProjectListIntegration:
     ) -> None:
         # Arrange
         mock_st, mock_columns = mock_streamlit
-        mock_modal = MagicMock()
-        mock_data_manager = MagicMock()
+        mock_modal = mocker.MagicMock()
+        mock_data_manager = mocker.MagicMock()
 
         # プロジェクト行用のモックカラムを追加設定
         project_columns = [MagicMock() for _ in range(6)]  # プロジェクト行は6列
@@ -238,8 +238,8 @@ class TestRenderProjectListIntegration:
     ) -> None:
         # Arrange
         mock_st, mock_columns = mock_streamlit
-        mock_modal = MagicMock()
-        mock_data_manager = MagicMock()
+        mock_modal = mocker.MagicMock()
+        mock_data_manager = mocker.MagicMock()
 
         # handle_project_executionのモック
         mock_handler = mocker.patch.object(pl, 'handle_project_execution')
@@ -273,8 +273,8 @@ class TestRenderProjectListIntegration:
     ) -> None:
         # Arrange
         mock_st, mock_columns = mock_streamlit
-        mock_modal = MagicMock()
-        mock_data_manager = MagicMock()
+        mock_modal = mocker.MagicMock()
+        mock_data_manager = mocker.MagicMock()
 
         # すべてのプロジェクトを実行済みにする
         for project in sample_projects:
@@ -296,8 +296,8 @@ class TestRenderProjectListIntegration:
     ) -> None:
         # Arrange
         mock_st, mock_columns = mock_streamlit
-        mock_modal = MagicMock()
-        mock_data_manager = MagicMock()
+        mock_modal = mocker.MagicMock()
+        mock_data_manager = mocker.MagicMock()
 
         # 異なるステータスのプロジェクトを作成
         completed_project = Project(

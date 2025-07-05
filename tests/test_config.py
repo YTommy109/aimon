@@ -18,8 +18,6 @@ def test_デフォルト値が正しく設定される(mocker: MockerFixture) ->
 
     # Assert
     assert config.APP_ENV == 'development'
-    assert Path('.data') == config.DATA_DIR
-    assert Path('.data_test') == config.DATA_DIR_TEST
     assert config.DEFAULT_PROJECTS_FILE == 'projects.json'
     assert config.DEFAULT_AI_TOOLS_FILE == 'ai_tools.json'
     assert Path('log') == config.DEFAULT_LOG_DIR

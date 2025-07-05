@@ -2,8 +2,8 @@ from collections.abc import Callable
 
 import streamlit as st
 
-from app.model import DataManager
-from app.service.project import handle_project_creation
+from app.application.data_manager import DataManager
+from app.application.services.project_service import handle_project_creation
 
 
 def render_project_creation_form(get_data_manager: Callable[[], DataManager]) -> None:

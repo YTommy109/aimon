@@ -137,6 +137,19 @@ class FileWritingError(FileProcessingError):
         super().__init__(f'ファイル {file_path} の書き込みに失敗しました')
 
 
+class PathIsDirectoryError(FileProcessingError):
+    """ファイルであるべきパスがディレクトリだった場合の例外クラス。"""
+
+    def __init__(self, path: str) -> None:
+        """
+        例外を初期化します。
+
+        Args:
+            path: ディレクトリだったパス。
+        """
+        super().__init__(f'パス {path} はディレクトリです。ファイルである必要があります')
+
+
 class FileDeletingError(FileProcessingError):
     """ファイルの削除に失敗した場合の例外クラス。"""
 
@@ -163,14 +176,15 @@ class DataManagerError(WorkerError):
         super().__init__(f'データマネージャーでエラーが発生しました: {message}')
 
 
-class ProjectNotFoundError(WorkerError):
-    """プロジェクトが見つからない場合の例外クラス。"""
+class ResourceNotFoundError(WorkerError):
+    """指定されたリソースが見つからない場合の例外クラス。"""
 
-    def __init__(self, project_id: str | UUID) -> None:
+    def __init__(self, resource_type: str, resource_id: str | UUID) -> None:
         """
         例外を初期化します。
 
         Args:
-            project_id: プロジェクトID。
+            resource_type: リソースの種類 (例: 'Project', 'AI Tool')。
+            resource_id: リソースのID。
         """
-        super().__init__(f'プロジェクト {project_id} が見つかりません')
+        super().__init__(f'{resource_type} {resource_id} が見つかりません')

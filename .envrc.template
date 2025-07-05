@@ -11,7 +11,7 @@ export PYTHONPATH="."
 export DATA_DIR=".data"
 
 # テスト環境で使用するデータディレクトリのパス
-export DATA_DIR_TEST=".data-test"
+export DATA_DIR_TEST=".data_test"
 
 # (任意) Gemini APIキー
 # export GEMINI_API_KEY="your-gemini-api-key-here"

@@ -5,13 +5,34 @@ import io
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import openpyxl
 from openpyxl.worksheet.worksheet import Worksheet
 from PIL import Image
 
 from app.errors import FileReadingError, FileWritingError
+
+
+class ImageDict(TypedDict):
+    figure_number: int
+    row: int
+    col: int
+    marker: str
+
+
+class SheetDict(TypedDict):
+    text_lines: list[str]
+    images: list[ImageDict]
+    cell_values: dict[str, str]
+
+
+class JsonDataDict(TypedDict, total=False):
+    file_path: str
+    total_images: int
+    images: list[Any]
+    sheets: dict[str, SheetDict]
+    text_content: str
 
 
 class ExcelParser:
@@ -237,26 +258,28 @@ class ExcelParser:
         """
         return self._images.copy()
 
-    def to_json(self) -> dict[str, Any]:
+    def to_dict(self) -> JsonDataDict:
         """
-        解析結果をJSON形式で取得します。
+        解析結果を辞書形式で取得します。
 
         Returns:
             解析結果の辞書。画像はbase64エンコードされます。
         """
-        result = self._parsed_data.copy()
-
         # 画像をbase64エンコードして追加
-        encoded_images = []
+        encoded_images: list[Any] = []
         for idx, img in enumerate(self._images):
             buffered = io.BytesIO()
             img.save(buffered, format='PNG')
             img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
             encoded_images.append({'figure_number': idx + 1, 'format': 'PNG', 'data': img_b64})
 
-        result['images'] = encoded_images
-        result['text_content'] = self._text_content
-
+        result: JsonDataDict = {
+            'file_path': self._parsed_data.get('file_path', ''),
+            'total_images': self._parsed_data.get('total_images', 0),
+            'sheets': self._parsed_data.get('sheets', {}),
+            'images': encoded_images,
+            'text_content': self._text_content,
+        }
         return result
 
     def export_json(self, output_path: Path) -> None:
@@ -271,6 +294,6 @@ class ExcelParser:
         """
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(self.to_json(), f, ensure_ascii=False, indent=2)
+                json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
         except Exception as e:
             raise FileWritingError(str(output_path)) from e

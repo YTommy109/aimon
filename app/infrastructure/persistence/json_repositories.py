@@ -10,7 +10,7 @@ from uuid import UUID
 
 from app.domain.entities import JST, AITool, Project, ProjectStatus
 from app.domain.repositories import AIToolRepository, ProjectRepository
-from app.errors import ProjectNotFoundError
+from app.errors import PathIsDirectoryError, ResourceNotFoundError
 
 logger = logging.getLogger('aiman')
 
@@ -29,13 +29,13 @@ class JsonProjectRepository(ProjectRepository):
         self._ensure_data_dir_exists()
         self._ensure_projects_file_exists()
 
-    def find_by_id(self, project_id: UUID) -> Project | None:
+    def find_by_id(self, project_id: UUID) -> Project:
         """指定されたIDのプロジェクトを取得します。"""
         projects = self.find_all()
         for project in projects:
             if project.id == project_id:
                 return project
-        return None
+        raise ResourceNotFoundError('Project', project_id)
 
     def find_all(self) -> list[Project]:
         """すべてのプロジェクトを取得します。"""
@@ -56,24 +56,20 @@ class JsonProjectRepository(ProjectRepository):
     def update_status(self, project_id: UUID, status: ProjectStatus) -> None:
         """プロジェクトのステータスを更新します。"""
         project = self.find_by_id(project_id)
-        if project is None:
-            raise ProjectNotFoundError(project_id)
 
-        if status == ProjectStatus.PROCESSING:
-            project.start_processing()
-        elif status == ProjectStatus.COMPLETED:
-            project.complete({})  # 空の結果で完了
-        elif status == ProjectStatus.FAILED:
-            project.fail({'error': 'Unknown error'})  # デフォルトのエラー情報
+        match status:
+            case ProjectStatus.PROCESSING:
+                project.start_processing()
+            case ProjectStatus.COMPLETED:
+                project.complete({})  # 空の結果で完了
+            case ProjectStatus.FAILED:
+                project.fail({'error': 'Unknown error'})  # デフォルトのエラー情報
 
         self.save(project)
 
     def update_result(self, project_id: UUID, result: dict[str, Any]) -> None:
         """プロジェクトの実行結果を更新します。"""
         project = self.find_by_id(project_id)
-        if project is None:
-            raise ProjectNotFoundError(project_id)
-
         project.complete(result)  # 結果を設定して完了状態に
         self.save(project)
 
@@ -93,9 +89,7 @@ class JsonProjectRepository(ProjectRepository):
         """プロジェクトファイルの存在を確認し、必要に応じて作成します。"""
         # projects.jsonがディレクトリとして存在する場合はエラー
         if self.projects_path.exists() and self.projects_path.is_dir():
-            raise ValueError(
-                'projects.jsonがディレクトリとして存在します。ファイルである必要があります。',
-            )
+            raise PathIsDirectoryError(str(self.projects_path))
 
         # プロジェクトファイルが存在しない場合は空のリストで初期化
         if not self.projects_path.exists():
@@ -118,9 +112,7 @@ class JsonProjectRepository(ProjectRepository):
         """JSONファイルに書き込みます。"""
         # ターゲットがディレクトリの場合はエラー
         if path.exists() and path.is_dir():
-            raise ValueError(
-                f'{path}がディレクトリとして存在します。ファイルである必要があります。',
-            )
+            raise PathIsDirectoryError(str(path))
 
         # 親ディレクトリが存在することを確認
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,13 +145,13 @@ class JsonAIToolRepository(AIToolRepository):
         tools_data = self._read_json(self.ai_tools_path)
         return [AITool.model_validate(t) for t in tools_data]
 
-    def find_by_id(self, tool_id: str) -> AITool | None:
+    def find_by_id(self, tool_id: str) -> AITool:
         """指定されたIDのAIツールを取得します。"""
         tools = self.find_all_tools()
         for tool in tools:
             if tool.id == tool_id:
                 return tool
-        return None
+        raise ResourceNotFoundError('AI Tool', tool_id)
 
     def save(self, ai_tool: AITool) -> None:
         """AIツールを保存します。"""
@@ -175,9 +167,6 @@ class JsonAIToolRepository(AIToolRepository):
     def disable(self, tool_id: str) -> None:
         """AIツールを無効化します。"""
         tool = self.find_by_id(tool_id)
-        if tool is None:
-            raise ValueError(f'ID "{tool_id}" のツールが見つかりません。')
-
         tool.disabled_at = datetime.now(JST)
         tool.updated_at = datetime.now(JST)
         self.save(tool)
@@ -185,9 +174,6 @@ class JsonAIToolRepository(AIToolRepository):
     def enable(self, tool_id: str) -> None:
         """AIツールを有効化します。"""
         tool = self.find_by_id(tool_id)
-        if tool is None:
-            raise ValueError(f'ID "{tool_id}" のツールが見つかりません。')
-
         tool.disabled_at = None
         tool.updated_at = datetime.now(JST)
         self.save(tool)
@@ -213,9 +199,7 @@ class JsonAIToolRepository(AIToolRepository):
         """JSONファイルに書き込みます。"""
         # ターゲットがディレクトリの場合はエラー
         if path.exists() and path.is_dir():
-            raise ValueError(
-                f'{path}がディレクトリとして存在します。ファイルである必要があります。',
-            )
+            raise PathIsDirectoryError(str(path))
 
         # 親ディレクトリが存在することを確認
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,8 +1,6 @@
 import argparse
 import os
 
-from app.main_page import render_main_page
-
 # Streamlitはスクリプトを再実行する可能性があるため、引数の解釈と
 # グローバルな状態の設定を、他のアプリケーションモジュールをインポートする前に行う。
 # これにより、モジュールレベルでの初期化が正しい環境設定で行われることを保証する。
@@ -22,6 +20,8 @@ def main() -> None:
 
     # configインスタンス生成前に環境変数にセット
     os.environ['APP_ENV'] = args.app_env
+
+    from app.main_page import render_main_page
 
     render_main_page()
 

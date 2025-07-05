@@ -1,5 +1,6 @@
 """アプリケーション設定を管理するモジュール。"""
 
+import os
 from pathlib import Path
 
 from pydantic import Field
@@ -11,10 +12,6 @@ class Config(BaseSettings):
 
     # アプリケーション環境
     APP_ENV: str = 'development'
-
-    # データディレクトリ
-    DATA_DIR: Path = Field(default=Path('.data'), validation_alias='DATA_DIR')
-    DATA_DIR_TEST: Path = Field(default=Path('.data_test'), validation_alias='DATA_DIR_TEST')
 
     # デフォルトファイル名
     DEFAULT_PROJECTS_FILE: str = 'projects.json'
@@ -37,8 +34,8 @@ class Config(BaseSettings):
     def data_dir_path(self) -> Path:
         """現在の環境に応じたデータディレクトリのパスを返します。"""
         if self.APP_ENV == 'test':
-            return self.DATA_DIR_TEST
-        return self.DATA_DIR
+            return Path(os.getenv('DATA_DIR_TEST', '.data_test'))
+        return Path(os.getenv('DATA_DIR', '.data'))
 
     @property
     def data_file_path(self) -> Path:

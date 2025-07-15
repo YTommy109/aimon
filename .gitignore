@@ -7,3 +7,6 @@ tmp_test_data/
 test-results/
 .coverage
 .testmondata
+
+.specstory/
+

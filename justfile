@@ -110,8 +110,9 @@ ruff path='':
 
 # linter/formatter
 lint:
-    ruff format . && ruff check --fix .
     mypy .
+    ruff format . && ruff check --fix .
+    just vulture
 
 # 'prod'が指定された場合は本番環境の、それ以外は開発環境の依存関係を同期する
 sync mode='':
@@ -170,6 +171,18 @@ mdlint path='':
         markdownlint-cli2 --fix .
     else
         markdownlint-cli2 --fix {{path}}
+    fi
+
+# 未使用コードの検出
+# 参考: https://scrapbox.io/PythonOsaka/Python%E3%81%AE%E9%9D%99%E7%9A%84%E8%A7%A3%E6%9E%90%E3%83%84%E3%83%BC%E3%83%ABVulture%E3%82%92%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%BF%E3%82%88%E3%81%86
+vulture path='':
+    #!/usr/bin/env zsh
+    set -euo pipefail
+
+    if [[ '{{path}}' == '' ]]; then
+        vulture app tests pages
+    else
+        vulture {{path}}
     fi
 
 # 型チェック

@@ -35,6 +35,7 @@ dev = [
     "docstring-parser>=0.15",    # docstring解析（自動ドキュメント生成）
     "pydantic-extra-types>=2.0", # より豊富な型定義
     "watchdog>=3.0",             # ファイル変更監視 （streamlit用: 自動リロード機能に必要）
+    "vulture>=2.14",             # 未使用コード検出
 ]
 
 [tool.setuptools.packages.find]
@@ -287,3 +288,8 @@ exclude_lines = [
 [tool.ty.src]
 include = ["app", "tests", "tests_e2e", "pages"]
 exclude = [".venv"]
+
+[tool.vulture]
+exclude = ["app/errors.py"]
+ignore_names = ["side_effect"]
+ignore_decorators = ["@pytest.fixture"]

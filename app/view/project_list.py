@@ -9,28 +9,12 @@ from app.domain.entities import Project, ProjectStatus
 
 
 def _get_status_icon(project: Project, is_running: bool) -> str:
-    """プロジェクトのステータスに応じたアイコンを返します。
-
-    Args:
-        project: プロジェクトオブジェクト。
-        is_running: 実行中かどうかのフラグ。
-
-    Returns:
-        ステータスを表すアイコン文字列。
-    """
-    match (is_running, project.status):
-        case (True, _):
-            icon = '🏃'
-        case (False, ProjectStatus.PROCESSING):
-            icon = '⏳'
-        case (False, ProjectStatus.COMPLETED):
-            icon = '✅'
-        case (False, ProjectStatus.FAILED):
-            icon = '❌'
-        case _:
-            icon = '💬'
-
-    return icon
+    status_icon_map = {
+        ProjectStatus.PROCESSING: '⏳',
+        ProjectStatus.COMPLETED: '✅',
+        ProjectStatus.FAILED: '❌',
+    }
+    return '🏃' if is_running else status_icon_map.get(project.status, '💬')
 
 
 def _render_header_columns() -> None:

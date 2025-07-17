@@ -60,15 +60,12 @@ class AIToolHandler:
         if not self._is_valid_update_input(name, description):
             return False
 
+        ai_tool = self._get_ai_tool_or_false(tool_id)
+        if not ai_tool:
+            return False
+
+        self._update_ai_tool_fields(ai_tool, name, description)
         try:
-            ai_tool = self.ai_tool_repository.find_by_id(tool_id)
-            if ai_tool is None:
-                return False
-
-            ai_tool.name_ja = name
-            if description is not None:
-                ai_tool.description = description
-
             self.ai_tool_repository.save(ai_tool)
             return True
         except Exception:
@@ -151,3 +148,14 @@ class AIToolHandler:
             return True
         except ResourceNotFoundError:
             return False
+
+    def _get_ai_tool_or_false(self, tool_id: str) -> AITool | None:
+        try:
+            return self.ai_tool_repository.find_by_id(tool_id)
+        except Exception:
+            return None
+
+    def _update_ai_tool_fields(self, ai_tool: AITool, name: str, description: str | None) -> None:
+        ai_tool.name_ja = name
+        if description is not None:
+            ai_tool.description = description

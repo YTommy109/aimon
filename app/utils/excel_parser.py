@@ -15,7 +15,6 @@ from app.errors import FileReadingError, FileWritingError
 
 
 class ImageDict(TypedDict):
-    figure_number: int
     row: int
     col: int
     marker: str
@@ -276,8 +275,8 @@ class ExcelParser:
         result: JsonDataDict = {
             'file_path': self._parsed_data.get('file_path', ''),
             'total_images': self._parsed_data.get('total_images', 0),
-            'sheets': self._parsed_data.get('sheets', {}),
             'images': encoded_images,
+            'sheets': self._parsed_data.get('sheets', {}),
             'text_content': self._text_content,
         }
         return result

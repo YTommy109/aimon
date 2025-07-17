@@ -180,7 +180,7 @@ vulture path='':
     set -euo pipefail
 
     if [[ '{{path}}' == '' ]]; then
-        vulture app tests pages
+        vulture app pages tests tests_e2e
     else
         vulture {{path}}
     fi

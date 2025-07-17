@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
 
-from .entities import AITool, Project, ProjectStatus
+from .entities import AITool, Project
 
 
 class ProjectRepository(ABC):
@@ -35,15 +35,6 @@ class ProjectRepository(ABC):
 
         Args:
             project: 保存するプロジェクトオブジェクト。
-        """
-
-    @abstractmethod
-    def update_status(self, project_id: UUID, status: ProjectStatus) -> None:
-        """プロジェクトのステータスを更新します。
-
-        Args:
-            project_id: 更新するプロジェクトのID。
-            status: 新しいステータス。
         """
 
     @abstractmethod

@@ -262,25 +262,6 @@ class TestRenderProjectCreationForm:
         options = selectbox_call[1]['options']
         assert options == []
 
-    def _setup_project_creation_mock(
-        self,
-        mock_streamlit: MagicMock,
-        mocker: MockerFixture,
-        name: str,
-        path: str,
-        tool: str,
-    ) -> tuple[MagicMock, Project]:
-        """プロジェクト作成のモックをセットアップするヘルパーメソッド"""
-        mock_streamlit.text_input.side_effect = [name, path]
-        mock_streamlit.selectbox.return_value = tool
-        mock_streamlit.button.return_value = True
-
-        project = Project(name=name, source=path, ai_tool=tool)
-        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
-        mock_handle.return_value = (project, f'プロジェクト「{name}」を作成しました。')
-
-        return mock_handle, project
-
     def _execute_project_creation(
         self,
         mock_streamlit: MagicMock,

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
 
-from app.domain.entities import JST, AITool, Project, ProjectStatus
+from app.domain.entities import JST, AITool, Project
 from app.domain.repositories import AIToolRepository, ProjectRepository
 from app.errors import PathIsDirectoryError, ResourceNotFoundError
 
@@ -52,20 +52,6 @@ class JsonProjectRepository(ProjectRepository):
         else:
             projects.append(project)
         self._save_projects(projects)
-
-    def update_status(self, project_id: UUID, status: ProjectStatus) -> None:
-        """プロジェクトのステータスを更新します。"""
-        project = self.find_by_id(project_id)
-
-        match status:
-            case ProjectStatus.PROCESSING:
-                project.start_processing()
-            case ProjectStatus.COMPLETED:
-                project.complete({})  # 空の結果で完了
-            case ProjectStatus.FAILED:
-                project.fail({'error': 'Unknown error'})  # デフォルトのエラー情報
-
-        self.save(project)
 
     def update_result(self, project_id: UUID, result: dict[str, Any]) -> None:
         """プロジェクトの実行結果を更新します。"""

@@ -29,16 +29,17 @@
 
 ```text
 .
-├── .data/               # プロジェクトデータ保存用（JSONファイル）
+├── .data/               # プロジェクトデータ保存用（JSONファイル）※現状は未実装、今後追加予定
 ├── app/                 # アプリケーションのソースコード
-│   ├── model/           # データモデル（entities.py, store.py）
-│   ├── service/         # ビジネスロジック（execution.py, project.py）
+│   ├── domain/          # データモデル・リポジトリ（entities.py, repositories.py）
+│   ├── application/     # ビジネスロジック・サービス（project_service.py, ai_tool_service.py, handlers/ など）
+│   ├── infrastructure/  # 外部連携・ファクトリ・永続化層（file_processor.py, new_worker.py, external/, persistence/ など）
 │   ├── utils/           # ユーティリティ（excel_parser.py）
 │   ├── view/            # UIコンポーネント（Streamlit用）
-│   └── worker.py        # 非同期処理エンジン
+│   └── main_page.py     # メインページUI
 ├── log/                 # アプリケーションログ
-├── tests/              # ユニット・インテグレーションテスト
-├── tests-e2e/          # E2Eテスト
+├── tests/               # ユニット・インテグレーションテスト
+├── tests_e2e/           # E2Eテスト
 └── (その他設定ファイル群)
 ```
 
@@ -134,7 +135,7 @@
 - **目的**: システムで利用可能なAIツールの定義を管理します。
 - **形式**: JSON
 - **ファイル名**: `ai_tools.json`
-- **エンティティ**: AITool (app/model/entities.py)
+- **エンティティ**: AITool (app/domain/entities.py)
 - **主要項目**:
   - `id` (str): ツールの一意識別子（半角英数字とハイフン）
   - `name_ja` (str): ツールの日本語名

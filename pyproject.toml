@@ -120,7 +120,7 @@ quote-style = "single" # シングルクォートを優先（統一性重視）
 known-first-party = ["app"] # プロジェクト内パッケージの指定
 
 [tool.ruff.lint.mccabe]
-max-complexity = 5 # 循環的複雑度の上限（関数の複雑さ制限）
+max-complexity = 4 # 循環的複雑度の上限（関数の複雑さ制限）
 
 # flake8系設定
 [tool.ruff.lint.flake8-annotations]
@@ -291,5 +291,12 @@ exclude = [".venv"]
 
 [tool.vulture]
 exclude = ["app/errors.py"]
-ignore_names = ["side_effect"]
+ignore_names = [
+    "side_effect",
+    "text_lines",
+    "total_images",
+    "sheets",
+    "text_content",
+    "__exit__",
+]
 ignore_decorators = ["@pytest.fixture"]

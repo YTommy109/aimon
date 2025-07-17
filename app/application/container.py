@@ -4,7 +4,6 @@ from pathlib import Path
 
 from app.config import config
 from app.domain.repositories import AIToolRepository, ProjectRepository
-from app.infrastructure.external import AIServiceClient
 from app.infrastructure.file_processor import FileProcessor
 from app.infrastructure.persistence import JsonAIToolRepository, JsonProjectRepository
 
@@ -24,7 +23,6 @@ class ApplicationContainer:
         self._project_repository: ProjectRepository | None = None
         self._ai_tool_repository: AIToolRepository | None = None
         self._file_processor: FileProcessor | None = None
-        self._ai_client: AIServiceClient | None = None
         self._project_processor: ProjectProcessor | None = None
 
     @property
@@ -49,19 +47,12 @@ class ApplicationContainer:
         return self._file_processor
 
     @property
-    def ai_client(self) -> AIServiceClient:
-        """AIサービスクライアントを取得します。"""
-        if self._ai_client is None:
-            self._ai_client = AIServiceClient()
-        return self._ai_client
-
-    @property
     def project_processor(self) -> ProjectProcessor:
         """プロジェクトプロセッサーを取得します。"""
         if self._project_processor is None:
             self._project_processor = ProjectProcessor(
                 project_repository=self.project_repository,
                 file_processor=self.file_processor,
-                ai_client=self.ai_client,
+                ai_tool_repository=self.ai_tool_repository,
             )
         return self._project_processor

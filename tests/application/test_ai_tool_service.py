@@ -28,8 +28,8 @@ class TestAIToolService:
         """get_ai_toolsのテスト。"""
         # Arrange
         expected_tools = [
-            AITool(id='tool1', name_ja='ツール1'),
-            AITool(id='tool2', name_ja='ツール2'),
+            AITool(id='tool1', name_ja='ツール1', endpoint_url='dummy'),
+            AITool(id='tool2', name_ja='ツール2', endpoint_url='dummy'),
         ]
         mock_data_manager.get_all_ai_tools.return_value = expected_tools
 
@@ -41,67 +41,95 @@ class TestAIToolService:
         mock_data_manager.get_all_ai_tools.assert_called_once()
 
     def test_handle_ai_tool_creation_成功(self, mock_data_manager: MagicMock) -> None:
-        """handle_ai_tool_creation成功のテスト。"""
-        # Arrange
         mock_data_manager.create_ai_tool.return_value = True
-
-        # Act
-        result = handle_ai_tool_creation(mock_data_manager, 'tool1', 'ツール1', '説明1')
-
-        # Assert
+        tool_info = {
+            'tool_id': 'tool1',
+            'name': 'ツール1',
+            'description': '説明1',
+            'endpoint_url': None,
+        }
+        result = handle_ai_tool_creation(mock_data_manager, tool_info)
         assert result is True
-        mock_data_manager.create_ai_tool.assert_called_once_with('tool1', 'ツール1', '説明1')
+        mock_data_manager.create_ai_tool.assert_called_once_with('tool1', 'ツール1', '説明1', None)
 
     def test_handle_ai_tool_creation_失敗(self, mock_data_manager: MagicMock) -> None:
-        """handle_ai_tool_creation失敗のテスト。"""
-        # Arrange
         mock_data_manager.create_ai_tool.return_value = False
-
-        # Act
-        result = handle_ai_tool_creation(mock_data_manager, 'tool1', 'ツール1', '説明1')
-
-        # Assert
+        tool_info = {
+            'tool_id': 'tool1',
+            'name': 'ツール1',
+            'description': '説明1',
+            'endpoint_url': None,
+        }
+        result = handle_ai_tool_creation(mock_data_manager, tool_info)
         assert result is False
-        mock_data_manager.create_ai_tool.assert_called_once_with('tool1', 'ツール1', '説明1')
+        mock_data_manager.create_ai_tool.assert_called_once_with('tool1', 'ツール1', '説明1', None)
 
     def test_handle_ai_tool_creation_説明なし(self, mock_data_manager: MagicMock) -> None:
-        """handle_ai_tool_creation説明なしのテスト。"""
-        # Arrange
         mock_data_manager.create_ai_tool.return_value = True
-
-        # Act
-        result = handle_ai_tool_creation(mock_data_manager, 'tool1', 'ツール1')
-
-        # Assert
+        tool_info = {
+            'tool_id': 'tool1',
+            'name': 'ツール1',
+            'description': None,
+            'endpoint_url': None,
+        }
+        result = handle_ai_tool_creation(mock_data_manager, tool_info)
         assert result is True
-        mock_data_manager.create_ai_tool.assert_called_once_with('tool1', 'ツール1', None)
+        mock_data_manager.create_ai_tool.assert_called_once_with('tool1', 'ツール1', None, None)
+
+    def test_handle_ai_tool_creation_endpoint_url(self, mock_data_manager: MagicMock) -> None:
+        mock_data_manager.create_ai_tool.return_value = True
+        tool_info = {
+            'tool_id': 'tool_ep',
+            'name': 'ツールEP',
+            'description': '説明EP',
+            'endpoint_url': 'http://localhost:8080/ep',
+        }
+        result = handle_ai_tool_creation(mock_data_manager, tool_info)
+        assert result is True
+        mock_data_manager.create_ai_tool.assert_called_once_with(
+            'tool_ep', 'ツールEP', '説明EP', 'http://localhost:8080/ep'
+        )
 
     def test_handle_ai_tool_update_成功(self, mock_data_manager: MagicMock) -> None:
-        """handle_ai_tool_update成功のテスト。"""
-        # Arrange
         mock_data_manager.update_ai_tool.return_value = True
-
-        # Act
-        result = handle_ai_tool_update(mock_data_manager, 'tool1', 'ツール1更新', '説明1更新')
-
-        # Assert
+        tool_info = {
+            'tool_id': 'tool1',
+            'name': 'ツール1更新',
+            'description': '説明1更新',
+            'endpoint_url': None,
+        }
+        result = handle_ai_tool_update(mock_data_manager, tool_info)
         assert result is True
         mock_data_manager.update_ai_tool.assert_called_once_with(
-            'tool1', 'ツール1更新', '説明1更新'
+            'tool1', 'ツール1更新', '説明1更新', None
         )
 
     def test_handle_ai_tool_update_失敗(self, mock_data_manager: MagicMock) -> None:
-        """handle_ai_tool_update失敗のテスト。"""
-        # Arrange
         mock_data_manager.update_ai_tool.return_value = False
-
-        # Act
-        result = handle_ai_tool_update(mock_data_manager, 'tool1', 'ツール1更新', '説明1更新')
-
-        # Assert
+        tool_info = {
+            'tool_id': 'tool1',
+            'name': 'ツール1更新',
+            'description': '説明1更新',
+            'endpoint_url': None,
+        }
+        result = handle_ai_tool_update(mock_data_manager, tool_info)
         assert result is False
         mock_data_manager.update_ai_tool.assert_called_once_with(
-            'tool1', 'ツール1更新', '説明1更新'
+            'tool1', 'ツール1更新', '説明1更新', None
+        )
+
+    def test_handle_ai_tool_update_endpoint_url(self, mock_data_manager: MagicMock) -> None:
+        mock_data_manager.update_ai_tool.return_value = True
+        tool_info = {
+            'tool_id': 'tool_ep',
+            'name': 'ツールEP更新',
+            'description': '説明EP更新',
+            'endpoint_url': 'http://localhost:8080/ep2',
+        }
+        result = handle_ai_tool_update(mock_data_manager, tool_info)
+        assert result is True
+        mock_data_manager.update_ai_tool.assert_called_once_with(
+            'tool_ep', 'ツールEP更新', '説明EP更新', 'http://localhost:8080/ep2'
         )
 
     def test_handle_ai_tool_disable_成功(self, mock_data_manager: MagicMock) -> None:
@@ -151,3 +179,13 @@ class TestAIToolService:
         # Assert
         assert result is False
         mock_data_manager.enable_ai_tool.assert_called_once_with('tool1')
+
+    def test_aitool_endpoint_urlフィールド(self) -> None:
+        """AIToolのendpoint_urlフィールドが正しくセット・取得できることをテストする。"""
+        # Arrange
+        tool = AITool(id='tool3', name_ja='ツール3', endpoint_url='http://localhost:8080/test')
+        # Act & Assert
+        assert tool.endpoint_url == 'http://localhost:8080/test'
+        # Noneの場合もテスト
+        tool2 = AITool(id='tool4', name_ja='ツール4', endpoint_url='dummy')
+        assert tool2.endpoint_url == 'dummy'

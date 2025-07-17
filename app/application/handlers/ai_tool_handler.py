@@ -21,13 +21,20 @@ class AIToolHandler:
         """
         self.ai_tool_repository = ai_tool_repository
 
-    def create_ai_tool(self, tool_id: str, name: str, description: str | None = None) -> bool:
+    def create_ai_tool(
+        self,
+        tool_id: str,
+        name: str,
+        description: str | None = None,
+        endpoint_url: str | None = None,
+    ) -> bool:
         """AIツール作成処理。
 
         Args:
             tool_id: ツールID。
             name: ツール名。
             description: 説明(オプション)。
+            endpoint_url: エンドポイントURL(オプション)。
 
         Returns:
             作成が成功した場合True、失敗した場合False。
@@ -40,19 +47,31 @@ class AIToolHandler:
 
         try:
             description_str = description if description is not None else ''
-            ai_tool = AITool(id=tool_id, name_ja=name, description=description_str)
+            ai_tool = AITool(
+                id=tool_id,
+                name_ja=name,
+                description=description_str,
+                endpoint_url=endpoint_url or '',
+            )
             self.ai_tool_repository.save(ai_tool)
             return True
         except Exception:
             return False
 
-    def update_ai_tool(self, tool_id: str, name: str, description: str | None = None) -> bool:
+    def update_ai_tool(
+        self,
+        tool_id: str,
+        name: str,
+        description: str | None = None,
+        endpoint_url: str | None = None,
+    ) -> bool:
         """AIツール更新処理。
 
         Args:
             tool_id: ツールID。
             name: ツール名。
             description: 説明(オプション)。
+            endpoint_url: エンドポイントURL(オプション)。
 
         Returns:
             更新が成功した場合True、失敗した場合False。
@@ -64,7 +83,7 @@ class AIToolHandler:
         if not ai_tool:
             return False
 
-        self._update_ai_tool_fields(ai_tool, name, description)
+        self._update_ai_tool_fields(ai_tool, name, description, endpoint_url)
         try:
             self.ai_tool_repository.save(ai_tool)
             return True
@@ -155,7 +174,11 @@ class AIToolHandler:
         except Exception:
             return None
 
-    def _update_ai_tool_fields(self, ai_tool: AITool, name: str, description: str | None) -> None:
+    def _update_ai_tool_fields(
+        self, ai_tool: AITool, name: str, description: str | None, endpoint_url: str | None = None
+    ) -> None:
         ai_tool.name_ja = name
         if description is not None:
             ai_tool.description = description
+        if endpoint_url is not None:
+            ai_tool.endpoint_url = endpoint_url

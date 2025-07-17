@@ -7,7 +7,7 @@ from uuid import uuid4
 from pytest_mock import MockerFixture
 
 import app.infrastructure.new_worker as new_worker_module
-from app.domain.repositories import ProjectRepository
+from app.domain.repositories import AIToolRepository, ProjectRepository
 from app.infrastructure.new_worker import NewWorker
 
 
@@ -34,34 +34,34 @@ class TestNewWorker:
     ) -> None:
         # Arrange
         mock_file_processor_class = mocker.patch.object(new_worker_module, 'FileProcessor')
-        mock_ai_client_class = mocker.patch.object(new_worker_module, 'AIServiceClient')
         mock_project_processor_class = mocker.patch.object(new_worker_module, 'ProjectProcessor')
 
         project_id = uuid4()
         mock_repository = mocker.MagicMock(spec=ProjectRepository)
 
         mock_file_processor = mocker.MagicMock()
-        mock_ai_client = mocker.MagicMock()
         mock_project_processor = mocker.MagicMock()
 
         mock_file_processor_class.return_value = mock_file_processor
-        mock_ai_client_class.return_value = mock_ai_client
         mock_project_processor_class.return_value = mock_project_processor
 
-        worker = NewWorker(project_id, mock_repository)
+        # arrange部でai_tool_repositoryのモックを用意
+        mock_ai_tool_repository = mocker.MagicMock(spec=AIToolRepository)
+
+        worker = NewWorker(project_id, mock_repository, ai_tool_repository=mock_ai_tool_repository)
 
         # Act
         mock_logger = mocker.patch.object(worker, 'logger')
         worker.run()
 
         # Assert
-        mock_logger.info.assert_called_once_with(f'New Worker started for project_id: {project_id}')
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert any(f'[NewWorker] run開始: project_id={project_id}' in msg for msg in info_calls)
         mock_file_processor_class.assert_called_once()
-        mock_ai_client_class.assert_called_once()
         mock_project_processor_class.assert_called_once_with(
             project_repository=mock_repository,
             file_processor=mock_file_processor,
-            ai_client=mock_ai_client,
+            ai_tool_repository=mock_ai_tool_repository,
         )
         mock_project_processor.process_project.assert_called_once_with(project_id)
 
@@ -70,7 +70,6 @@ class TestNewWorker:
     ) -> None:
         # Arrange
         mock_file_processor_class = mocker.patch.object(new_worker_module, 'FileProcessor')
-        mocker.patch.object(new_worker_module, 'AIServiceClient')
         mocker.patch.object(new_worker_module, 'ProjectProcessor')
 
         project_id = uuid4()
@@ -86,10 +85,11 @@ class TestNewWorker:
         worker.run()
 
         # Assert
-        mock_logger.info.assert_called_once_with(f'New Worker started for project_id: {project_id}')
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert any(f'[NewWorker] run開始: project_id={project_id}' in msg for msg in info_calls)
         mock_logger.error.assert_called_once()
         error_call_args = mock_logger.error.call_args[0][0]
-        assert 'New Worker error:' in error_call_args
+        assert '例外発生:' in error_call_args
         assert error_message in error_call_args
 
     def test_ProjectProcessor初期化時に例外が発生した場合にエラーログが出力される(
@@ -97,7 +97,6 @@ class TestNewWorker:
     ) -> None:
         # Arrange
         mocker.patch.object(new_worker_module, 'FileProcessor')
-        mocker.patch.object(new_worker_module, 'AIServiceClient')
         mock_project_processor_class = mocker.patch.object(new_worker_module, 'ProjectProcessor')
 
         project_id = uuid4()
@@ -106,17 +105,20 @@ class TestNewWorker:
         error_message = 'ProjectProcessor initialization failed'
         mock_project_processor_class.side_effect = Exception(error_message)
 
-        worker = NewWorker(project_id, mock_repository)
+        worker = NewWorker(
+            project_id, mock_repository, ai_tool_repository=mocker.MagicMock(spec=AIToolRepository)
+        )
 
         # Act
         mock_logger = mocker.patch.object(worker, 'logger')
         worker.run()
 
         # Assert
-        mock_logger.info.assert_called_once_with(f'New Worker started for project_id: {project_id}')
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert any(f'[NewWorker] run開始: project_id={project_id}' in msg for msg in info_calls)
         mock_logger.error.assert_called_once()
         error_call_args = mock_logger.error.call_args[0][0]
-        assert 'New Worker error:' in error_call_args
+        assert '例外発生:' in error_call_args
         assert error_message in error_call_args
 
     def test_process_project実行時に例外が発生した場合にエラーログが出力される(
@@ -124,7 +126,6 @@ class TestNewWorker:
     ) -> None:
         # Arrange
         mocker.patch.object(new_worker_module, 'FileProcessor')
-        mocker.patch.object(new_worker_module, 'AIServiceClient')
         mock_project_processor_class = mocker.patch.object(new_worker_module, 'ProjectProcessor')
 
         project_id = uuid4()
@@ -135,15 +136,18 @@ class TestNewWorker:
         mock_project_processor.process_project.side_effect = Exception(error_message)
         mock_project_processor_class.return_value = mock_project_processor
 
-        worker = NewWorker(project_id, mock_repository)
+        worker = NewWorker(
+            project_id, mock_repository, ai_tool_repository=mocker.MagicMock(spec=AIToolRepository)
+        )
 
         # Act
         mock_logger = mocker.patch.object(worker, 'logger')
         worker.run()
 
         # Assert
-        mock_logger.info.assert_called_once_with(f'New Worker started for project_id: {project_id}')
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert any(f'[NewWorker] run開始: project_id={project_id}' in msg for msg in info_calls)
         mock_logger.error.assert_called_once()
         error_call_args = mock_logger.error.call_args[0][0]
-        assert 'New Worker error:' in error_call_args
+        assert '例外発生:' in error_call_args
         assert error_message in error_call_args

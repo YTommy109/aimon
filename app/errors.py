@@ -63,40 +63,6 @@ class APIConfigurationError(WorkerError):
         super().__init__(f'APIの設定が不正です: {message}')
 
 
-class APIKeyNotSetError(APIConfigurationError):
-    """APIキーが設定されていない場合の例外クラス。"""
-
-    def __init__(self) -> None:
-        """例外を初期化します。"""
-        super().__init__('GEMINI_API_KEY environment variable not set.')
-
-
-class APIConfigurationFailedError(APIConfigurationError):
-    """Gemini APIの設定に失敗した場合の例外クラス。"""
-
-    def __init__(self, error: Exception) -> None:
-        """
-        例外を初期化します。
-
-        Args:
-            error: 元の例外オブジェクト。
-        """
-        super().__init__(f'Gemini APIの設定に失敗しました: {error}')
-
-
-class APICallFailedError(APIConfigurationError):
-    """Gemini APIの呼び出しに失敗した場合の例外クラス。"""
-
-    def __init__(self, error: Exception) -> None:
-        """
-        例外を初期化します。
-
-        Args:
-            error: 元の例外オブジェクト。
-        """
-        super().__init__(f'Gemini APIの呼び出しに失敗しました: {error}')
-
-
 class FileProcessingError(WorkerError):
     """ファイル操作に関連する基底例外クラス。"""
 

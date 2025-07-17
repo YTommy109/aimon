@@ -40,31 +40,45 @@ class DataManager:
         """
         return self.ai_tool_handler.get_all_ai_tools()
 
-    def create_ai_tool(self, tool_id: str, name: str, description: str | None = None) -> bool:
+    def create_ai_tool(
+        self,
+        tool_id: str,
+        name: str,
+        description: str | None = None,
+        endpoint_url: str | None = None,
+    ) -> bool:
         """AIツール作成処理。
 
         Args:
             tool_id: ツールID。
             name: ツール名。
             description: 説明(オプション)。
+            endpoint_url: エンドポイントURL(オプション)。
 
         Returns:
             作成が成功した場合True、失敗した場合False。
         """
-        return self.ai_tool_handler.create_ai_tool(tool_id, name, description)
+        return self.ai_tool_handler.create_ai_tool(tool_id, name, description, endpoint_url)
 
-    def update_ai_tool(self, tool_id: str, name: str, description: str | None = None) -> bool:
+    def update_ai_tool(
+        self,
+        tool_id: str,
+        name: str,
+        description: str | None = None,
+        endpoint_url: str | None = None,
+    ) -> bool:
         """AIツール更新処理。
 
         Args:
             tool_id: ツールID。
             name: ツール名。
             description: 説明(オプション)。
+            endpoint_url: エンドポイントURL(オプション)。
 
         Returns:
             更新が成功した場合True、失敗した場合False。
         """
-        return self.ai_tool_handler.update_ai_tool(tool_id, name, description)
+        return self.ai_tool_handler.update_ai_tool(tool_id, name, description, endpoint_url)
 
     def disable_ai_tool(self, tool_id: str) -> bool:
         """AIツール無効化処理。

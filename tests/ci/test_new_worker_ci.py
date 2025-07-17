@@ -9,6 +9,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from app.domain.entities import Project
+from app.domain.repositories import AIToolRepository
 from app.infrastructure.new_worker import NewWorker
 from app.infrastructure.persistence.json_repositories import JsonProjectRepository
 
@@ -48,18 +49,19 @@ class TestNewWorkerCI:
     ) -> None:
         # Arrange
         mock_file_processor_class = mocker.patch('app.infrastructure.new_worker.FileProcessor')
-        mock_ai_client_class = mocker.patch('app.infrastructure.new_worker.AIServiceClient')
         mock_project_processor_class = mocker.patch(
             'app.infrastructure.new_worker.ProjectProcessor'
         )
         mock_file_processor = mocker.MagicMock()
-        mock_ai_client = mocker.MagicMock()
         mock_project_processor = mocker.MagicMock()
         mock_file_processor_class.return_value = mock_file_processor
-        mock_ai_client_class.return_value = mock_ai_client
         mock_project_processor_class.return_value = mock_project_processor
 
-        worker = NewWorker(test_project.id, project_repository)
+        mock_ai_tool_repository = mocker.MagicMock(spec=AIToolRepository)
+
+        worker = NewWorker(
+            test_project.id, project_repository, ai_tool_repository=mock_ai_tool_repository
+        )
 
         # Act
         worker.run()
@@ -68,7 +70,7 @@ class TestNewWorkerCI:
         mock_project_processor_class.assert_called_once_with(
             project_repository=project_repository,
             file_processor=mock_file_processor,
-            ai_client=mock_ai_client,
+            ai_tool_repository=mock_ai_tool_repository,
         )
         mock_project_processor.process_project.assert_called_once_with(test_project.id)
 
@@ -79,17 +81,17 @@ class TestNewWorkerCI:
     ) -> None:
         # Arrange
         mock_file_processor_class = mocker.patch('app.infrastructure.new_worker.FileProcessor')
-        mock_ai_client_class = mocker.patch('app.infrastructure.new_worker.AIServiceClient')
         mock_project_processor_class = mocker.patch(
             'app.infrastructure.new_worker.ProjectProcessor'
         )
         non_existent_project_id = uuid4()
         mock_file_processor = mocker.MagicMock()
-        mock_ai_client = mocker.MagicMock()
         mock_file_processor_class.return_value = mock_file_processor
-        mock_ai_client_class.return_value = mock_ai_client
 
-        worker = NewWorker(non_existent_project_id, project_repository)
+        mock_ai_tool_repository = mocker.MagicMock(spec=AIToolRepository)
+        worker = NewWorker(
+            non_existent_project_id, project_repository, ai_tool_repository=mock_ai_tool_repository
+        )
 
         mock_project_processor = mocker.MagicMock()
         mock_project_processor.process_project.side_effect = Exception('Project not found')
@@ -102,7 +104,7 @@ class TestNewWorkerCI:
         # Assert
         mock_logger.error.assert_called_once()
         error_call_args = mock_logger.error.call_args[0][0]
-        assert 'New Worker error:' in error_call_args
+        assert '例外発生:' in error_call_args
         assert 'Project not found' in error_call_args
 
     def test_ログ出力が正しく動作する(
@@ -113,12 +115,9 @@ class TestNewWorkerCI:
     ) -> None:
         # Arrange
         mock_file_processor_class = mocker.patch('app.infrastructure.new_worker.FileProcessor')
-        mock_ai_client_class = mocker.patch('app.infrastructure.new_worker.AIServiceClient')
         mocker.patch('app.infrastructure.new_worker.ProjectProcessor')
         mock_file_processor = mocker.MagicMock()
-        mock_ai_client = mocker.MagicMock()
         mock_file_processor_class.return_value = mock_file_processor
-        mock_ai_client_class.return_value = mock_ai_client
 
         # ログ設定をテスト用に調整
         mock_logger = mocker.MagicMock()
@@ -126,15 +125,20 @@ class TestNewWorkerCI:
         mock_get_logger.return_value = mock_logger
 
         # NewWorkerを再作成してmockされたloggerを使用
-        worker = NewWorker(test_project.id, project_repository)
+        mock_ai_tool_repository = mocker.MagicMock(spec=AIToolRepository)
+        worker = NewWorker(
+            test_project.id, project_repository, ai_tool_repository=mock_ai_tool_repository
+        )
 
         # Act
         worker.run()
 
         # Assert
         mock_get_logger.assert_called_with('aiman')
-        mock_logger.info.assert_called_once_with(
-            f'New Worker started for project_id: {test_project.id}'
+        # run開始・run終了など複数回呼ばれるので、呼び出し回数で判定
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert any(
+            f'[NewWorker] run開始: project_id={test_project.id}' in msg for msg in info_calls
         )
 
     def test_依存関係の初期化が正しい順序で実行される(
@@ -145,24 +149,23 @@ class TestNewWorkerCI:
     ) -> None:
         # Arrange
         mock_file_processor_class = mocker.patch('app.infrastructure.new_worker.FileProcessor')
-        mock_ai_client_class = mocker.patch('app.infrastructure.new_worker.AIServiceClient')
         mock_project_processor_class = mocker.patch(
             'app.infrastructure.new_worker.ProjectProcessor'
         )
         mock_file_processor = mocker.MagicMock()
-        mock_ai_client = mocker.MagicMock()
         mock_project_processor = mocker.MagicMock()
         mock_file_processor_class.return_value = mock_file_processor
-        mock_ai_client_class.return_value = mock_ai_client
         mock_project_processor_class.return_value = mock_project_processor
 
-        worker = NewWorker(test_project.id, project_repository)
+        mock_ai_tool_repository = mocker.MagicMock(spec=AIToolRepository)
+        worker = NewWorker(
+            test_project.id, project_repository, ai_tool_repository=mock_ai_tool_repository
+        )
 
         # Act
         worker.run()
 
         # Assert - 依存関係が正しい順序で初期化されることを確認
         mock_file_processor_class.assert_called_once()
-        mock_ai_client_class.assert_called_once()
         mock_project_processor_class.assert_called_once()
         mock_project_processor.process_project.assert_called_once()

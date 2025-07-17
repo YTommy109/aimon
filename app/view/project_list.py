@@ -1,5 +1,7 @@
 """プロジェクト一覧ページのコンポーネント。"""
 
+import logging
+
 import streamlit as st
 from streamlit_modal import Modal
 
@@ -84,6 +86,10 @@ def _handle_project_buttons(
         st.session_state.modal_project = project
         modal.open()
     if exec_btn:
+        logger = logging.getLogger('aiman')
+        logger.info(
+            f'[Streamlit] 実行ボタン押下: project_id={project.id}, ai_tool={project.ai_tool}'
+        )
         updated_project, message = handle_project_execution(
             project,
             data_manager,

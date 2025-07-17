@@ -8,15 +8,16 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from app.domain.entities import Project
-from app.domain.repositories import ProjectRepository
+from app.domain.ai_tool_executor import AIToolExecutor
+from app.domain.entities import AITool, Project
+from app.domain.repositories import AIToolRepository, ProjectRepository
 from app.errors import (
     APIConfigurationError,
     FileProcessingError,
     FileWritingError,
     ProjectProcessingError,
 )
-from app.infrastructure.external import AIServiceClient
+from app.infrastructure.ai_executors import AIExecutorFactory
 from app.infrastructure.file_processor import FileProcessor
 
 
@@ -27,18 +28,17 @@ class ProjectProcessor:
         self,
         project_repository: ProjectRepository,
         file_processor: FileProcessor,
-        ai_client: AIServiceClient,
+        ai_tool_repository: AIToolRepository,
     ) -> None:
         """プロジェクトプロセッサーを初期化します。
 
         Args:
             project_repository: プロジェクトリポジトリ。
             file_processor: ファイルプロセッサー。
-            ai_client: AIサービスクライアント。
         """
         self.project_repository = project_repository
         self.file_processor = file_processor
-        self.ai_client = ai_client
+        self.ai_tool_repository = ai_tool_repository
         self.logger = logging.getLogger('aiman')
 
     def process_project(self, project_id: UUID) -> None:
@@ -52,7 +52,7 @@ class ProjectProcessor:
         """
         try:
             with self._handle_project_processing(project_id) as project:
-                self._execute_gemini_summarize(project)
+                self._execute_ai_tool_processing(project)
         except Exception as e:
             self.logger.error(f'Worker error: {e}')
             raise
@@ -102,30 +102,48 @@ class ProjectProcessor:
             project.fail({'error': error_message})
             self.project_repository.save(project)
 
-    def _execute_gemini_summarize(self, project: Project) -> None:
-        """指定されたディレクトリ内のテキストファイルを要約し、結果をファイルに書き出します。
+    def _get_ai_tool_entity(self, ai_tool_id: str) -> AITool:
+        ai_tool_entity = self.ai_tool_repository.find_by_id(ai_tool_id)
+        logger = logging.getLogger('aiman')
+        logger.info(
+            f'[ProjectProcessor] ai_tool_entity type: {type(ai_tool_entity)}, '
+            f'value: {ai_tool_entity!r}'
+        )
+        if ai_tool_entity is None:
+            raise RuntimeError(f'AIツールが見つかりません: {ai_tool_id}')
+        return ai_tool_entity
 
-        Args:
-            project: 処理対象のプロジェクトオブジェクト。
+    def _create_ai_executor(self, ai_tool: AITool) -> AIToolExecutor:
+        logger = logging.getLogger('aiman')
+        logger.info(
+            f'[ProjectProcessor] create_executor: ai_tool.id={ai_tool.id}, '
+            f'endpoint_url={ai_tool.endpoint_url}'
+        )
+        return AIExecutorFactory.create_executor(ai_tool)
 
-        Raises:
-            FileProcessingError: ファイルの処理に失敗した場合。
-            APIConfigurationError: APIの設定や呼び出しに失敗した場合。
-        """
+    def _process_files_with_executor(
+        self, files_to_process: list[Path], f_out: io.TextIOWrapper, ai_executor: AIToolExecutor
+    ) -> list[str]:
+        processed_files = []
+        for file_path in files_to_process:
+            if self._process_single_file_with_ai_tool(file_path, f_out, ai_executor):
+                processed_files.append(file_path.name)
+        return processed_files
+
+    def _execute_ai_tool_processing(self, project: Project) -> None:
         source_path = Path(project.source)
         output_file = self.file_processor.prepare_output_file(source_path, project.name)
-        processed_files = []
+
+        ai_tool_entity = self._get_ai_tool_entity(project.ai_tool)
+        ai_executor = self._create_ai_executor(ai_tool_entity)
 
         try:
             with open(output_file, 'w', encoding='utf-8') as f_out:
-                f_out.write(f'# Gemini処理結果: {project.name}\\n\\n')
-
+                f_out.write(f'# {project.ai_tool} 処理結果: {project.name}\n\n')
                 files_to_process = self.file_processor.collect_files_to_process(source_path)
-
-                for file_path in files_to_process:
-                    if self._process_single_file(file_path, f_out):
-                        processed_files.append(file_path.name)
-
+                processed_files = self._process_files_with_executor(
+                    files_to_process, f_out, ai_executor
+                )
         except Exception as e:
             raise FileWritingError(str(output_file)) from e
 
@@ -133,31 +151,39 @@ class ProjectProcessor:
             'processed_files': processed_files,
             'message': f'Processing successful. Results saved to {output_file.name}',
         }
-
         self.project_repository.update_result(project.id, result)
 
-    def _process_single_file(self, file_path: Path, f_out: io.TextIOWrapper) -> bool:
-        """単一のファイルを処理します。
+    # 古い_execute_gemini_summarizeメソッドを削除しました。
+    # 新しいシステムでは_execute_ai_tool_processingを使用してください。
+
+    def _process_single_file_with_ai_tool(
+        self, file_path: Path, f_out: io.TextIOWrapper, ai_executor: AIToolExecutor
+    ) -> bool:
+        """選択されたAIツールで単一のファイルを処理します。
 
         Args:
             file_path: 処理対象のファイルパス。
             f_out: 出力ファイルのハンドル。
+            ai_executor: AIツールエグゼキューター。
 
         Returns:
             処理が成功したかどうか。
         """
         self.logger.info(f'Processing file: {file_path.name}')
         try:
-            return self._try_process_file(file_path, f_out)
+            return self._try_process_file_with_ai_tool(file_path, f_out, ai_executor)
         except (FileProcessingError, APIConfigurationError) as e:
             return self._handle_processing_error(file_path, f_out, e)
 
-    def _try_process_file(self, file_path: Path, f_out: io.TextIOWrapper) -> bool:
-        """ファイル処理を試行します。
+    def _try_process_file_with_ai_tool(
+        self, file_path: Path, f_out: io.TextIOWrapper, ai_executor: AIToolExecutor
+    ) -> bool:
+        """選択されたAIツールでファイル処理を試行します。
 
         Args:
             file_path: 処理対象のファイルパス。
             f_out: 出力ファイルのハンドル。
+            ai_executor: AIツールエグゼキューター。
 
         Returns:
             処理が成功したかどうか。
@@ -168,22 +194,26 @@ class ProjectProcessor:
             self.logger.warning(f'File {file_path.name} is empty. Skipping.')
             return False
 
-        return self._process_file_content(file_path, content, images, f_out)
+        return self._process_file_content_with_ai_tool(
+            file_path, content, images, f_out, ai_executor
+        )
 
-    def _process_file_content(
+    def _process_file_content_with_ai_tool(  # noqa: PLR0913
         self,
         file_path: Path,
         content: str,
         images: list[Any],
         f_out: io.TextIOWrapper,
+        ai_executor: AIToolExecutor,
     ) -> bool:
-        """ファイルコンテンツを処理します。
+        """選択されたAIツールでファイルコンテンツを処理します。
 
         Args:
             file_path: 処理対象のファイルパス。
             content: ファイルの内容。
             images: 画像のリスト。
             f_out: 出力ファイルのハンドル。
+            ai_executor: AIツールエグゼキューター。
 
         Returns:
             処理が成功したかどうか。
@@ -197,7 +227,8 @@ class ProjectProcessor:
 
         self.file_processor.create_prompt_json(prompt, file_path)
 
-        summary = self.ai_client.generate_summary(content, images)
+        # 選択されたAIツールで処理を実行
+        summary = ai_executor.execute(content, images)
 
         f_out.write(f'## ファイル: {file_path.name}\\n\\n')
         f_out.write('### 要約結果\\n\\n')
@@ -205,6 +236,9 @@ class ProjectProcessor:
         f_out.write('\\n\\n---\\n\\n')
 
         return True
+
+    # 古いメソッドを削除しました。
+    # 新しいシステムでは_process_single_file_with_ai_toolを使用してください。
 
     def _handle_file_processing_error(
         self,

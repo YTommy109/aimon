@@ -41,9 +41,9 @@ class TestRenderProjectCreationForm:
 
         # サンプルAIツールを設定
         sample_ai_tools = [
-            AITool(id='tool1', name_ja='ツール1', description='説明1'),
-            AITool(id='tool2', name_ja='ツール2', description='説明2'),
-            AITool(id='tool3', name_ja='ツール3', description='説明3'),
+            AITool(id='tool1', name_ja='ツール1', description='説明1', endpoint_url='dummy'),
+            AITool(id='tool2', name_ja='ツール2', description='説明2', endpoint_url='dummy'),
+            AITool(id='tool3', name_ja='ツール3', description='説明3', endpoint_url='dummy'),
         ]
         mock_dm.get_ai_tools.return_value = sample_ai_tools
 
@@ -101,16 +101,17 @@ class TestRenderProjectCreationForm:
         # Assert
         mock_data_manager.get_ai_tools.assert_called_once()
 
-        # セレクトボックスの options を確認
+        # セレクトボックスの options を確認（JSONツール + セパレータ）
         selectbox_call = mock_streamlit.selectbox.call_args
         options = selectbox_call[1]['options']
-        expected_options = ['tool1', 'tool2', 'tool3']
+        expected_options = ['tool1', 'tool2', 'tool3', '---']
         assert options == expected_options
 
         # format_func をテスト
         format_func = selectbox_call[1]['format_func']
         assert format_func('tool1') == 'ツール1 (説明1)'
         assert format_func('tool2') == 'ツール2 (説明2)'
+        assert format_func('---') == '--- 内蔵ツール ---'
         assert format_func('unknown') == '不明なツール'
 
     def test_対象ディレクトリパスの前後空白が除去される(
@@ -244,20 +245,42 @@ class TestRenderProjectCreationForm:
         mock_streamlit.success.assert_not_called()
         mock_streamlit.warning.assert_not_called()
 
+    def test_セパレータ選択時にワーニングメッセージが表示される(
+        self,
+        mock_streamlit: MagicMock,
+        get_data_manager_func: MagicMock,
+        mocker: MockerFixture,
+    ) -> None:
+        """セパレータが選択された場合にワーニングメッセージが表示されることをテスト。"""
+        # Arrange
+        mock_streamlit.text_input.side_effect = ['Test Project', '/test/path']
+        mock_streamlit.selectbox.return_value = '---'  # セパレータ選択
+        mock_streamlit.button.return_value = True
+
+        mock_handle = mocker.patch.object(pcf, 'handle_project_creation')
+
+        # Act
+        pcf.render_project_creation_form(get_data_manager_func)
+
+        # Assert
+        mock_streamlit.warning.assert_called_once_with('AIツールを選択してください。')
+        mock_handle.assert_not_called()
+        mock_streamlit.success.assert_not_called()
+
     def test_空のAIツールリストでもエラーにならない(
         self,
         mock_streamlit: MagicMock,
         mock_data_manager: MagicMock,
         get_data_manager_func: MagicMock,
     ) -> None:
-        """AIツールリストが空でもエラーにならないことをテスト。"""
+        """空のAIツールリストでもエラーにならないことをテスト。"""
         # Arrange
         mock_data_manager.get_ai_tools.return_value = []  # 空のリスト
 
         # Act & Assert (例外が発生しないことを確認)
         pcf.render_project_creation_form(get_data_manager_func)
 
-        # セレクトボックスのオプションが空リストになっていることを確認
+        # セレクトボックスのオプションにGeminiのみが含まれることを確認
         selectbox_call = mock_streamlit.selectbox.call_args
         options = selectbox_call[1]['options']
         assert options == []

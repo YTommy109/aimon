@@ -46,7 +46,7 @@ class TestAIToolHandler:
     ) -> None:
         """重複IDでのAIツール作成失敗をテストします。"""
         # Arrange
-        existing_tool = AITool(id='test-tool', name_ja='既存ツール')
+        existing_tool = AITool(id='test-tool', name_ja='既存ツール', endpoint_url='dummy')
         mock_repository.find_by_id.return_value = existing_tool
 
         # Act
@@ -73,7 +73,7 @@ class TestAIToolHandler:
     def test_AIツールの更新(self, handler: AIToolHandler, mock_repository: MagicMock) -> None:
         """AIツールの更新をテストします。"""
         # Arrange
-        existing_tool = AITool(id='test-tool', name_ja='元の名前')
+        existing_tool = AITool(id='test-tool', name_ja='元の名前', endpoint_url='dummy')
         mock_repository.find_by_id.return_value = existing_tool
 
         # Act
@@ -121,8 +121,8 @@ class TestAIToolHandler:
         """有効なAIツールの取得をテストします。"""
         # Arrange
         tools = [
-            AITool(id='tool1', name_ja='ツール1'),
-            AITool(id='tool2', name_ja='ツール2'),
+            AITool(id='tool1', name_ja='ツール1', endpoint_url='dummy'),
+            AITool(id='tool2', name_ja='ツール2', endpoint_url='dummy'),
         ]
         mock_repository.find_active_tools.return_value = tools
 
@@ -137,8 +137,8 @@ class TestAIToolHandler:
         """全AIツールの取得をテストします。"""
         # Arrange
         tools = [
-            AITool(id='tool1', name_ja='ツール1'),
-            AITool(id='tool2', name_ja='ツール2'),
+            AITool(id='tool1', name_ja='ツール1', endpoint_url='dummy'),
+            AITool(id='tool2', name_ja='ツール2', endpoint_url='dummy'),
         ]
         mock_repository.find_all_tools.return_value = tools
 

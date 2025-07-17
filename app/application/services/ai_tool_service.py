@@ -1,5 +1,7 @@
 """AIツール関連のサービス関数群。"""
 
+from typing import Any
+
 from app.application.data_manager import DataManager
 from app.domain.entities import AITool
 
@@ -16,12 +18,7 @@ def get_ai_tools(data_manager: DataManager) -> list[AITool]:
     return data_manager.get_all_ai_tools()
 
 
-def handle_ai_tool_creation(
-    data_manager: DataManager,
-    tool_id: str,
-    name: str,
-    description: str | None = None,
-) -> bool:
+def handle_ai_tool_creation(data_manager: DataManager, tool_info: dict[str, Any]) -> bool:
     """AIツール作成処理。
 
     Args:
@@ -29,19 +26,20 @@ def handle_ai_tool_creation(
         tool_id: ツールID。
         name: ツール名。
         description: 説明(オプション)。
+        endpoint_url: エンドポイントURL(オプション)。
 
     Returns:
         作成が成功した場合True、失敗した場合False。
     """
-    return data_manager.create_ai_tool(tool_id, name, description)
+    return data_manager.create_ai_tool(
+        str(tool_info.get('tool_id', '')),
+        str(tool_info.get('name', '')),
+        tool_info.get('description'),
+        tool_info.get('endpoint_url'),
+    )
 
 
-def handle_ai_tool_update(
-    data_manager: DataManager,
-    tool_id: str,
-    name: str,
-    description: str | None = None,
-) -> bool:
+def handle_ai_tool_update(data_manager: DataManager, tool_info: dict[str, Any]) -> bool:
     """AIツール更新処理。
 
     Args:
@@ -49,11 +47,17 @@ def handle_ai_tool_update(
         tool_id: ツールID。
         name: ツール名。
         description: 説明(オプション)。
+        endpoint_url: エンドポイントURL(オプション)。
 
     Returns:
         更新が成功した場合True、失敗した場合False。
     """
-    return data_manager.update_ai_tool(tool_id, name, description)
+    return data_manager.update_ai_tool(
+        str(tool_info.get('tool_id', '')),
+        str(tool_info.get('name', '')),
+        tool_info.get('description'),
+        tool_info.get('endpoint_url'),
+    )
 
 
 def handle_ai_tool_disable(data_manager: DataManager, tool_id: str) -> bool:

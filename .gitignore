@@ -5,8 +5,8 @@ tmp_test_data/
 
 # Test results
 test-results/
-.coverage
+.coverage*
 .testmondata
 
 .specstory/
-
+docs/

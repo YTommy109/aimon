@@ -43,8 +43,8 @@ class TestDataManager:
         """get_ai_toolsメソッドのテスト。"""
         # Arrange
         expected_tools = [
-            AITool(id='tool1', name_ja='ツール1'),
-            AITool(id='tool2', name_ja='ツール2'),
+            AITool(id='tool1', name_ja='ツール1', endpoint_url='dummy'),
+            AITool(id='tool2', name_ja='ツール2', endpoint_url='dummy'),
         ]
         mock_ai_tool_handler.get_active_ai_tools.return_value = expected_tools
 
@@ -63,8 +63,8 @@ class TestDataManager:
         """get_all_ai_toolsメソッドのテスト。"""
         # Arrange
         expected_tools = [
-            AITool(id='tool1', name_ja='ツール1'),
-            AITool(id='tool2', name_ja='ツール2'),
+            AITool(id='tool1', name_ja='ツール1', endpoint_url='dummy'),
+            AITool(id='tool2', name_ja='ツール2', endpoint_url='dummy'),
         ]
         mock_ai_tool_handler.get_all_ai_tools.return_value = expected_tools
 
@@ -89,7 +89,9 @@ class TestDataManager:
 
         # Assert
         assert result is True
-        mock_ai_tool_handler.create_ai_tool.assert_called_once_with('tool1', 'ツール1', '説明1')
+        mock_ai_tool_handler.create_ai_tool.assert_called_once_with(
+            'tool1', 'ツール1', '説明1', None
+        )
 
     def test_update_ai_tool(
         self,
@@ -106,7 +108,7 @@ class TestDataManager:
         # Assert
         assert result is True
         mock_ai_tool_handler.update_ai_tool.assert_called_once_with(
-            'tool1', 'ツール1更新', '説明1更新'
+            'tool1', 'ツール1更新', '説明1更新', None
         )
 
     def test_disable_ai_tool(

@@ -110,9 +110,9 @@ ruff path='':
 
 # linter/formatter
 lint:
-    mypy .
     ruff format . && ruff check --fix .
     just vulture
+    mypy .
 
 # 'prod'が指定された場合は本番環境の、それ以外は開発環境の依存関係を同期する
 sync mode='':

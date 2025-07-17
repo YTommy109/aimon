@@ -3,7 +3,6 @@
 import os
 from pathlib import Path
 
-from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -21,11 +20,6 @@ class Config(BaseSettings):
     DEFAULT_LOG_DIR: Path = Path('log')
     DEFAULT_LOG_FILE: str = 'app.log'
     LOG_ROTATION_DAYS: int = 7
-
-    # Gemini API設定
-    GEMINI_MODEL_NAME: str = 'gemini-1.5-flash'
-    API_RATE_LIMIT_DELAY: float = 1.0
-    GEMINI_API_KEY: str | None = Field(default=None, validate_default=False)
 
     # UI設定
     AUTO_REFRESH_INTERVAL: int = 1000  # milliseconds

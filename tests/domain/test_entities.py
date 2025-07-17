@@ -78,12 +78,18 @@ class TestAITool:
     def test_新しいAIツールの作成(self) -> None:
         """新しいAIツールの作成をテストします。"""
         # Arrange & Act
-        ai_tool = AITool(id='test-tool', name_ja='テストツール', description='テスト用のAIツール')
+        ai_tool = AITool(
+            id='test-tool',
+            name_ja='テストツール',
+            description='テスト用のAIツール',
+            endpoint_url='dummy',
+        )
 
         # Assert
         assert ai_tool.id == 'test-tool'
         assert ai_tool.name_ja == 'テストツール'
         assert ai_tool.description == 'テスト用のAIツール'
+        assert ai_tool.endpoint_url == 'dummy'
         assert ai_tool.disabled_at is None
         assert isinstance(ai_tool.created_at, datetime)
         assert isinstance(ai_tool.updated_at, datetime)
@@ -91,9 +97,12 @@ class TestAITool:
         assert ai_tool.updated_at.tzinfo == JST
 
     def test_AIツールの説明なし(self) -> None:
-        """説明なしのAIツール作成をテストします。"""
+        """
+        説明なしのAIツール作成をテストします。
+        """
         # Arrange & Act
-        ai_tool = AITool(id='test-tool', name_ja='テストツール')
+        ai_tool = AITool(id='test-tool', name_ja='テストツール', endpoint_url='dummy')
 
         # Assert
         assert ai_tool.description is None
+        assert ai_tool.endpoint_url == 'dummy'

@@ -148,6 +148,7 @@ class JsonAIToolRepository(AIToolRepository):
                 break
         else:
             tools.append(ai_tool)
+        # endpoint_urlも含めて保存
         self._write_json(self.ai_tools_path, [t.model_dump(mode='json') for t in tools])
 
     def disable(self, tool_id: str) -> None:

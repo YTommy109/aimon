@@ -21,6 +21,9 @@ def render_ai_tool_management_page(data_manager: DataManager) -> None:
     Args:
         data_manager: データマネージャー。
     """
+    if 'data_manager' not in st.session_state:
+        st.session_state['data_manager'] = data_manager
+
     st.title('AIツール管理')
 
     _render_tool_list(data_manager)
@@ -31,7 +34,7 @@ def render_ai_tool_management_page(data_manager: DataManager) -> None:
 
     # 新規作成モーダル
     if st.session_state.get('show_create_modal', False):
-        _render_creation_modal(data_manager)
+        _render_creation_modal()
 
 
 def _render_tool_list(data_manager: DataManager) -> None:
@@ -129,10 +132,10 @@ def _render_tool_actions(tool: AITool, data_manager: DataManager) -> None:
         st.session_state.get('show_edit_modal', False)
         and st.session_state.get('edit_tool', {}).id == tool.id
     ):
-        _render_edit_modal(tool, data_manager)
+        _render_edit_modal(tool)
 
 
-def _render_creation_modal(data_manager: DataManager) -> None:
+def _render_creation_modal() -> None:
     """新規作成モーダルの描画。
 
     Args:
@@ -140,24 +143,29 @@ def _render_creation_modal(data_manager: DataManager) -> None:
     """
     st.subheader('新規AIツール登録')
     with st.form(key='create_tool_form', clear_on_submit=True):
-        _render_creation_form(data_manager)
+        _render_creation_form()
 
 
-def _render_creation_form(data_manager: DataManager) -> None:
-    """新規作成フォームの描画。
-
-    Args:
-        data_manager: データマネージャー。
-    """
+def _render_creation_form() -> None:
     tool_id = st.text_input('AIツールID')
     name = st.text_input('ツール名')
     description = st.text_input('説明')
+    endpoint_url = st.text_input('エンドポイントURL')
+    tool_info = {
+        'tool_id': tool_id,
+        'name': name,
+        'description': description,
+        'endpoint_url': endpoint_url,
+    }
+    _render_creation_form_buttons(tool_info)
 
+
+def _render_creation_form_buttons(tool_info: dict[str, str]) -> None:
     cols = st.columns(2)
     with cols[0]:
         submit_button = st.form_submit_button('作成')
         if submit_button:
-            _handle_create_tool(tool_id, name, description, data_manager)
+            _handle_create_tool(tool_info)
     with cols[1]:
         cancel_button = st.form_submit_button('キャンセル')
         if cancel_button:
@@ -165,7 +173,7 @@ def _render_creation_form(data_manager: DataManager) -> None:
             st.rerun()
 
 
-def _render_edit_modal(tool: AITool, data_manager: DataManager) -> None:
+def _render_edit_modal(tool: AITool) -> None:
     """編集モーダルの描画。
 
     Args:
@@ -174,26 +182,29 @@ def _render_edit_modal(tool: AITool, data_manager: DataManager) -> None:
     """
     st.subheader('AIツール編集')
     with st.form(key=f'edit_tool_form_{tool.id}', clear_on_submit=True):
-        _render_edit_form(tool, data_manager)
+        _render_edit_form(tool)
 
 
-def _render_edit_form(tool: AITool, data_manager: DataManager) -> None:
-    """編集フォームの描画。
-
-    Args:
-        tool: 編集対象のAIツール。
-        data_manager: データマネージャー。
-    """
-    # IDは編集不可
+def _render_edit_form(tool: AITool) -> None:
     st.text_input('AIツールID', value=tool.id, disabled=True)
     name = st.text_input('ツール名', value=tool.name_ja)
     description = st.text_input('説明', value=tool.description or '')
+    endpoint_url = st.text_input('エンドポイントURL', value=tool.endpoint_url or '')
+    tool_info = {
+        'tool_id': tool.id,
+        'name': name,
+        'description': description,
+        'endpoint_url': endpoint_url,
+    }
+    _render_edit_form_buttons(tool_info)
 
+
+def _render_edit_form_buttons(tool_info: dict[str, str]) -> None:
     cols = st.columns(2)
     with cols[0]:
         submit_button = st.form_submit_button('更新')
         if submit_button:
-            _handle_update_tool(tool.id, name, description, data_manager)
+            _handle_update_tool(tool_info)
     with cols[1]:
         cancel_button = st.form_submit_button('キャンセル')
         if cancel_button:
@@ -202,38 +213,36 @@ def _render_edit_form(tool: AITool, data_manager: DataManager) -> None:
             st.rerun()
 
 
-def _handle_create_tool(
-    tool_id: str, name: str, description: str, data_manager: DataManager
-) -> None:
+def _handle_create_tool(tool_info: dict[str, str]) -> None:
     """AIツール作成処理。
 
     Args:
-        tool_id: ツールID。
-        name: ツール名。
-        description: 説明。
+        tool_info: AIツール情報の辞書。
         data_manager: データマネージャー。
     """
-    if handle_ai_tool_creation(data_manager, tool_id, name, description):
-        st.success(f'AIツール「{name}」を作成しました。')
+    if handle_ai_tool_creation(
+        st.session_state['data_manager'],
+        tool_info,
+    ):
+        st.success(f'AIツール「{tool_info["name"]}」を作成しました。')
         st.session_state['show_create_modal'] = False
         st.rerun()
     else:
         st.error('AIツールの作成に失敗しました。入力内容を確認してください。')
 
 
-def _handle_update_tool(
-    tool_id: str, name: str, description: str, data_manager: DataManager
-) -> None:
+def _handle_update_tool(tool_info: dict[str, str]) -> None:
     """AIツール更新処理。
 
     Args:
-        tool_id: ツールID。
-        name: ツール名。
-        description: 説明。
+        tool_info: AIツール情報の辞書。
         data_manager: データマネージャー。
     """
-    if handle_ai_tool_update(data_manager, tool_id, name, description):
-        st.success(f'AIツール「{name}」を更新しました。')
+    if handle_ai_tool_update(
+        st.session_state['data_manager'],
+        tool_info,
+    ):
+        st.success(f'AIツール「{tool_info["name"]}」を更新しました。')
         st.session_state['show_edit_modal'] = False
         st.session_state['edit_tool'] = None
         st.rerun()

@@ -23,9 +23,6 @@ def test_デフォルト値が正しく設定される(mocker: MockerFixture) ->
     assert Path('log') == config.DEFAULT_LOG_DIR
     assert config.DEFAULT_LOG_FILE == 'app.log'
     assert config.LOG_ROTATION_DAYS == 7
-    assert config.GEMINI_MODEL_NAME == 'gemini-1.5-flash'
-    assert config.API_RATE_LIMIT_DELAY == 1.0
-    assert config.GEMINI_API_KEY is None
     assert config.AUTO_REFRESH_INTERVAL == 1000
 
 
@@ -45,7 +42,6 @@ def test_環境変数から設定値を読み込める(mocker: MockerFixture) ->
 
     # Assert
     assert config.APP_ENV == 'test'
-    assert config.GEMINI_API_KEY == 'test_api_key'
     assert config.data_dir_path == Path('custom_test_data')
     assert config.data_file_path == Path('custom_test_data') / 'custom_projects.json'
 

@@ -10,9 +10,9 @@ dependencies = [
     "pandas>=2.0",
     "openpyxl>=3.0",
     "streamlit-autorefresh>=1.0",
-    "google-generativeai>=0.5.0",
     "streamlit-modal==0.1.2",
     "Pillow>=10.2.0",
+    "requests>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +36,7 @@ dev = [
     "pydantic-extra-types>=2.0", # より豊富な型定義
     "watchdog>=3.0",             # ファイル変更監視 （streamlit用: 自動リロード機能に必要）
     "vulture>=2.14",             # 未使用コード検出
+    "types-requests>=2.0",       # requests型スタブ
 ]
 
 [tool.setuptools.packages.find]

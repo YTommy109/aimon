@@ -103,7 +103,9 @@ class TestJsonAIToolRepository:
     def test_新しいAIツールの保存と取得(self, repository: JsonAIToolRepository) -> None:
         """新しいAIツールの保存と取得をテストします。"""
         # Arrange
-        ai_tool = AITool(id='test-tool', name_ja='テストツール', description='テスト用')
+        ai_tool = AITool(
+            id='test-tool', name_ja='テストツール', description='テスト用', endpoint_url='dummy'
+        )
 
         # Act
         repository.save(ai_tool)
@@ -118,8 +120,8 @@ class TestJsonAIToolRepository:
     def test_有効なAIツールの取得(self, repository: JsonAIToolRepository) -> None:
         """有効なAIツールの取得をテストします。"""
         # Arrange
-        active_tool = AITool(id='active-tool', name_ja='有効ツール')
-        disabled_tool = AITool(id='disabled-tool', name_ja='無効ツール')
+        active_tool = AITool(id='active-tool', name_ja='有効ツール', endpoint_url='dummy')
+        disabled_tool = AITool(id='disabled-tool', name_ja='無効ツール', endpoint_url='dummy')
 
         repository.save(active_tool)
         repository.save(disabled_tool)
@@ -135,8 +137,8 @@ class TestJsonAIToolRepository:
     def test_全AIツールの取得(self, repository: JsonAIToolRepository) -> None:
         """全AIツールの取得をテストします。"""
         # Arrange
-        active_tool = AITool(id='active-tool', name_ja='有効ツール')
-        disabled_tool = AITool(id='disabled-tool', name_ja='無効ツール')
+        active_tool = AITool(id='active-tool', name_ja='有効ツール', endpoint_url='dummy')
+        disabled_tool = AITool(id='disabled-tool', name_ja='無効ツール', endpoint_url='dummy')
 
         repository.save(active_tool)
         repository.save(disabled_tool)
@@ -154,7 +156,7 @@ class TestJsonAIToolRepository:
     def test_AIツールの無効化と有効化(self, repository: JsonAIToolRepository) -> None:
         """AIツールの無効化と有効化をテストします。"""
         # Arrange
-        ai_tool = AITool(id='test-tool', name_ja='テストツール')
+        ai_tool = AITool(id='test-tool', name_ja='テストツール', endpoint_url='dummy')
         repository.save(ai_tool)
 
         # Act & Assert - 無効化
@@ -168,3 +170,23 @@ class TestJsonAIToolRepository:
         enabled_tool = repository.find_by_id('test-tool')
         assert enabled_tool is not None
         assert enabled_tool.disabled_at is None
+
+    def test_endpoint_urlの保存と取得(self, repository: JsonAIToolRepository) -> None:
+        """endpoint_urlが保存・取得できることをテストする。"""
+        # Arrange
+        ai_tool = AITool(
+            id='endpoint-tool',
+            name_ja='エンドポイントツール',
+            endpoint_url='http://localhost:8080/ep',
+        )
+        repository.save(ai_tool)
+        # Act
+        retrieved_tool = repository.find_by_id('endpoint-tool')
+        # Assert
+        assert retrieved_tool is not None
+        assert retrieved_tool.endpoint_url == 'http://localhost:8080/ep'
+        # Noneの場合もテスト
+        ai_tool2 = AITool(id='no-endpoint-tool', name_ja='エンドポイントなし', endpoint_url='dummy')
+        repository.save(ai_tool2)
+        retrieved_tool2 = repository.find_by_id('no-endpoint-tool')
+        assert retrieved_tool2.endpoint_url == 'dummy'

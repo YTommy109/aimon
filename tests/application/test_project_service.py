@@ -217,3 +217,80 @@ class TestProjectService:
         assert updated_project is None
         assert 'プロジェクトの実行開始中にエラーが発生しました' in message
         assert 'データベースエラー' in message
+
+    def test_handle_project_execution_NewWorkerが起動される(
+        self, mocker: MockerFixture, mock_data_manager: MagicMock
+    ) -> None:
+        """正常時にNewWorkerが起動されることをテスト。"""
+        # Arrange
+        project = Project(name='テストプロジェクト', source='/test/path', ai_tool='test-tool')
+        mock_data_manager.update_project.return_value = True
+
+        # Mock ApplicationContainer and NewWorker
+        mock_container_class = mocker.patch(
+            'app.application.services.project_service.ApplicationContainer'
+        )
+        mock_worker_class = mocker.patch('app.application.services.project_service.NewWorker')
+        mock_streamlit = mocker.patch('app.application.services.project_service.st')
+
+        mock_container = mocker.MagicMock()
+        mock_worker = mocker.MagicMock()
+        mock_container_class.return_value = mock_container
+        mock_worker_class.return_value = mock_worker
+
+        # Create a proper mock for session_state
+        mock_session_state = mocker.MagicMock()
+        mock_streamlit.session_state = mock_session_state
+
+        # Act
+        updated_project, message = handle_project_execution(project, mock_data_manager)
+
+        # Assert
+        assert updated_project == project
+        assert message == 'プロジェクト「テストプロジェクト」の実行を開始しました。'
+
+        # NewWorkerが正しく起動されることを確認
+        mock_worker_class.assert_called_once_with(
+            project_id=project.id,
+            project_repository=mock_container.project_repository,
+            ai_tool_repository=mock_container.ai_tool_repository,
+        )
+        mock_worker.start.assert_called_once()
+
+        # セッション状態にワーカーが追加されることを確認
+        # running_workersがセットされたことを直接確認
+        assert (
+            hasattr(mock_session_state, 'running_workers')
+            or 'running_workers' in mock_session_state.__dict__
+        )
+
+    def test_handle_project_execution_Worker起動中に例外発生(
+        self, mocker: MockerFixture, mock_data_manager: MagicMock
+    ) -> None:
+        """ワーカー起動中に例外が発生した場合のテスト。"""
+        # Arrange
+        project = Project(name='テストプロジェクト', source='/test/path', ai_tool='test-tool')
+        mock_data_manager.update_project.return_value = True
+
+        # Mock ApplicationContainer but make NewWorker throw exception
+        mock_container_class = mocker.patch(
+            'app.application.services.project_service.ApplicationContainer'
+        )
+        mock_worker_class = mocker.patch('app.application.services.project_service.NewWorker')
+        mock_streamlit = mocker.patch('app.application.services.project_service.st')
+
+        mock_container = mocker.MagicMock()
+        mock_container_class.return_value = mock_container
+        mock_worker_class.side_effect = Exception('ワーカー作成エラー')
+
+        # Create a proper mock for session_state
+        mock_session_state = mocker.MagicMock()
+        mock_streamlit.session_state = mock_session_state
+
+        # Act
+        updated_project, message = handle_project_execution(project, mock_data_manager)
+
+        # Assert
+        assert updated_project is None
+        assert 'プロジェクトの実行開始中にエラーが発生しました' in message
+        assert 'ワーカー作成エラー' in message

@@ -37,6 +37,7 @@ dev = [
     "watchdog>=3.0",             # ファイル変更監視 （streamlit用: 自動リロード機能に必要）
     "vulture>=2.14",             # 未使用コード検出
     "types-requests>=2.0",       # requests型スタブ
+    "pdoc3>=0.11",               # 自動ドキュメント生成
 ]
 
 [tool.setuptools.packages.find]
@@ -301,3 +302,6 @@ ignore_names = [
     "__exit__",
 ]
 ignore_decorators = ["@pytest.fixture"]
+
+[tool.coverage]
+data_file = ".coverage/coverage"

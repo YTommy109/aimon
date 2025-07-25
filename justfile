@@ -95,7 +95,6 @@ test-e2e mode='':
 coverage:
     pytest --cov=app --cov-report=term-missing
 
-
 # ruff
 ruff path='':
     #!/usr/bin/env zsh
@@ -189,3 +188,7 @@ vulture path='':
 # 参考: https://github.com/astral-sh/ty
 ty:
     uvx ty check
+
+# HTMLドキュメント生成
+docs:
+    pdoc app --html --output-dir docs

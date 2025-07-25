@@ -9,4 +9,6 @@ test-results/
 .testmondata
 
 .specstory/
+-
++docs/
 docs/

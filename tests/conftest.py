@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.infrastructure.persistence import JsonProjectRepository
+from app.repositories.project_repository import JsonProjectRepository
 
 
 @pytest.fixture

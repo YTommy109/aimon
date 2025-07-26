@@ -9,7 +9,7 @@ from app.config import config
 def _create_console_handler() -> logging.StreamHandler[Any]:
     """コンソールハンドラーを作成する。"""
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(getattr(logging, config.LOG_LEVEL))
     console_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     )
@@ -28,7 +28,7 @@ def _create_file_handler() -> TimedRotatingFileHandler:
         backupCount=config.LOG_ROTATION_DAYS,
         encoding='utf-8',
     )
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(getattr(logging, config.LOG_LEVEL))
     file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(file_formatter)
     return file_handler
@@ -49,6 +49,6 @@ def setup_logger() -> logging.Logger:
         logger.addHandler(_create_file_handler())
 
     if logger.level == logging.NOTSET:
-        logger.setLevel(logging.INFO)
+        logger.setLevel(getattr(logging, config.LOG_LEVEL))
 
     return logger

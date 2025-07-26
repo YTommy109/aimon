@@ -1,6 +1,6 @@
 """アプリケーション全体で利用するカスタム例外クラスを定義します。"""
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from uuid import UUID
 
 
@@ -63,7 +63,7 @@ class APIConfigurationError(WorkerError):
         super().__init__(f'APIの設定が不正です: {message}')
 
 
-class FileProcessingError(WorkerError):
+class FileProcessingError(WorkerError, ABC):
     """ファイル操作に関連する基底例外クラス。"""
 
     @abstractmethod

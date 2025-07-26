@@ -15,7 +15,85 @@
   - ローカルで動作する非同期処理エンジン
 - **データストア**: ローカルファイルシステム上のJSONファイル
 
-### 2.2. 開発環境
+### 2.2. アーキテクチャ図
+
+```mermaid
+graph TB
+    subgraph "View Layer"
+        UI[Streamlit UI]
+    end
+    
+    subgraph "UI Layer"
+        MP[MainPage]
+        DM[DataManager]
+        PP[ProjectProcessor]
+        AH[AIToolHandler]
+        PH[ProjectHandler]
+        PS[ProjectService]
+        AS[AIToolService]
+    end
+    
+    subgraph "Domain Layer"
+        E[Entities]
+        R[Repositories Interface]
+    end
+    
+    subgraph "Infrastructure Layer"
+        JPR[JsonProjectRepository]
+        JAR[JsonAIToolRepository]
+        FP[FileProcessor]
+        AFE[AzureFunctionsExecutor]
+    end
+    
+    subgraph "External"
+        AF[Azure Functions]
+        FS[File System]
+    end
+    
+    UI --> MP
+    MP --> PS
+    MP --> AS
+    PS --> JPR
+    AS --> JAR
+    JPR --> E
+    JAR --> E
+    FP --> FS
+    AFE --> AF
+```
+
+### 2.3. レイヤー別責務
+
+#### View Layer (UI層)
+
+- **責務**: ユーザーインターフェースの表示とユーザー入力の処理
+- **主要コンポーネント**:
+  - `main_page.py`: メインページのUI統合
+  - `ui/`: Streamlit用UIコンポーネント群
+
+#### Service Layer (サービス層)
+
+- **責務**: ビジネスロジックの実装
+- **主要コンポーネント**:
+  - `ProjectService`: プロジェクト管理のビジネスロジック
+  - `AIToolService`: AIツール管理のビジネスロジック
+
+#### Domain Layer (ドメイン層)
+
+- **責務**: ビジネスルールとエンティティの定義
+- **主要コンポーネント**:
+  - `models/`: ドメインモデル（AITool, Project）
+  - `repositories/`: リポジトリインターフェース
+
+#### Infrastructure Layer (インフラストラクチャ層)
+
+- **責務**: 外部システムとの連携とデータ永続化
+- **主要コンポーネント**:
+  - `JsonProjectRepository`: プロジェクトデータのJSON永続化
+  - `JsonAIToolRepository`: AIツールデータのJSON永続化
+  - `FileProcessor`: ファイル処理ロジック
+  - `AzureFunctionsExecutor`: Azure Functions API連携
+
+### 2.4. 開発環境
 
 - **言語**: Python 3.12
 - **パッケージ管理**: uv
@@ -25,17 +103,20 @@
 - **静的解析・フォーマット**: ruff
 - **タスクランナー**: just
 
-### 2.3. ディレクトリ構成
+### 2.5. ディレクトリ構成
 
 ```text
 .
-├── .data/               # プロジェクトデータ保存用（JSONファイル）※現状は未実装、今後追加予定
+├── .data/               # プロジェクトデータ保存用（JSONファイル）
 ├── app/                 # アプリケーションのソースコード
-│   ├── domain/          # データモデル・リポジトリ（entities.py, repositories.py）
-│   ├── application/     # ビジネスロジック・サービス（project_service.py, ai_tool_service.py, handlers/ など）
-│   ├── infrastructure/  # 外部連携・ファクトリ・永続化層（file_processor.py, new_worker.py, external/, persistence/ など）
+│   ├── models/          # ドメインモデル（AITool, Project）
+│   ├── repositories/    # リポジトリ実装
+│   ├── services/        # サービス層（ビジネスロジック）
+│   ├── ui/              # UI層（Streamlit用）
 │   ├── utils/           # ユーティリティ（excel_parser.py）
-│   ├── view/            # UIコンポーネント（Streamlit用）
+│   ├── config.py        # 設定管理
+│   ├── errors.py        # エラー定義
+│   ├── logger.py        # ログ設定
 │   └── main_page.py     # メインページUI
 ├── log/                 # アプリケーションログ
 ├── tests/               # ユニット・インテグレーションテスト

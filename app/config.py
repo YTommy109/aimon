@@ -20,6 +20,7 @@ class Config(BaseSettings):
     DEFAULT_LOG_DIR: Path = Path('log')
     DEFAULT_LOG_FILE: str = 'app.log'
     LOG_ROTATION_DAYS: int = 7
+    LOG_LEVEL: str = 'DEBUG'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
     # UI設定
     AUTO_REFRESH_INTERVAL: int = 1000  # milliseconds

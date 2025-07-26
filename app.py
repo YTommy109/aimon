@@ -21,7 +21,7 @@ def main() -> None:
     # configインスタンス生成前に環境変数にセット
     os.environ['APP_ENV'] = args.app_env
 
-    from app.main_page import render_main_page
+    from app.ui.main_page import render_main_page
 
     render_main_page()
 

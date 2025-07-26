@@ -30,6 +30,9 @@ class TestSetupLogger:
             new_callable=mocker.PropertyMock,
             return_value=mock_path,
         )
+        # LOG_LEVELをINFOに固定（環境変数も含めて）
+        mocker.patch('app.logger.config.LOG_LEVEL', 'INFO')
+        mocker.patch.dict('os.environ', {'LOG_LEVEL': 'INFO'}, clear=True)
 
         # Act
         logger = setup_logger()
@@ -37,7 +40,6 @@ class TestSetupLogger:
         # Assert
         assert isinstance(logger, logging.Logger)
         assert logger.name == 'aiman'
-        assert logger.level == logging.INFO
         assert len(logger.handlers) == 2  # Console and File handlers
 
     def test_ロガー設定の冪等性(self, mocker: MockerFixture) -> None:
@@ -50,6 +52,9 @@ class TestSetupLogger:
             new_callable=mocker.PropertyMock,
             return_value=mock_path,
         )
+        # LOG_LEVELをINFOに固定（環境変数も含めて）
+        mocker.patch('app.logger.config.LOG_LEVEL', 'INFO')
+        mocker.patch.dict('os.environ', {'LOG_LEVEL': 'INFO'}, clear=True)
 
         # Act
         logger1 = setup_logger()

@@ -4,40 +4,44 @@ version = "0.1.0"
 requires-python = ">=3.12"
 
 dependencies = [
-    "streamlit>=1.0",
+    "aiohttp>=3.0",                # 非同期HTTPクライアント
+    "httpx>=0.27.0",               # 同期HTTPクライアント
+    "openpyxl>=3.0",
+    "pandas>=2.3",
+    "Pillow>=11.3.0",
     "pydantic>=2.0,<3.0",
     "pydantic-settings>=2.0,<3.0",
-    "pandas>=2.0",
-    "openpyxl>=3.0",
+    "requests>=2.0",
+    "streamlit>=1.0",
     "streamlit-autorefresh>=1.0",
     "streamlit-modal==0.1.2",
-    "Pillow>=10.2.0",
-    "requests>=2.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "coverage[toml]>=7.10",           # カバレッジ測定の詳細化
+    "docstring-parser>=0.17",         # docstring解析（自動ドキュメント生成）
+    "freezegun>=1.5.3",               # テスト用時間固定ライブラリ
+    "mypy>=1.17.0",
+    "pandas-stubs>=2.0",
+    "pdoc3>=0.11",                    # 自動ドキュメント生成
+    "playwright>=1.54.0",
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-mock>=3.0",
-    "playwright>=1.40.0",
     "pytest-playwright>=0.4.0",
+    "pytest-asyncio>=0.23.0",         # 非同期テスト用
     "pytest-randomly>=3.16.0",
+    "pydantic-extra-types>=2.0",      # より豊富な型定義
+    "pytest-testmon>=2.1.3",
+    "pytest-xdist>=3.0",              # 並列テスト実行（高速フィードバック）
+    "pytest-sugar>=1.0",              # テスト結果の視覚的改善
     "types-openpyxl>=3.1.5.20250602",
     "types-Pillow>=10.2.0",
-    "mypy>=1.8.0",
-    "pandas-stubs>=2.0",
-    "pytest-testmon>=2.1.3",
-    # LLM/Agent Coding支 援ツール（jujutsu + just 環境）
-    "pytest-xdist>=3.0",         # 並列テスト実行（高速フィードバック）
-    "pytest-sugar>=1.0",         # テスト結果の視覚的改善
-    "coverage[toml]>=7.0",       # カバレッジ測定の詳細化
-    "docstring-parser>=0.15",    # docstring解析（自動ドキュメント生成）
-    "pydantic-extra-types>=2.0", # より豊富な型定義
-    "watchdog>=3.0",             # ファイル変更監視 （streamlit用: 自動リロード機能に必要）
-    "vulture>=2.14",             # 未使用コード検出
-    "types-requests>=2.0",       # requests型スタブ
-    "pdoc3>=0.11",               # 自動ドキュメント生成
+    "types-requests>=2.0",            # requests型スタブ
+    "vulture>=2.14",                  # 未使用コード検出
+    "watchdog>=3.0",                  # ファイル変更監視 （streamlit用: 自動リロード機能に必要）
+
 ]
 
 [tool.setuptools.packages.find]
@@ -218,6 +222,9 @@ enable_error_code = [
     "possibly-undefined",  # 未定義変数の可能性を検出
 ] # 追加チェック有効化
 
+# 型情報不足のライブラリ対応
+ignore_missing_imports = true # 型情報がないモジュールのimportエラーを無視
+
 # Any型の厳格化（LLMコード品質向上）
 disallow_any_unimported = true # 外部ライブラリのAny型も可能な限り制限
 disallow_any_expr = false      # 外部ライブラリからのAny式は許容（streamlit等で必要）
@@ -244,15 +251,12 @@ disallow_any_explicit = true        # テストで明示的なAny型の使用制
 disallow_any_generics = true        # テストでジェネリックAny型の使用制御
 warn_return_any = false             # テストでAny型の戻り値警告制御
 
-# サードパーティライブラリ用設定（型情報不完全なライブラリ対応）
+# UIファイル用設定（型チェックを緩和）
 [[tool.mypy.overrides]]
-module = ["streamlit_modal.*"]
-ignore_missing_imports = true  # 型情報がないライブラリのimportエラーを無視
+module = ["app.ui.*"]
+ignore_missing_imports = true   # 型情報がないモジュールのimportエラーを無視
+disallow_any_unimported = false # 型情報不足のため緩和
 
-# streamlit_modalを使用するViewファイルの個別設定
-[[tool.mypy.overrides]]
-module = ["app.view.*"]
-disallow_any_unimported = false # streamlit_modalの型情報不足のため緩和
 
 # =====================================
 # coverage設定
@@ -284,6 +288,7 @@ exclude_lines = [
     "pass",                       # プレースホルダー
 ]
 
+
 # =====================================
 # ty設定（型チェック用ファイル除外）
 # =====================================
@@ -294,11 +299,13 @@ exclude = [".venv"]
 [tool.vulture]
 exclude = ["app/errors.py"]
 ignore_names = [
-    "side_effect",
+    "return_value",
     "text_lines",
     "total_images",
     "sheets",
     "text_content",
+    "side_effect",
+    "__enter__",
     "__exit__",
 ]
 ignore_decorators = ["@pytest.fixture"]

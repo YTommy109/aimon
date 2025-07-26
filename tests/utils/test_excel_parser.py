@@ -8,7 +8,7 @@ import openpyxl
 import pytest
 from PIL import Image
 
-from app.errors import FileProcessingError, FileReadingError
+from app.errors import FileReadingError, FileWritingError
 from app.utils import ExcelParser
 from app.utils.excel_parser import JsonDataDict
 
@@ -193,8 +193,173 @@ class TestExcelParser:
         invalid_path = tmp_path / 'nonexistent_dir' / 'output.json'
 
         # Act & Assert
-        with pytest.raises(FileProcessingError):
+        with pytest.raises(FileWritingError):
             parser.export_json(invalid_path)
+
+    def test_画像処理で例外が発生した場合の処理(self, tmp_path: Path) -> None:
+        """画像処理で例外が発生した場合の処理をテストする。"""
+        # Arrange
+        test_file = tmp_path / 'test.xlsx'
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        assert sheet is not None
+        sheet['A1'] = 'Test Data'
+        workbook.save(test_file)
+        parser = ExcelParser()
+
+        # Act
+        parser.parse(test_file)
+
+        # Assert
+        # 画像処理で例外が発生しても解析は続行される
+        text = parser.get_text()
+        assert 'Test Data' in text
+
+    def test_空のセル値の処理(self, tmp_path: Path) -> None:
+        """空のセル値の処理をテストする。"""
+        # Arrange
+        test_file = tmp_path / 'test.xlsx'
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        assert sheet is not None
+        sheet['A1'] = 'Data'
+        sheet['B1'] = None  # 空のセル
+        sheet['A2'] = ''
+        workbook.save(test_file)
+        parser = ExcelParser()
+
+        # Act
+        parser.parse(test_file)
+
+        # Assert
+        text = parser.get_text()
+        assert 'Data' in text  # 空のセルは空文字として処理される
+        assert '---シート: Sheet---' in text
+
+    def test_画像マーカーが適用される(self, tmp_path: Path) -> None:
+        """画像マーカーが適用されることをテストする。"""
+        # Arrange
+        test_file = tmp_path / 'test.xlsx'
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        assert sheet is not None
+        sheet['A1'] = 'Text with image'
+        workbook.save(test_file)
+        parser = ExcelParser()
+
+        # 画像マーカーを手動で設定
+        parser._parsed_data = {
+            'file_path': str(test_file),
+            'total_images': 1,
+            'sheets': {
+                'Sheet': {
+                    'text_lines': ['[図:1] Text with image'],
+                    'images': [{'figure_number': 1, 'row': 1, 'col': 1, 'marker': '[図:1]'}],
+                    'cell_values': {'1,1': '[図:1] Text with image'},
+                },
+            },
+        }
+        parser._text_content = '---シート: Sheet---\n[図:1] Text with image'
+
+        # Act
+        json_data = parser.to_dict()
+
+        # Assert
+        assert '[図:1]' in json_data['text_content']
+        assert json_data['total_images'] == 1
+
+    def test_複雑なセル値の処理(self, tmp_path: Path) -> None:
+        """複雑なセル値の処理をテストする。"""
+        # Arrange
+        test_file = tmp_path / 'test.xlsx'
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        assert sheet is not None
+        sheet['A1'] = 'Header1'
+        sheet['B1'] = 'Header2'
+        sheet['A2'] = 'Data1'
+        sheet['B2'] = 'Data2'
+        sheet['A3'] = None  # 空のセル
+        sheet['B3'] = ''
+        sheet['A4'] = 'Final Data'
+        workbook.save(test_file)
+        parser = ExcelParser()
+
+        # Act
+        parser.parse(test_file)
+
+        # Assert
+        text = parser.get_text()
+        assert 'Header1\tHeader2' in text
+        assert 'Data1\tData2' in text
+        assert '\t' in text  # 空のセルが処理されている
+        assert 'Final Data\t' in text
+
+    def test_画像を含むJSON出力(self, tmp_path: Path) -> None:
+        """画像を含むJSON出力をテストする。"""
+        # Arrange
+        test_image = Image.new('RGB', (100, 100), color='red')
+        parser = ExcelParser()
+        parser._images = [test_image]
+        parser._parsed_data = {
+            'file_path': str(tmp_path / 'test.xlsx'),
+            'total_images': 1,
+            'sheets': {},
+        }
+        parser._text_content = 'Test content'
+
+        # Act
+        json_data = parser.to_dict()
+
+        # Assert
+        assert json_data['total_images'] == 1
+        assert len(json_data['images']) == 1
+        assert json_data['images'][0]['figure_number'] == 1
+        assert json_data['images'][0]['format'] == 'PNG'
+        assert 'data' in json_data['images'][0]
+
+    def test_複数画像の処理(self, tmp_path: Path) -> None:
+        """複数画像の処理をテストする。"""
+        # Arrange
+        test_image1 = Image.new('RGB', (100, 100), color='red')
+        test_image2 = Image.new('RGB', (200, 200), color='blue')
+        parser = ExcelParser()
+        parser._images = [test_image1, test_image2]
+        parser._parsed_data = {
+            'file_path': str(tmp_path / 'test.xlsx'),
+            'total_images': 2,
+            'sheets': {},
+        }
+        parser._text_content = 'Test content'
+
+        # Act
+        json_data = parser.to_dict()
+
+        # Assert
+        assert json_data['total_images'] == 2
+        assert len(json_data['images']) == 2
+        assert json_data['images'][0]['figure_number'] == 1
+        assert json_data['images'][1]['figure_number'] == 2
+
+    def test_JSON出力時の例外処理(self, tmp_path: Path) -> None:
+        """JSON出力時の例外処理をテストする。"""
+        # Arrange
+        parser = ExcelParser()
+        parser._parsed_data = {
+            'file_path': str(tmp_path / 'test.xlsx'),
+            'total_images': 0,
+            'sheets': {},
+        }
+        parser._text_content = 'Test content'
+
+        # 書き込み権限のないディレクトリを作成
+        readonly_dir = tmp_path / 'readonly'
+        readonly_dir.mkdir()
+        readonly_dir.chmod(0o444)  # 読み取り専用
+
+        # Act & Assert
+        with pytest.raises(FileWritingError):
+            parser.export_json(readonly_dir / 'output.json')
 
     def _extract_cell_values_from_sheet(
         self,

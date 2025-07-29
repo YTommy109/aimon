@@ -21,6 +21,11 @@ def main() -> None:
     # configインスタンス生成前に環境変数にセット
     os.environ['APP_ENV'] = args.app_env
 
+    # テスト環境の場合はテスト用データディレクトリも設定
+    if args.app_env == 'test':
+        test_data_dir = os.getenv('DATA_DIR_TEST', '.data_test')
+        os.environ['DATA_DIR_TEST'] = test_data_dir
+
     from app.ui.main_page import render_main_page
 
     render_main_page()

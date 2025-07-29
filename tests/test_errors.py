@@ -1,4 +1,4 @@
-"""エラークラスのテスト。"""
+"""エラークラスのテストモジュール。"""
 
 from uuid import UUID
 
@@ -18,6 +18,7 @@ from app.errors import (
     ResourceNotFoundError,
     WorkerError,
 )
+from app.models import AIToolID, ProjectID
 
 
 class TestBaseError:
@@ -80,10 +81,10 @@ class TestProjectAlreadyRunningError:
         # Assert
         assert str(error) == 'プロジェクト test-project-1 は既に実行中です'
 
-    def test_UUIDでProjectAlreadyRunningErrorが作成される(self) -> None:
-        """UUIDでProjectAlreadyRunningErrorが作成されることをテスト。"""
+    def test_ProjectIDでProjectAlreadyRunningErrorが作成される(self) -> None:
+        """ProjectIDでProjectAlreadyRunningErrorが作成されることをテスト。"""
         # Arrange
-        project_id = UUID('12345678-1234-5678-1234-567812345678')
+        project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         error = ProjectAlreadyRunningError(project_id)
@@ -108,10 +109,10 @@ class TestProjectProcessingError:
         # Assert
         assert str(error) == 'プロジェクト test-project-1 の処理中にエラーが発生しました'
 
-    def test_UUIDでProjectProcessingErrorが作成される(self) -> None:
-        """UUIDでProjectProcessingErrorが作成されることをテスト。"""
+    def test_ProjectIDでProjectProcessingErrorが作成される(self) -> None:
+        """ProjectIDでProjectProcessingErrorが作成されることをテスト。"""
         # Arrange
-        project_id = UUID('12345678-1234-5678-1234-567812345678')
+        project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         error = ProjectProcessingError(project_id)
@@ -202,9 +203,7 @@ class TestPathIsDirectoryError:
         error = PathIsDirectoryError('/path/to/directory')
 
         # Assert
-        assert (
-            str(error) == 'パス /path/to/directory はディレクトリです。ファイルである必要があります'
-        )
+        assert str(error) == 'パス /path/to/directory はディレクトリです'
 
 
 class TestFileDeletingError:
@@ -238,7 +237,7 @@ class TestDataManagerError:
         error = DataManagerError('Database connection failed')
 
         # Assert
-        assert str(error) == 'データマネージャーでエラーが発生しました: Database connection failed'
+        assert str(error) == 'データ管理エラー: Database connection failed'
 
 
 class TestResourceNotFoundError:
@@ -257,10 +256,10 @@ class TestResourceNotFoundError:
         # Assert
         assert str(error) == 'Project test-project-1 が見つかりません'
 
-    def test_UUIDでResourceNotFoundErrorが作成される(self) -> None:
-        """UUIDでResourceNotFoundErrorが作成されることをテスト。"""
+    def test_AIToolIDでResourceNotFoundErrorが作成される(self) -> None:
+        """AIToolIDでResourceNotFoundErrorが作成されることをテスト。"""
         # Arrange
-        resource_id = UUID('12345678-1234-5678-1234-567812345678')
+        resource_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         error = ResourceNotFoundError('AI Tool', resource_id)

@@ -1,6 +1,7 @@
 """AIToolモデルのテスト。"""
 
 from datetime import datetime
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from app.models.ai_tool import AITool
@@ -15,18 +16,16 @@ class TestAITool:
     def test_AIツールが正常に作成される(self) -> None:
         """AIツールが正常に作成されることをテストする。"""
         # Arrange
-        tool_id = 'test_tool'
         name = 'テストツール'
         description = 'テスト用のAIツール'
         endpoint_url = 'https://api.example.com/test'
 
         # Act
-        ai_tool = AITool(
-            id=tool_id, name_ja=name, description=description, endpoint_url=endpoint_url
-        )
+        ai_tool = AITool(name_ja=name, description=description, endpoint_url=endpoint_url)
 
         # Assert
-        assert ai_tool.id == tool_id
+        assert isinstance(ai_tool.id, UUID)  # NewTypeは内部的にはUUID
+        assert ai_tool.id == ai_tool.id  # 値の比較
         assert ai_tool.name_ja == name
         assert ai_tool.description == description
         assert ai_tool.endpoint_url == endpoint_url
@@ -37,9 +36,7 @@ class TestAITool:
     def test_AIツールの無効化(self) -> None:
         """AIツールの無効化をテストする。"""
         # Arrange
-        ai_tool = AITool(
-            id='test_tool', name_ja='テストツール', endpoint_url='https://api.example.com/test'
-        )
+        ai_tool = AITool(name_ja='テストツール', endpoint_url='https://api.example.com/test')
 
         # Act
         ai_tool.disabled_at = datetime.now(JST)
@@ -50,9 +47,7 @@ class TestAITool:
     def test_AIツールの有効化(self) -> None:
         """AIツールの有効化をテストする。"""
         # Arrange
-        ai_tool = AITool(
-            id='test_tool', name_ja='テストツール', endpoint_url='https://api.example.com/test'
-        )
+        ai_tool = AITool(name_ja='テストツール', endpoint_url='https://api.example.com/test')
         ai_tool.disabled_at = datetime.now(JST)
 
         # Act

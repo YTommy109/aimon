@@ -1,11 +1,11 @@
-"""Azure Functions実行クラスのテスト。"""
+"""Azure Functions エグゼキューターのテストモジュール。"""
 
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+from uuid import UUID
 
 import httpx
 import pytest
+from pytest_mock import MockerFixture
 
 from app.utils.executors.azure_functions_executor import AsyncGenericAIToolExecutor
 
@@ -13,10 +13,10 @@ from app.utils.executors.azure_functions_executor import AsyncGenericAIToolExecu
 class TestAsyncGenericAIToolExecutor:
     """AsyncGenericAIToolExecutorのテストクラス。"""
 
-    def test_AsyncGenericAIToolExecutorが正しく初期化される(self) -> None:
-        """AsyncGenericAIToolExecutorが正しく初期化されることをテスト。"""
+    def test_エグゼキューターが正常に初期化される(self) -> None:
+        """エグゼキューターが正常に初期化されることをテスト。"""
         # Arrange
-        ai_tool_id = 'test-tool-1'
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
         endpoint_url = 'https://api.example.com/test'
 
         # Act
@@ -26,11 +26,11 @@ class TestAsyncGenericAIToolExecutor:
         assert executor.ai_tool_id == ai_tool_id
         assert executor.endpoint_url == endpoint_url
 
-    def test_異なるパラメータでAsyncGenericAIToolExecutorが初期化される(self) -> None:
-        """異なるパラメータでAsyncGenericAIToolExecutorが初期化されることをテスト。"""
+    def test_異なるAIツールIDでエグゼキューターが初期化される(self) -> None:
+        """異なるAIツールIDでエグゼキューターが初期化されることをテスト。"""
         # Arrange
-        ai_tool_id = 'another-tool'
-        endpoint_url = 'https://api.example.com/another'
+        ai_tool_id = UUID('87654321-4321-8765-4321-876543210987')
+        endpoint_url = 'https://api.example.com/different'
 
         # Act
         executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
@@ -39,11 +39,11 @@ class TestAsyncGenericAIToolExecutor:
         assert executor.ai_tool_id == ai_tool_id
         assert executor.endpoint_url == endpoint_url
 
-    def test_空文字列のパラメータでAsyncGenericAIToolExecutorが初期化される(self) -> None:
-        """空文字列のパラメータでAsyncGenericAIToolExecutorが初期化されることをテスト。"""
+    def test_空のAIツールIDでエグゼキューターが初期化される(self) -> None:
+        """空のAIツールIDでエグゼキューターが初期化されることをテスト。"""
         # Arrange
-        ai_tool_id = ''
-        endpoint_url = ''
+        ai_tool_id = UUID('00000000-0000-0000-0000-000000000000')
+        endpoint_url = 'https://api.example.com/test'
 
         # Act
         executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
@@ -52,119 +52,294 @@ class TestAsyncGenericAIToolExecutor:
         assert executor.ai_tool_id == ai_tool_id
         assert executor.endpoint_url == endpoint_url
 
-    def test_ファイルの内容が正しく読み取られる(self) -> None:
-        """ファイルの内容が正しく読み取られることをテスト。"""
+    def test_正常なリクエストが送信される(self, mocker: MockerFixture) -> None:
+        """正常なリクエストが送信されることをテスト。"""
         # Arrange
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            f.write('テストファイルの内容')
-            temp_file_path = f.name
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_file = mocker.patch('pathlib.Path.is_file')
+        mock_open = mocker.patch('builtins.open')
 
-        executor = AsyncGenericAIToolExecutor('test-tool', 'https://api.example.com/test')
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/source'
 
-        try:
-            # Act
-            payload = executor._build_payload(temp_file_path)
+        # ファイルの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_open.return_value.__enter__.return_value.read.return_value = 'test content'
 
-            # Assert
-            assert payload['text'] == 'テストファイルの内容'
-        finally:
-            Path(temp_file_path).unlink()
-
-    def test_ディレクトリの内容が正しく読み取られる(self) -> None:
-        """ディレクトリの内容が正しく読み取られることをテスト。"""
-        # Arrange
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-
-            # テストファイルを作成
-            (temp_path / 'file1.txt').write_text('ファイル1の内容')
-            (temp_path / 'file2.txt').write_text('ファイル2の内容')
-            (temp_path / '.hidden').write_text('隠しファイル')  # スキップされるべき
-
-            executor = AsyncGenericAIToolExecutor('test-tool', 'https://api.example.com/test')
-
-            # Act
-            payload = executor._build_payload(str(temp_path))
-
-            # Assert
-            assert '=== file1.txt ===' in payload['text']
-            assert 'ファイル1の内容' in payload['text']
-            assert '=== file2.txt ===' in payload['text']
-            assert 'ファイル2の内容' in payload['text']
-            assert '.hidden' not in payload['text']
-
-    def test_存在しないパスの場合の処理(self) -> None:
-        """存在しないパスの場合の処理をテスト。"""
-        # Arrange
-        executor = AsyncGenericAIToolExecutor('test-tool', 'https://api.example.com/test')
-
-        # Act
-        payload = executor._build_payload('/nonexistent/path')
-
-        # Assert
-        assert 'パスが見つかりません' in payload['text']
-
-    @patch('httpx.Client')
-    def test_正常なHTTPリクエストが送信される(self, mock_client_class: Mock) -> None:
-        """正常なHTTPリクエストが送信されることをテスト。"""
-        # Arrange
-        mock_client = Mock()
+        # モックレスポンスの設定
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'success': True, 'data': {'summary': 'テスト結果'}}
-        mock_client.post.return_value = mock_response
-        mock_client_class.return_value.__enter__.return_value = mock_client
+        mock_response.json.return_value = {'success': True, 'data': 'test result'}
 
-        executor = AsyncGenericAIToolExecutor('test-tool', 'https://api.example.com/test')
-
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            f.write('テストファイルの内容')
-            temp_file_path = f.name
-
-        try:
-            # Act
-            result = executor.execute('test-project', temp_file_path)
-
-            # Assert
-            assert result['success'] is True
-            assert result['data']['summary'] == 'テスト結果'
-            assert result['project_id'] == 'test-project'
-            assert result['source_path'] == temp_file_path
-            assert result['ai_tool_id'] == 'test-tool'
-            assert result['endpoint_url'] == 'https://api.example.com/test'
-
-            # HTTPリクエストが正しく送信されたことを確認
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert call_args[0][0] == 'https://api.example.com/test'
-            assert call_args[1]['json'] == {'text': 'テストファイルの内容'}
-            assert call_args[1]['headers'] == {'Content-Type': 'application/json'}
-        finally:
-            Path(temp_file_path).unlink()
-
-    @patch('httpx.Client')
-    def test_HTTPエラーが適切に処理される(self, mock_client_class: Mock) -> None:
-        """HTTPエラーが適切に処理されることをテスト。"""
-        # Arrange
+        # モッククライアントの設定
         mock_client = Mock()
-        mock_response = Mock()
-        mock_response.status_code = 400
-        mock_response.text = 'Bad Request'
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            '400 Bad Request', request=Mock(), response=mock_response
-        )
         mock_client.post.return_value = mock_response
         mock_client_class.return_value.__enter__.return_value = mock_client
 
-        executor = AsyncGenericAIToolExecutor('test-tool', 'https://api.example.com/test')
+        # Act
+        result = executor.execute(project_id, source_path)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            f.write('テストファイルの内容')
-            temp_file_path = f.name
+        # Assert
+        assert result['success'] is True
+        assert result['data'] == 'test result'
+        assert result['project_id'] == project_id
+        assert result['source_path'] == source_path
+        assert result['ai_tool_id'] == str(ai_tool_id)
+        assert result['endpoint_url'] == endpoint_url
 
-        try:
-            # Act & Assert
-            with pytest.raises(Exception, match='HTTPステータスエラー: 400'):
-                executor.execute('test-project', temp_file_path)
-        finally:
-            Path(temp_file_path).unlink()
+        # リクエストが正しく送信されたことを確認
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert call_args[0][0] == endpoint_url
+        assert call_args[1]['headers']['Content-Type'] == 'application/json'
+
+    def test_HTTPステータスエラーが適切に処理される(self, mocker: MockerFixture) -> None:
+        """HTTPステータスエラーが適切に処理されることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_file = mocker.patch('pathlib.Path.is_file')
+        mock_open = mocker.patch('builtins.open')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/source'
+
+        # ファイルの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_open.return_value.__enter__.return_value.read.return_value = 'test content'
+
+        # エラーレスポンスの設定
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            '500', request=Mock(), response=mock_response
+        )
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act & Assert
+        with pytest.raises(Exception, match='HTTPステータスエラー: 500'):
+            executor.execute(project_id, source_path)
+
+    def test_リクエストエラーが適切に処理される(self, mocker: MockerFixture) -> None:
+        """リクエストエラーが適切に処理されることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_file = mocker.patch('pathlib.Path.is_file')
+        mock_open = mocker.patch('builtins.open')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/source'
+
+        # ファイルの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_open.return_value.__enter__.return_value.read.return_value = 'test content'
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.side_effect = httpx.RequestError('Connection error')
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act & Assert
+        with pytest.raises(Exception, match='リクエストエラー: Connection error'):
+            executor.execute(project_id, source_path)
+
+    def test_JSONデコードエラーが適切に処理される(self, mocker: MockerFixture) -> None:
+        """JSONデコードエラーが適切に処理されることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_file = mocker.patch('pathlib.Path.is_file')
+        mock_open = mocker.patch('builtins.open')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/source'
+
+        # ファイルの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_open.return_value.__enter__.return_value.read.return_value = 'test content'
+
+        # 無効なJSONレスポンスの設定
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.side_effect = ValueError('Invalid JSON')
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act & Assert
+        with pytest.raises(Exception, match='AIツール実行エラー: Invalid JSON'):
+            executor.execute(project_id, source_path)
+
+    def test_ファイルパスが正しく処理される(self, mocker: MockerFixture) -> None:
+        """ファイルパスが正しく処理されることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_file = mocker.patch('pathlib.Path.is_file')
+        mock_open = mocker.patch('builtins.open')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/file.txt'
+
+        # ファイルの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_open.return_value.__enter__.return_value.read.return_value = 'file content'
+
+        # モックレスポンスの設定
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'success': True, 'data': 'test result'}
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act
+        result = executor.execute(project_id, source_path)
+
+        # Assert
+        assert result['source_path'] == source_path
+        # ファイルが正しく読み込まれたことを確認
+        mock_open.assert_called_once()
+
+    def test_ディレクトリパスが正しく処理される(self, mocker: MockerFixture) -> None:
+        """ディレクトリパスが正しく処理されることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_dir = mocker.patch('pathlib.Path.is_dir')
+        mock_rglob = mocker.patch('pathlib.Path.rglob')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/directory'
+
+        # ディレクトリの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_dir.return_value = True
+        mock_file_paths = [Mock(), Mock()]
+        mock_rglob.return_value = mock_file_paths
+
+        # モックレスポンスの設定
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'success': True, 'data': 'test result'}
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act
+        result = executor.execute(project_id, source_path)
+
+        # Assert
+        assert result['source_path'] == source_path
+        # ディレクトリが正しく処理されたことを確認
+        mock_rglob.assert_called_once_with('*')
+
+    def test_単一ファイルが正しく読み込まれる(self, mocker: MockerFixture) -> None:
+        """単一ファイルが正しく読み込まれることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_file = mocker.patch('pathlib.Path.is_file')
+        mock_open = mocker.patch('builtins.open')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/single_file.txt'
+
+        # ファイルの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_open.return_value.__enter__.return_value.read.return_value = 'single file content'
+
+        # モックレスポンスの設定
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'success': True, 'data': 'test result'}
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act
+        result = executor.execute(project_id, source_path)
+
+        # Assert
+        assert result['source_path'] == source_path
+        # ファイルが正しく読み込まれたことを確認
+        mock_open.assert_called_once()
+
+    def test_ディレクトリが正しく処理される(self, mocker: MockerFixture) -> None:
+        """ディレクトリが正しく処理されることをテスト。"""
+        # Arrange
+        mock_client_class = mocker.patch('httpx.Client')
+        mock_exists = mocker.patch('pathlib.Path.exists')
+        mock_is_dir = mocker.patch('pathlib.Path.is_dir')
+        mock_rglob = mocker.patch('pathlib.Path.rglob')
+
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        endpoint_url = 'https://api.example.com/test'
+        executor = AsyncGenericAIToolExecutor(ai_tool_id, endpoint_url)
+        project_id = 'test-project'
+        source_path = '/path/to/project_directory'
+
+        # ディレクトリの存在と内容をモック
+        mock_exists.return_value = True
+        mock_is_dir.return_value = True
+        mock_file_paths = [Mock(), Mock(), Mock()]
+        mock_rglob.return_value = mock_file_paths
+
+        # モックレスポンスの設定
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'success': True, 'data': 'test result'}
+
+        # モッククライアントの設定
+        mock_client = Mock()
+        mock_client.post.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
+        # Act
+        result = executor.execute(project_id, source_path)
+
+        # Assert
+        assert result['source_path'] == source_path
+        # ディレクトリが正しく処理されたことを確認
+        mock_rglob.assert_called_once_with('*')

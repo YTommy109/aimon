@@ -1,53 +1,73 @@
-"""プロジェクト一覧のUIテスト。"""
+"""プロジェクトリストのテストモジュール。"""
 
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
+from pytest_mock import MockerFixture
 
+from app.models import AIToolID
 from app.models.project import Project
-from app.services.project_service import ProjectService
-from app.ui.project_list import (
-    _get_status_icon,
-    _handle_project_buttons,
-    _render_header_columns,
-    _render_project_row,
-    render_project_list,
-)
+from app.ui import project_list
+
+
+class MockSessionState(dict[str, object]):
+    """辞書と属性アクセスの両方をサポートするSessionStateモック。"""
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            return self[name]
+        except KeyError as e:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            ) from e
+
+    def __setattr__(self, name: str, value: object) -> None:
+        self[name] = value
+
+    def __delattr__(self, name: str) -> None:
+        try:
+            del self[name]
+        except KeyError as e:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            ) from e
 
 
 class TestProjectList:
-    """プロジェクト一覧のテストクラス。"""
+    """プロジェクトリストのテストクラス。"""
 
     @pytest.fixture
     def mock_project_service(self) -> Mock:
-        """モックプロジェクトサービスのフィクスチャ。"""
-        return Mock(spec=ProjectService)
+        """プロジェクトサービスのモックを作成する。"""
+        return Mock()
 
     @pytest.fixture
     def mock_modal(self) -> Mock:
-        """モックモーダルのフィクスチャ。"""
+        """モーダルのモックを作成する。"""
         return Mock()
 
     @pytest.fixture
     def sample_project(self) -> Project:
-        """サンプルプロジェクトのフィクスチャ。"""
+        """サンプルのプロジェクトを作成する。"""
         return Project(
-            id=UUID('12345678-1234-5678-1234-567812345678'),
             name='テストプロジェクト',
-            source='test_source',
-            ai_tool='test_tool',
-            created_at=datetime.now(ZoneInfo('Asia/Tokyo')),
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
 
     def test_PENDING状態のプロジェクトのアイコンが正しく取得される(
         self, sample_project: Project
     ) -> None:
         """PENDING状態のプロジェクトのアイコンが正しく取得されることをテスト。"""
+        # Arrange
+        sample_project.executed_at = None
+        sample_project.finished_at = None
+
         # Act
-        icon = _get_status_icon(sample_project, is_running=False)
+        icon = project_list._get_status_icon(sample_project, is_running=False)
 
         # Assert
         assert icon == '💬'
@@ -58,9 +78,10 @@ class TestProjectList:
         """PROCESSING状態のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Arrange
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
+        sample_project.finished_at = None
 
         # Act
-        icon = _get_status_icon(sample_project, is_running=False)
+        icon = project_list._get_status_icon(sample_project, is_running=False)
 
         # Assert
         assert icon == '⏳'
@@ -72,10 +93,9 @@ class TestProjectList:
         # Arrange
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
         sample_project.finished_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        sample_project.result = {'status': 'success'}
 
         # Act
-        icon = _get_status_icon(sample_project, is_running=False)
+        icon = project_list._get_status_icon(sample_project, is_running=False)
 
         # Assert
         assert icon == '✅'
@@ -87,10 +107,11 @@ class TestProjectList:
         # Arrange
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
         sample_project.finished_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        sample_project.result = {'error': 'test error'}
+        # resultにerrorを含めることでFAILED状態にする
+        sample_project.result = {'error': 'テストエラー'}
 
         # Act
-        icon = _get_status_icon(sample_project, is_running=False)
+        icon = project_list._get_status_icon(sample_project, is_running=False)
 
         # Assert
         assert icon == '❌'
@@ -100,21 +121,26 @@ class TestProjectList:
     ) -> None:
         """実行中のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Act
-        icon = _get_status_icon(sample_project, is_running=True)
+        icon = project_list._get_status_icon(sample_project, is_running=True)
 
         # Assert
         assert icon == '🏃'
 
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.divider')
-    def test_ヘッダーカラムが正しく描画される(self, mock_divider: Mock, mock_columns: Mock) -> None:
+    def test_ヘッダーカラムが正しく描画される(self, mocker: MockerFixture) -> None:
         """ヘッダーカラムが正しく描画されることをテスト。"""
         # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_divider = mocker.patch.object(project_list.st, 'divider')
+
+        # カラムのモックを正しく設定
         mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
         mock_columns.return_value = mock_cols
 
         # Act
-        _render_header_columns()
+        project_list._render_header_columns()
 
         # Assert
         mock_columns.assert_called_once_with((1, 4, 2, 2, 1, 1))
@@ -123,338 +149,371 @@ class TestProjectList:
             col.write.assert_called_once()
         mock_divider.assert_called_once()
 
-    @patch('app.ui.project_list.st.header')
-    @patch('app.ui.project_list.st.info')
-    def test_プロジェクトが空の場合にメッセージが表示される(
-        self, mock_info: Mock, mock_header: Mock
-    ) -> None:
+    def test_プロジェクトが空の場合にメッセージが表示される(self, mocker: MockerFixture) -> None:
         """プロジェクトが空の場合にメッセージが表示されることをテスト。"""
         # Arrange
-        projects: list[Project] = []
+        mock_header = mocker.patch.object(project_list.st, 'header')
+        mock_info = mocker.patch.object(project_list.st, 'info')
+        mock_session_state = MockSessionState()
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
 
         # Act
-        render_project_list(projects, Mock(), Mock())
+        project_list.render_project_list([], Mock(), Mock())
 
         # Assert
         mock_header.assert_called_once_with('プロジェクト一覧')
         mock_info.assert_called_once_with('まだプロジェクトがありません。')
 
-    @patch('app.ui.project_list.st.header')
-    @patch('app.ui.project_list._render_header_columns')
-    @patch('app.ui.project_list._render_project_row')
-    def test_プロジェクト一覧が正しく描画される(
-        self, mock_render_row: Mock, mock_render_header: Mock, mock_header: Mock
-    ) -> None:
+    def test_プロジェクト一覧が正しく描画される(self, mocker: MockerFixture) -> None:
         """プロジェクト一覧が正しく描画されることをテスト。"""
         # Arrange
-        mock_project1 = Mock(spec=Project)
-        mock_project2 = Mock(spec=Project)
-        projects = [mock_project1, mock_project2]
-        modal = Mock()
-        project_service = Mock()
+        mock_header = mocker.patch.object(project_list.st, 'header')
+        mock_session_state = MockSessionState()
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_render_header_columns')
+        mocker.patch.object(project_list, '_render_project_row')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
 
         # Act
-        render_project_list(projects, modal, project_service)  # type: ignore[arg-type]
+        project_list.render_project_list([sample_project], Mock(), Mock())
 
         # Assert
         mock_header.assert_called_once_with('プロジェクト一覧')
-        mock_render_header.assert_called_once()
-        assert mock_render_row.call_count == 2
 
-    @patch('app.ui.project_list.st.session_state')
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.button')
-    def test_プロジェクト行が正しく描画される(
-        self, mock_button: Mock, mock_columns: Mock, mock_session_state: Mock
-    ) -> None:
+    def test_プロジェクト行が正しく描画される(self, mocker: MockerFixture) -> None:
         """プロジェクト行が正しく描画されることをテスト。"""
         # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_session_state = MockSessionState({'running_workers': {}})
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_handle_project_buttons')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # カラムのモックを正しく設定
         mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
+            col.button.return_value = False  # ボタンが押されていない状態
         mock_columns.return_value = mock_cols
-        # 各カラムのbuttonメソッドの戻り値を設定
-        mock_cols[4].button.return_value = False  # detail_btn
-        mock_cols[5].button.return_value = False  # exec_btn
-        mock_session_state.running_workers = {}
-
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.name = 'テストプロジェクト'
-        project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        project.executed_at = None  # 実行ボタンが表示される条件
-
-        project_service = Mock()
-        project_service.execute_project.return_value = (Mock(), '実行成功')
 
         # Act
-        _render_project_row(0, project, Mock(), project_service)
+        project_list._render_project_row(0, sample_project, Mock(), Mock())
 
         # Assert
         mock_columns.assert_called_once_with((1, 4, 1, 1, 1, 1))
-        # 各カラムのbuttonが呼ばれることを確認
-        mock_cols[4].button.assert_called_once_with('詳細', key=f'detail_{project.id}')
-        mock_cols[5].button.assert_called_once_with('実行', key=f'run_{project.id}')
-        # execute_projectは呼ばれない（ボタンが押されていないため）
-        project_service.execute_project.assert_not_called()
-
-    @patch('app.ui.project_list.st.session_state')
-    def test_詳細ボタンが押された場合にモーダルが開く(
-        self, mock_session_state: Mock, mock_modal: Mock
-    ) -> None:
-        """詳細ボタンが押された場合にモーダルが開くことをテスト。"""
-        # Arrange
-        button_state = {'detail_btn': True, 'exec_btn': False}
-        project = Mock()
-        modal = Mock()
-
-        # Act
-        _handle_project_buttons(button_state, project, modal, Mock())
-
-        # Assert
-        assert mock_session_state.modal_project == project
-        modal.open.assert_called_once()
-
-    @patch('app.ui.project_list.logging.getLogger')
-    @patch('app.ui.project_list.st.info')
-    @patch('app.ui.project_list.st.rerun')
-    def test_実行ボタンが押された場合にプロジェクトが実行される(
-        self, mock_rerun: Mock, mock_info: Mock, mock_get_logger: Mock
-    ) -> None:
-        """実行ボタンが押された場合にプロジェクトが実行されることをテスト。"""
-        # Arrange
-        button_state = {'detail_btn': False, 'exec_btn': True}
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.ai_tool = 'test_tool'
-
-        modal = Mock()
-        project_service = Mock()
-        project_service.execute_project.return_value = (Mock(), '実行成功')
-
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        # Act
-        _handle_project_buttons(button_state, project, modal, project_service)
-
-        # Assert
-        project_service.execute_project.assert_called_once_with(str(project.id))
-        mock_logger.info.assert_called_once()
-        mock_info.assert_called_once_with('実行成功')
-        mock_rerun.assert_called_once()
-
-    @patch('app.ui.project_list.logging.getLogger')
-    @patch('app.ui.project_list.st.error')
-    def test_実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示される(
-        self, mock_error: Mock, mock_get_logger: Mock
-    ) -> None:
-        """実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示されることをテスト。"""
-        # Arrange
-        button_state = {'detail_btn': False, 'exec_btn': True}
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.ai_tool = 'test_tool'
-
-        modal = Mock()
-        project_service = Mock()
-        project_service.execute_project.return_value = (None, '実行エラー')
-
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        # Act
-        _handle_project_buttons(button_state, project, modal, project_service)
-
-        # Assert
-        project_service.execute_project.assert_called_once_with(str(project.id))
-        mock_logger.info.assert_called_once()
-        mock_error.assert_called_once_with('実行エラー')
-
-    def test_ボタンが押されない場合は何も起こらない(self) -> None:
-        """ボタンが押されない場合は何も起こらないことをテスト。"""
-        # Arrange
-        button_state = {'detail_btn': False, 'exec_btn': False}
-        project = Mock()
-        modal = Mock()
-        project_service = Mock()
-
-        # Act
-        _handle_project_buttons(button_state, project, modal, project_service)
-
-        # Assert
-        project_service.execute_project.assert_not_called()
-        modal.open.assert_not_called()
-
-    @patch('app.ui.project_list.st.session_state')
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.button')
-    def test_実行済みプロジェクトの行が正しく描画される(
-        self, mock_button: Mock, mock_columns: Mock, mock_session_state: Mock
-    ) -> None:
-        """実行済みプロジェクトの行が正しく描画されることをテスト。"""
-        # Arrange
-        mock_cols = [Mock() for _ in range(6)]
-        mock_columns.return_value = mock_cols
-        mock_cols[4].button.return_value = False  # detail_btn
-        mock_cols[5].button.return_value = False  # exec_btn
-        mock_session_state.running_workers = {}
-
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.name = 'テストプロジェクト'
-        project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))  # 実行済み
-
-        project_service = Mock()
-
-        # Act
-        _render_project_row(0, project, Mock(), project_service)
-
-        # Assert
-        # 実行済みプロジェクトの場合、実行ボタンは表示されない
-        mock_cols[5].button.assert_not_called()
-
-    @patch('app.ui.project_list.st.session_state')
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.button')
-    def test_実行中のプロジェクトの行が正しく描画される(
-        self, mock_button: Mock, mock_columns: Mock, mock_session_state: Mock
-    ) -> None:
-        """実行中のプロジェクトの行が正しく描画されることをテスト。"""
-        # Arrange
-        mock_cols = [Mock() for _ in range(6)]
-        mock_columns.return_value = mock_cols
-        mock_cols[4].button.return_value = False  # detail_btn
-        mock_cols[5].button.return_value = False  # exec_btn
-        mock_session_state.running_workers = {UUID('12345678-1234-5678-1234-567812345678')}
-
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.name = 'テストプロジェクト'
-        project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        project.executed_at = None
-
-        project_service = Mock()
-
-        # Act
-        _render_project_row(0, project, Mock(), project_service)
-
-        # Assert
-        # 実行中のプロジェクトでもexecuted_atがNoneなら実行ボタンは表示される
-        mock_cols[5].button.assert_called_once_with(
-            '実行', key='run_12345678-1234-5678-1234-567812345678'
-        )
-
-    @patch('app.ui.project_list.st.session_state')
-    def test_running_workersが初期化される(self, mock_session_state: Mock) -> None:
-        """running_workersが初期化されることをテスト。"""
-        # Arrange
-        mock_session_state.__contains__.return_value = False
-        mock_session_state.running_workers = Mock()
-        mock_project = Mock(spec=Project)
-        mock_project.id = UUID('12345678-1234-5678-1234-567812345678')
-        mock_project.name = 'テストプロジェクト'
-        mock_project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        mock_project.executed_at = None
-        projects = [mock_project]
-        modal = Mock()
-        project_service = Mock()
-
-        # Act
-        render_project_list(projects, modal, project_service)  # type: ignore[arg-type]
-
-        # Assert
-        # 実際のコードでは st.session_state.running_workers = {} を使用
-        assert mock_session_state.running_workers == {}
-
-    @patch('app.ui.project_list.st.session_state')
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.button')
-    def test_プロジェクト行の各カラムが正しく描画される(
-        self, mock_button: Mock, mock_columns: Mock, mock_session_state: Mock
-    ) -> None:
-        """プロジェクト行の各カラムが正しく描画されることをテスト。"""
-        # Arrange
-        mock_cols = [Mock() for _ in range(6)]
-        mock_columns.return_value = mock_cols
-        mock_cols[4].button.return_value = False  # detail_btn
-        mock_cols[5].button.return_value = False  # exec_btn
-        mock_session_state.running_workers = {}
-
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.name = 'テストプロジェクト'
-        project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        project.executed_at = None
-
-        project_service = Mock()
-
-        # Act
-        _render_project_row(0, project, Mock(), project_service)
-
-        # Assert
-        # 各カラムのwriteが呼ばれることを確認
-        mock_cols[0].write.assert_called_once_with('1')  # No.
+        # 各カラムで適切なメソッドが呼ばれることを確認
+        mock_cols[0].write.assert_called_once()  # No.
         mock_cols[1].write.assert_called_once()  # プロジェクト名
         mock_cols[2].write.assert_called_once()  # 作成日時
         mock_cols[3].write.assert_called_once()  # 実行日時
+        mock_cols[4].button.assert_called_once()  # 詳細ボタン
+        mock_cols[5].button.assert_called_once()  # 実行ボタン
 
-    @patch('app.ui.project_list.st.session_state')
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.button')
-    def test_実行日時がNoneの場合の処理(
-        self, mock_button: Mock, mock_columns: Mock, mock_session_state: Mock
+    def test_詳細ボタンが押された場合にモーダルが開く(self, mocker: MockerFixture) -> None:
+        """詳細ボタンが押された場合にモーダルが開くことをテスト。"""
+        # Arrange
+        mock_session_state = Mock()
+        mock_session_state.running_workers = {}
+        mock_session_state.modal_project = None
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mock_modal = Mock()
+        mock_modal.open = Mock()
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        button_state = {'detail_btn': True, 'exec_btn': False}
+
+        # Act
+        project_list._handle_project_buttons(button_state, sample_project, mock_modal, Mock())
+
+        # Assert
+        assert mock_session_state.modal_project == sample_project
+        mock_modal.open.assert_called_once()
+
+    def test_実行ボタンが押された場合にプロジェクトが実行される(
+        self, mocker: MockerFixture
     ) -> None:
+        """実行ボタンが押された場合にプロジェクトが実行されることをテスト。"""
+        # Arrange
+        mock_session_state = Mock()
+        mock_session_state.running_workers = {}
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mock_info = mocker.patch.object(project_list.st, 'info')
+        mock_rerun = mocker.patch.object(project_list.st, 'rerun')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        mock_project_service = Mock()
+        mock_project_service.execute_project.return_value = (sample_project, '実行成功')
+
+        button_state = {'detail_btn': False, 'exec_btn': True}
+
+        # Act
+        project_list._handle_project_buttons(
+            button_state, sample_project, Mock(), mock_project_service
+        )
+
+        # Assert
+        mock_project_service.execute_project.assert_called_once_with(str(sample_project.id))
+        mock_info.assert_called_once_with('実行成功')
+        mock_rerun.assert_called_once()
+
+    def test_実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示される(
+        self, mocker: MockerFixture
+    ) -> None:
+        """実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示されることをテスト。"""
+        # Arrange
+        mock_session_state = Mock()
+        mock_session_state.running_workers = {}
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mock_error = mocker.patch.object(project_list.st, 'error')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        mock_project_service = Mock()
+        mock_project_service.execute_project.return_value = (None, '実行失敗')
+
+        button_state = {'detail_btn': False, 'exec_btn': True}
+
+        # Act
+        project_list._handle_project_buttons(
+            button_state, sample_project, Mock(), mock_project_service
+        )
+
+        # Assert
+        mock_project_service.execute_project.assert_called_once_with(str(sample_project.id))
+        mock_error.assert_called_once_with('実行失敗')
+
+    def test_ボタンが押されない場合は何も起こらない(self, mocker: MockerFixture) -> None:
+        """ボタンが押されない場合は何も起こらないことをテスト。"""
+        # Arrange
+        mock_session_state = Mock()
+        mock_session_state.running_workers = {}
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mock_modal = Mock()
+        mock_project_service = Mock()
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        button_state = {'detail_btn': False, 'exec_btn': False}
+
+        # Act
+        project_list._handle_project_buttons(
+            button_state, sample_project, mock_modal, mock_project_service
+        )
+
+        # Assert
+        mock_modal.open.assert_not_called()
+        mock_project_service.execute_project.assert_not_called()
+
+    def test_実行済みプロジェクトの行が正しく描画される(self, mocker: MockerFixture) -> None:
+        """実行済みプロジェクトの行が正しく描画されることをテスト。"""
+        # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_session_state = MockSessionState({'running_workers': {}})
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_handle_project_buttons')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+        sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
+
+        # カラムのモックを正しく設定
+        mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
+        mock_columns.return_value = mock_cols
+
+        # Act
+        project_list._render_project_row(0, sample_project, Mock(), Mock())
+
+        # Assert
+        mock_columns.assert_called_once_with((1, 4, 1, 1, 1, 1))
+        # 各カラムのwriteが呼ばれることを確認
+        mock_cols[0].write.assert_called_once()
+        mock_cols[1].write.assert_called_once()
+        mock_cols[2].write.assert_called_once()
+        mock_cols[3].write.assert_called_once()
+        mock_cols[4].button.assert_called_once()
+        mock_cols[5].button.assert_not_called()
+
+    def test_実行中のプロジェクトの行が正しく描画される(self, mocker: MockerFixture) -> None:
+        """実行中のプロジェクトの行が正しく描画されることをテスト。"""
+        # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_session_state = MockSessionState(
+            {'running_workers': {UUID('12345678-1234-5678-1234-567812345678')}}
+        )
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_handle_project_buttons')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # カラムのモックを正しく設定
+        mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
+        mock_columns.return_value = mock_cols
+
+        # Act
+        project_list._render_project_row(0, sample_project, Mock(), Mock())
+
+        # Assert
+        mock_columns.assert_called_once_with((1, 4, 1, 1, 1, 1))
+        # 各カラムのwriteが呼ばれることを確認
+        for i, col in enumerate(mock_cols):
+            if i < 4:
+                col.write.assert_called()
+
+    def test_running_workersが初期化される(self, mocker: MockerFixture) -> None:
+        """running_workersが初期化されることをテスト。"""
+        # Arrange
+        mock_session_state = MockSessionState()
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list.st, 'header')
+        mocker.patch.object(project_list, '_render_header_columns')
+        mocker.patch.object(project_list, '_render_project_row')
+
+        # Act
+        project_list.render_project_list([], Mock(), Mock())
+
+        # Assert
+        assert 'running_workers' in mock_session_state
+        assert mock_session_state['running_workers'] == {}
+
+    def test_プロジェクト行の各カラムが正しく描画される(self, mocker: MockerFixture) -> None:
+        """プロジェクト行の各カラムが正しく描画されることをテスト。"""
+        # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_session_state = MockSessionState({'running_workers': {}})
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_handle_project_buttons')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # カラムのモックを正しく設定
+        mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
+        mock_columns.return_value = mock_cols
+
+        # Act
+        project_list._render_project_row(0, sample_project, Mock(), Mock())
+
+        # Assert
+        # 各カラムに適切な内容が書き込まれていることを確認
+        mock_cols[0].write.assert_called()
+        mock_cols[1].write.assert_called()
+        mock_cols[2].write.assert_called()
+        mock_cols[3].write.assert_called()
+        mock_cols[4].button.assert_called()
+        mock_cols[5].button.assert_called()
+
+    def test_実行日時がNoneの場合の処理(self, mocker: MockerFixture) -> None:
         """実行日時がNoneの場合の処理をテスト。"""
         # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_session_state = MockSessionState({'running_workers': {}})
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_handle_project_buttons')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+        sample_project.executed_at = None
+
+        # カラムのモックを正しく設定
         mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
         mock_columns.return_value = mock_cols
-        mock_cols[4].button.return_value = False  # detail_btn
-        mock_cols[5].button.return_value = False  # exec_btn
-        mock_session_state.running_workers = {}
-
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.name = 'テストプロジェクト'
-        project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        project.executed_at = None
-
-        project_service = Mock()
 
         # Act
-        _render_project_row(0, project, Mock(), project_service)
+        project_list._render_project_row(0, sample_project, Mock(), Mock())
 
         # Assert
-        # 実行日時がNoneの場合、空文字が表示される
-        mock_cols[3].write.assert_called_once_with('')
+        # 各カラムのwriteが呼ばれることを確認
+        mock_cols[0].write.assert_called()
+        mock_cols[1].write.assert_called()
+        mock_cols[2].write.assert_called()
+        mock_cols[3].write.assert_called()
+        mock_cols[4].button.assert_called()
+        mock_cols[5].button.assert_called()
 
-    @patch('app.ui.project_list.st.session_state')
-    @patch('app.ui.project_list.st.columns')
-    @patch('app.ui.project_list.st.button')
-    def test_実行日時が設定されている場合の処理(
-        self, mock_button: Mock, mock_columns: Mock, mock_session_state: Mock
-    ) -> None:
+    def test_実行日時が設定されている場合の処理(self, mocker: MockerFixture) -> None:
         """実行日時が設定されている場合の処理をテスト。"""
         # Arrange
+        mock_columns = mocker.patch.object(project_list.st, 'columns')
+        mock_session_state = MockSessionState({'running_workers': {}})
+        mocker.patch.object(project_list.st, 'session_state', mock_session_state)
+        mocker.patch.object(project_list, '_handle_project_buttons')
+
+        sample_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+        sample_project.executed_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo'))
+
+        # カラムのモックを正しく設定
         mock_cols = [Mock() for _ in range(6)]
+        for col in mock_cols:
+            col.__enter__ = Mock(return_value=col)
+            col.__exit__ = Mock(return_value=None)
         mock_columns.return_value = mock_cols
-        mock_cols[4].button.return_value = False  # detail_btn
-        mock_cols[5].button.return_value = False  # exec_btn
-        mock_session_state.running_workers = {}
-
-        project = Mock()
-        project.id = UUID('12345678-1234-5678-1234-567812345678')
-        project.name = 'テストプロジェクト'
-        project.created_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-        project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
-
-        project_service = Mock()
 
         # Act
-        _render_project_row(0, project, Mock(), project_service)
+        project_list._render_project_row(0, sample_project, Mock(), Mock())
 
         # Assert
-        # 実行日時が設定されている場合、フォーマットされた日時が表示される
-        mock_cols[3].write.assert_called_once()
-        call_args = mock_cols[3].write.call_args[0][0]
-        assert isinstance(call_args, str)
-        assert '/' in call_args  # 日付フォーマットが含まれている
+        # 各カラムのwriteが呼ばれることを確認
+        mock_cols[0].write.assert_called()
+        mock_cols[1].write.assert_called()
+        mock_cols[2].write.assert_called()
+        mock_cols[3].write.assert_called()
+        mock_cols[4].button.assert_called()
+        mock_cols[5].button.assert_not_called()

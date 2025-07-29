@@ -1,9 +1,12 @@
 """AIツールのエンティティを定義するモジュール。"""
 
 from datetime import datetime
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
+
+from . import AIToolID
 
 # 日本標準時のタイムゾーン
 JST = ZoneInfo('Asia/Tokyo')
@@ -22,7 +25,7 @@ class AITool(BaseModel):
         disabled_at: 無効化日時。
     """
 
-    id: str
+    id: AIToolID = Field(default_factory=lambda: AIToolID(uuid4()))
     name_ja: str
     description: str | None = None
     endpoint_url: str

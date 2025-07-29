@@ -3,10 +3,12 @@
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
+
+from . import AIToolID, ProjectID
 
 # 日本標準時のタイムゾーン
 JST = ZoneInfo('Asia/Tokyo')
@@ -24,10 +26,10 @@ class ProjectStatus(StrEnum):
 class Project(BaseModel):
     """プロジェクトのエンティティ。"""
 
-    id: UUID = Field(default_factory=uuid4)
+    id: ProjectID = Field(default_factory=lambda: ProjectID(uuid4()))
     name: str
     source: str
-    ai_tool: str
+    ai_tool: AIToolID
     result: dict[str, Any] | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(JST))
     executed_at: datetime | None = None

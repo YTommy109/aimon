@@ -1,5 +1,7 @@
 """AIツール管理ページ。"""
 
+import os
+
 import streamlit as st
 
 from app.config import config
@@ -16,6 +18,11 @@ def main() -> None:
         layout='wide',
         initial_sidebar_state='expanded',
     )
+
+    # 環境変数の設定を確認
+    app_env = os.getenv('APP_ENV', 'development')
+    st.write(f'Debug: Current APP_ENV: {app_env}')
+    st.write(f'Debug: Data directory: {config.data_dir_path}')
 
     # AIツールサービスの設定
     ai_tool_repo = JsonAIToolRepository(config.data_dir_path)

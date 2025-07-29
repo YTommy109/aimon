@@ -1,7 +1,9 @@
 """Projectモデルのテスト。"""
 
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from app.models import AIToolID
 from app.models.project import Project, ProjectStatus
 
 # 日本標準時のタイムゾーン
@@ -16,89 +18,127 @@ class TestProject:
         # Arrange
         name = 'テストプロジェクト'
         source = '/path/to/source'
-        ai_tool = 'test_tool'
+        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         project = Project(name=name, source=source, ai_tool=ai_tool)
 
         # Assert
+        assert isinstance(project.id, UUID)  # NewTypeは内部的にはUUID
+        assert project.id == project.id  # 値の比較
         assert project.name == name
         assert project.source == source
         assert project.ai_tool == ai_tool
         assert project.result is None
+        assert project.created_at is not None
+        assert project.executed_at is None
+        assert project.finished_at is None
 
-    def test_プロジェクトの処理開始(self) -> None:
-        """プロジェクトの処理開始をテストする。"""
+    def test_プロジェクトの初期ステータス(self) -> None:
+        """プロジェクトの初期ステータスをテストする。"""
         # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # Act & Assert
+        assert project.status == ProjectStatus.PENDING
+
+    def test_プロジェクトの実行開始ステータス(self) -> None:
+        """プロジェクトの実行開始ステータスをテストする。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # Act
+        project.start_processing()
+
+        # Assert
+        assert project.status == ProjectStatus.PROCESSING
+
+    def test_プロジェクトの完了ステータス(self) -> None:
+        """プロジェクトの完了ステータスをテストする。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # Act
+        project.complete({'message': '完了'})
+
+        # Assert
+        assert project.status == ProjectStatus.COMPLETED
+
+    def test_プロジェクトの失敗処理(self) -> None:
+        """プロジェクトの失敗処理をテストする。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # Act
+        project.fail({'error': 'エラーが発生しました'})
+
+        # Assert
+        assert project.status == ProjectStatus.FAILED
+        assert project.result == {'error': 'エラーが発生しました'}
+        assert project.finished_at is not None
+
+    def test_プロジェクトの完了処理(self) -> None:
+        """プロジェクトの完了処理をテストする。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+        # Act
+        project.complete({'message': '完了'})
+
+        # Assert
+        assert project.status == ProjectStatus.COMPLETED
+        assert project.result == {'message': '完了'}
+        assert project.finished_at is not None
+
+    def test_プロジェクトの実行開始処理(self) -> None:
+        """プロジェクトの実行開始処理をテストする。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
 
         # Act
         project.start_processing()
 
         # Assert
         assert project.executed_at is not None
-        assert project.result is None
+        assert project.status == ProjectStatus.PROCESSING
 
-    def test_プロジェクトの完了(self) -> None:
-        """プロジェクトの完了をテストする。"""
+    def test_プロジェクトの完了時に実行開始時刻が設定される(self) -> None:
+        """プロジェクトの完了時に実行開始時刻が設定されることをテストする。"""
         # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        result = {'message': '処理完了'}
-
-        # Act
-        project.complete(result)
-
-        # Assert
-        assert project.result == result
-        assert project.finished_at is not None
-
-    def test_プロジェクトの失敗(self) -> None:
-        """プロジェクトの失敗をテストする。"""
-        # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        error = {'error': '処理エラー'}
-
-        # Act
-        project.fail(error)
-
-        # Assert
-        assert project.result == error
-        assert project.finished_at is not None
-
-    def test_プロジェクトのステータス遷移(self) -> None:
-        """プロジェクトのステータス遷移をテストする。"""
-        # Arrange
-        project: Project = Project(
-            name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool'
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
 
-        # Act & Assert - 初期状態
-        assert project.status == ProjectStatus.PENDING
-
-        # Act & Assert - 処理開始後
-        project.start_processing()
-        assert project.status == ProjectStatus.PROCESSING  # type: ignore[comparison-overlap]
-
-    def test_プロジェクトのステータス遷移_完了(self) -> None:
-        """プロジェクトのステータス遷移(完了)をテストする。"""
-        # Arrange
-        project: Project = Project(
-            name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool'
-        )
-        project.start_processing()
-
-        # Act & Assert
+        # Act
         project.complete({'message': '完了'})
+
+        # Assert
+        assert project.executed_at is not None
+        assert project.finished_at is not None
         assert project.status == ProjectStatus.COMPLETED
-
-    def test_プロジェクトの失敗ステータス(self) -> None:
-        """プロジェクトの失敗ステータスをテストする。"""
-        # Arrange
-        project: Project = Project(
-            name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool'
-        )
-        project.start_processing()
-
-        # Act & Assert
-        project.fail({'error': 'エラー'})
-        assert project.status == ProjectStatus.FAILED

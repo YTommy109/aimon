@@ -262,6 +262,9 @@ disallow_any_unimported = false # 型情報不足のため緩和
 # coverage設定
 # =====================================
 
+[tool.coverage]
+data_file = ".coverage/coverage"
+
 [tool.coverage.run]
 source = ["app"] # カバレッジ測定対象
 omit = [
@@ -288,7 +291,6 @@ exclude_lines = [
     "pass",                       # プレースホルダー
 ]
 
-
 # =====================================
 # ty設定（型チェック用ファイル除外）
 # =====================================
@@ -309,6 +311,3 @@ ignore_names = [
     "__exit__",
 ]
 ignore_decorators = ["@pytest.fixture"]
-
-[tool.coverage]
-data_file = ".coverage/coverage"

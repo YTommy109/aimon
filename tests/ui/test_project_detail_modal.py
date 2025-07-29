@@ -1,14 +1,39 @@
-"""プロジェクト詳細モーダルのUIテスト。"""
+"""プロジェクト詳細モーダルのテストモジュール。"""
 
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
+from pytest_mock import MockerFixture
 
-from app.models.project import Project, ProjectStatus
-from app.ui.project_detail_modal import render_project_detail_modal
+from app.models import AIToolID, ProjectID
+from app.models.project import Project
+from app.ui import project_detail_modal
+
+
+class MockSessionState(dict[str, object]):
+    """辞書と属性アクセスの両方をサポートするSessionStateモック。"""
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            return self[name]
+        except KeyError as e:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            ) from e
+
+    def __setattr__(self, name: str, value: object) -> None:
+        self[name] = value
+
+    def __delattr__(self, name: str) -> None:
+        try:
+            del self[name]
+        except KeyError as e:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            ) from e
 
 
 class TestProjectDetailModal:
@@ -16,77 +41,76 @@ class TestProjectDetailModal:
 
     @pytest.fixture
     def mock_modal(self) -> Mock:
-        """モックモーダルのフィクスチャ。"""
+        """モーダルのモックを作成する。"""
         mock = Mock()
-        mock.is_open.return_value = True
-        # コンテキストマネージャーとして動作するように設定
-        mock.container.return_value.__enter__ = Mock()
-        mock.container.return_value.__exit__ = Mock()
+        mock.container.return_value.__enter__ = Mock(return_value=mock.container.return_value)
+        mock.container.return_value.__exit__ = Mock(return_value=None)
         return mock
 
     @pytest.fixture
     def sample_project(self) -> Project:
-        """サンプルプロジェクトのフィクスチャ。"""
+        """サンプルのプロジェクトを作成する。"""
         return Project(
-            id=UUID('12345678-1234-5678-1234-567812345678'),
+            id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
             name='テストプロジェクト',
-            source='test_source',
-            ai_tool='test_tool',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('87654321-4321-8765-4321-876543210987')),
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
             executed_at=datetime(2024, 1, 1, 12, 30, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
             finished_at=datetime(2024, 1, 1, 13, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
         )
 
-    @patch('app.ui.project_detail_modal.st.session_state')
     def test_モーダルが閉じている場合は何も描画されない(
-        self, mock_session_state: Mock, mock_modal: Mock
+        self, mocker: MockerFixture, mock_modal: Mock
     ) -> None:
         """モーダルが閉じている場合は何も描画されないことをテスト。"""
         # Arrange
+        mocker.patch.object(project_detail_modal.st, 'session_state')
         mock_modal.is_open.return_value = False
 
         # Act
-        render_project_detail_modal(mock_modal)
+        project_detail_modal.render_project_detail_modal(mock_modal)
 
         # Assert
         mock_modal.is_open.assert_called_once()
         mock_modal.container.assert_not_called()
 
-    @patch('app.ui.project_detail_modal.st.session_state')
-    @patch('app.ui.project_detail_modal.st.markdown')
     def test_プロジェクトが存在しない場合は何も描画されない(
-        self, mock_markdown: Mock, mock_session_state: Mock, mock_modal: Mock
+        self, mocker: MockerFixture, mock_modal: Mock
     ) -> None:
         """プロジェクトが存在しない場合は何も描画されないことをテスト。"""
         # Arrange
-        mock_modal.is_open.return_value = True
+        mock_session_state = Mock()
         mock_session_state.modal_project = None
+        mocker.patch.object(project_detail_modal.st, 'session_state', mock_session_state)
+        mock_markdown = mocker.patch.object(project_detail_modal.st, 'markdown')
+        mock_modal.is_open.return_value = True
 
         # Act
-        render_project_detail_modal(mock_modal)
+        project_detail_modal.render_project_detail_modal(mock_modal)
 
         # Assert
         mock_modal.is_open.assert_called_once()
         mock_modal.container.assert_called_once()
         mock_markdown.assert_not_called()
 
-    @patch('app.ui.project_detail_modal.st.session_state')
-    @patch('app.ui.project_detail_modal.st.markdown')
     def test_プロジェクト詳細が正しく描画される(
         self,
-        mock_markdown: Mock,
-        mock_session_state: Mock,
+        mocker: MockerFixture,
         mock_modal: Mock,
         sample_project: Project,
     ) -> None:
         """プロジェクト詳細が正しく描画されることをテスト。"""
         # Arrange
-        mock_modal.is_open.return_value = True
+        mock_session_state = Mock()
         mock_session_state.modal_project = sample_project
         mock_session_state.running_workers = {}
+        mocker.patch.object(project_detail_modal.st, 'session_state', mock_session_state)
+        mock_markdown = mocker.patch.object(project_detail_modal.st, 'markdown')
+        mock_modal.is_open.return_value = True
 
         # Act
-        render_project_detail_modal(mock_modal)
+        project_detail_modal.render_project_detail_modal(mock_modal)
 
         # Assert
         mock_modal.is_open.assert_called_once()
@@ -108,81 +132,83 @@ class TestProjectDetailModal:
         assert '実行日時' in detail_text
         assert '終了日時' in detail_text
 
-    @patch('app.ui.project_detail_modal.st.session_state')
-    @patch('app.ui.project_detail_modal.st.markdown')
     def test_実行中のプロジェクトのステータスが正しく表示される(
         self,
-        mock_markdown: Mock,
-        mock_session_state: Mock,
+        mocker: MockerFixture,
         mock_modal: Mock,
         sample_project: Project,
     ) -> None:
         """実行中のプロジェクトのステータスが正しく表示されることをテスト。"""
         # Arrange
-        mock_modal.is_open.return_value = True
+        mock_session_state = Mock()
         mock_session_state.modal_project = sample_project
         mock_session_state.running_workers = {sample_project.id: 'running'}
+        mocker.patch.object(project_detail_modal.st, 'session_state', mock_session_state)
+        mock_markdown = mocker.patch.object(project_detail_modal.st, 'markdown')
+        mock_modal.is_open.return_value = True
 
         # Act
-        render_project_detail_modal(mock_modal)
+        project_detail_modal.render_project_detail_modal(mock_modal)
 
         # Assert
         detail_call = mock_markdown.call_args_list[1]
         detail_text = detail_call[0][0]
-        assert 'Running' in detail_text
+        assert 'ステータス**: `Running`' in detail_text
 
-    @patch('app.ui.project_detail_modal.st.session_state')
-    @patch('app.ui.project_detail_modal.st.markdown')
     def test_実行されていないプロジェクトのステータスが正しく表示される(
-        self, mock_markdown: Mock, mock_session_state: Mock, mock_modal: Mock
+        self, mocker: MockerFixture, mock_modal: Mock
     ) -> None:
         """実行されていないプロジェクトのステータスが正しく表示されることをテスト。"""
         # Arrange
-        project = Project(
-            id=UUID('12345678-1234-5678-1234-567812345678'),
-            name='テストプロジェクト',
-            source='test_source',
-            ai_tool='test_tool',
-            created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
-        )
+        mock_session_state = MockSessionState({'running_workers': {}})
+        mocker.patch.object(project_detail_modal.st, 'session_state', mock_session_state)
+        mock_markdown = mocker.patch.object(project_detail_modal.st, 'markdown')
         mock_modal.is_open.return_value = True
-        mock_session_state.modal_project = project
-        mock_session_state.running_workers = {}
+
+        sample_project = Project(
+            id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('87654321-4321-8765-4321-876543210987')),
+        )
+        mock_session_state['modal_project'] = sample_project
 
         # Act
-        render_project_detail_modal(mock_modal)
+        project_detail_modal.render_project_detail_modal(mock_modal)
 
         # Assert
         detail_call = mock_markdown.call_args_list[1]
         detail_text = detail_call[0][0]
-        assert ProjectStatus.PENDING.value in detail_text
+        # プロジェクトのデフォルトステータスは Pending
+        assert 'ステータス**:`Pending`' in detail_text.replace(' ', '').replace('\n', '')
 
-    @patch('app.ui.project_detail_modal.st.session_state')
-    @patch('app.ui.project_detail_modal.st.markdown')
     def test_日時がNoneの場合にN_Aが表示される(
-        self, mock_markdown: Mock, mock_session_state: Mock, mock_modal: Mock
+        self, mocker: MockerFixture, mock_modal: Mock
     ) -> None:
         """日時がNoneの場合にN/Aが表示されることをテスト。"""
         # Arrange
-        project = Project(
-            id=UUID('12345678-1234-5678-1234-567812345678'),
-            name='テストプロジェクト',
-            source='test_source',
-            ai_tool='test_tool',
-            executed_at=None,
-            finished_at=None,
-        )
-        mock_modal.is_open.return_value = True
-        mock_session_state.modal_project = project
+        mock_session_state = Mock()
         mock_session_state.running_workers = {}
+        mocker.patch.object(project_detail_modal.st, 'session_state', mock_session_state)
+        mock_markdown = mocker.patch.object(project_detail_modal.st, 'markdown')
+        mock_modal.is_open.return_value = True
+
+        sample_project = Project(
+            id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('87654321-4321-8765-4321-876543210987')),
+        )
+        sample_project.executed_at = None
+        sample_project.finished_at = None
+
+        mock_session_state.modal_project = sample_project
 
         # Act
-        render_project_detail_modal(mock_modal)
+        project_detail_modal.render_project_detail_modal(mock_modal)
 
         # Assert
         detail_call = mock_markdown.call_args_list[1]
         detail_text = detail_call[0][0]
-        assert 'N/A' in detail_text
-        assert '作成日時' in detail_text
-        assert '実行日時' in detail_text
-        assert '終了日時' in detail_text
+        assert '実行日時**: `N/A`' in detail_text
+        assert '終了日時**: `N/A`' in detail_text

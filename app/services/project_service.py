@@ -5,6 +5,7 @@ import sys
 from uuid import UUID
 
 from app.errors import ResourceNotFoundError
+from app.models import AIToolID, ProjectID
 from app.models.ai_tool import AITool
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
@@ -27,7 +28,7 @@ class ProjectService:
         self.repository = repository
         self.ai_tool_service = ai_tool_service
 
-    def create_project(self, name: str, source: str, ai_tool: str) -> Project | None:
+    def create_project(self, name: str, source: str, ai_tool: AIToolID) -> Project | None:
         """プロジェクトを作成する。
 
         Args:
@@ -68,7 +69,7 @@ class ProjectService:
             プロジェクト、見つからない場合はNone。
         """
         try:
-            uuid_id = UUID(project_id)
+            uuid_id = ProjectID(UUID(project_id))
             return self.repository.find_by_id(uuid_id)
         except (ValueError, Exception, ResourceNotFoundError):
             return None
@@ -308,7 +309,7 @@ class ProjectService:
         error_message = ''
 
         try:
-            uuid_id = self._convert_to_uuid(project_id)
+            uuid_id = ProjectID(UUID(project_id))
             project = self._retrieve_project_by_uuid(uuid_id)
         except (ValueError, ResourceNotFoundError):
             error_message = (
@@ -321,24 +322,7 @@ class ProjectService:
 
         return project, error_message
 
-    def _convert_to_uuid(self, project_id: str) -> UUID:
-        """プロジェクトIDをUUIDに変換します。
-
-        Args:
-            project_id: プロジェクトID。
-
-        Returns:
-            UUID。
-
-        Raises:
-            ValueError: 無効なUUID形式の場合。
-        """
-        logger.debug(f'[DEBUG] UUID変換開始: project_id={project_id}')
-        uuid_id = UUID(project_id)
-        logger.debug(f'[DEBUG] UUID変換完了: uuid_id={uuid_id}')
-        return uuid_id
-
-    def _retrieve_project_by_uuid(self, uuid_id: UUID) -> Project:
+    def _retrieve_project_by_uuid(self, uuid_id: ProjectID) -> Project:
         """UUIDでプロジェクトを検索します。
 
         Args:
@@ -369,7 +353,7 @@ class ProjectService:
             ai_tool = self.ai_tool_service.get_ai_tool_by_id(project.ai_tool)
             logger.debug(f'[DEBUG] AIツール情報取得完了: ai_tool={ai_tool}')
             return ai_tool
-        except ValueError as e:
+        except (ValueError, ResourceNotFoundError) as e:
             logger.debug(f'[DEBUG] AIツール未発見エラー: {e}')
             return None
 
@@ -432,10 +416,8 @@ class ProjectService:
         self.repository.save(project)
         return None, f'AIツール実行エラー: {error}'
 
-    def _is_valid_input(self, name: str, source: str, ai_tool: str) -> bool:
+    def _is_valid_input(self, name: str, source: str, ai_tool: AIToolID) -> bool:
         """入力値の妥当性チェック。"""
         return (
-            bool(name and name.strip())
-            and bool(source and source.strip())
-            and bool(ai_tool and ai_tool.strip())
+            bool(name and name.strip()) and bool(source and source.strip()) and ai_tool is not None
         )

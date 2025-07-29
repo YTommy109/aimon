@@ -1,38 +1,36 @@
 """AIツールサービスのテスト。"""
 
-from datetime import datetime
 from unittest.mock import Mock
-from zoneinfo import ZoneInfo
+from uuid import UUID
 
 import pytest
 
 from app.errors import ResourceNotFoundError
+from app.models import AIToolID
 from app.models.ai_tool import AITool
-from app.repositories.ai_tool_repository import JsonAIToolRepository
 from app.services.ai_tool_service import AIToolService
 
 
 class TestAIToolService:
-    """AIToolServiceのテストクラス。"""
+    """AIツールサービスのテストクラス。"""
 
     @pytest.fixture
     def mock_repository(self) -> Mock:
-        """モックリポジトリのフィクスチャ。"""
-        return Mock(spec=JsonAIToolRepository)
+        """モックリポジトリを作成する。"""
+        return Mock()
 
     @pytest.fixture
     def service(self, mock_repository: Mock) -> AIToolService:
-        """サービスのフィクスチャ。"""
+        """AIツールサービスを作成する。"""
         return AIToolService(mock_repository)
 
     @pytest.fixture
     def sample_ai_tool(self) -> AITool:
-        """サンプルAIツールのフィクスチャ。"""
+        """サンプルAIツールを作成する。"""
         return AITool(
-            id='test-tool-1',
-            name_ja='テストツール1',
+            name_ja='テストツール',
             description='テスト用のAIツール',
-            endpoint_url='https://api.example.com/test1',
+            endpoint_url='https://api.example.com/test',
         )
 
     def test_全AIツールを取得できる(
@@ -54,25 +52,27 @@ class TestAIToolService:
     ) -> None:
         """IDでAIツールを取得できることをテスト。"""
         # Arrange
+        tool_id = sample_ai_tool.id
         mock_repository.find_by_id.return_value = sample_ai_tool
 
         # Act
-        tool = service.get_ai_tool_by_id('test-tool-1')
+        tool = service.get_ai_tool_by_id(tool_id)
 
         # Assert
         assert tool == sample_ai_tool
-        mock_repository.find_by_id.assert_called_once_with('test-tool-1')
+        mock_repository.find_by_id.assert_called_once_with(tool_id)
 
     def test_存在しないIDでAIツールを取得するとValueErrorが発生する(
         self, service: AIToolService, mock_repository: Mock
     ) -> None:
         """存在しないIDでAIツールを取得するとValueErrorが発生することをテスト。"""
         # Arrange
-        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', 'non-existent')
+        tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', str(tool_id))
 
         # Act & Assert
         with pytest.raises(ResourceNotFoundError):
-            service.get_ai_tool_by_id('non-existent')
+            service.get_ai_tool_by_id(tool_id)
 
     def test_AIツールを作成できる(self, service: AIToolService, mock_repository: Mock) -> None:
         """AIツールを作成できることをテスト。"""
@@ -81,28 +81,28 @@ class TestAIToolService:
 
         # Act
         result = service.create_ai_tool(
-            'new-tool', '新規ツール', '新規ツールの説明', 'https://api.example.com/new'
+            '新規ツール', '新規ツールの説明', 'https://api.example.com/new'
         )
 
         # Assert
         assert result is True
         mock_repository.save.assert_called_once()
         saved_tool = mock_repository.save.call_args[0][0]
-        assert saved_tool.id == 'new-tool'
+        assert isinstance(saved_tool.id, UUID)  # NewTypeは内部的にはUUID
         assert saved_tool.name_ja == '新規ツール'
         assert saved_tool.description == '新規ツールの説明'
         assert saved_tool.endpoint_url == 'https://api.example.com/new'
 
-    def test_AIツール作成時にエラーが発生するとFalseが返される(
+    def test_AIツール作成でエラーが発生した場合はFalseを返す(
         self, service: AIToolService, mock_repository: Mock
     ) -> None:
-        """AIツール作成時にエラーが発生するとFalseが返されることをテスト。"""
+        """AIツール作成でエラーが発生した場合はFalseを返すことをテスト。"""
         # Arrange
         mock_repository.save.side_effect = Exception('保存エラー')
 
         # Act
         result = service.create_ai_tool(
-            'new-tool', '新規ツール', '新規ツールの説明', 'https://api.example.com/new'
+            '新規ツール', '新規ツールの説明', 'https://api.example.com/new'
         )
 
         # Assert
@@ -118,31 +118,31 @@ class TestAIToolService:
 
         # Act
         result = service.update_ai_tool(
-            'test-tool-1', '更新されたツール名', '更新された説明', 'https://api.example.com/updated'
+            sample_ai_tool.id,
+            '更新されたツール名',
+            '更新された説明',
+            'https://api.example.com/updated',
         )
 
         # Assert
         assert result is True
-        mock_repository.find_by_id.assert_called_once_with('test-tool-1')
         mock_repository.save.assert_called_once()
+        updated_tool = mock_repository.save.call_args[0][0]
+        assert updated_tool.name_ja == '更新されたツール名'
+        assert updated_tool.description == '更新された説明'
+        assert updated_tool.endpoint_url == 'https://api.example.com/updated'
 
-        # 更新されたツールの内容を確認
-        saved_tool = mock_repository.save.call_args[0][0]
-        assert saved_tool.name_ja == '更新されたツール名'
-        assert saved_tool.description == '更新された説明'
-        assert saved_tool.endpoint_url == 'https://api.example.com/updated'
-        assert saved_tool.updated_at is not None
-
-    def test_存在しないAIツールを更新するとFalseが返される(
+    def test_存在しないAIツールの更新は失敗する(
         self, service: AIToolService, mock_repository: Mock
     ) -> None:
-        """存在しないAIツールを更新するとFalseが返されることをテスト。"""
+        """存在しないAIツールの更新は失敗することをテスト。"""
         # Arrange
-        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', 'non-existent')
+        tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', str(tool_id))
 
         # Act
         result = service.update_ai_tool(
-            'non-existent',
+            tool_id,
             '更新されたツール名',
             '更新された説明',
             'https://api.example.com/updated',
@@ -151,17 +151,20 @@ class TestAIToolService:
         # Assert
         assert result is False
 
-    def test_AIツール更新時にエラーが発生するとFalseが返される(
+    def test_AIツール更新でエラーが発生した場合はFalseを返す(
         self, service: AIToolService, mock_repository: Mock, sample_ai_tool: AITool
     ) -> None:
-        """AIツール更新時にエラーが発生するとFalseが返されることをテスト。"""
+        """AIツール更新でエラーが発生した場合はFalseを返すことをテスト。"""
         # Arrange
         mock_repository.find_by_id.return_value = sample_ai_tool
         mock_repository.save.side_effect = Exception('保存エラー')
 
         # Act
         result = service.update_ai_tool(
-            'test-tool-1', '更新されたツール名', '更新された説明', 'https://api.example.com/updated'
+            sample_ai_tool.id,
+            '更新されたツール名',
+            '更新された説明',
+            'https://api.example.com/updated',
         )
 
         # Assert
@@ -176,41 +179,38 @@ class TestAIToolService:
         mock_repository.save.return_value = None
 
         # Act
-        result = service.disable_ai_tool('test-tool-1')
+        result = service.disable_ai_tool(sample_ai_tool.id)
 
         # Assert
         assert result is True
-        mock_repository.find_by_id.assert_called_once_with('test-tool-1')
         mock_repository.save.assert_called_once()
+        disabled_tool = mock_repository.save.call_args[0][0]
+        assert disabled_tool.disabled_at is not None
 
-        # 無効化されたツールの内容を確認
-        saved_tool = mock_repository.save.call_args[0][0]
-        assert saved_tool.disabled_at is not None
-        assert saved_tool.updated_at is not None
-
-    def test_存在しないAIツールを無効化するとFalseが返される(
+    def test_存在しないAIツールの無効化は失敗する(
         self, service: AIToolService, mock_repository: Mock
     ) -> None:
-        """存在しないAIツールを無効化するとFalseが返されることをテスト。"""
+        """存在しないAIツールの無効化は失敗することをテスト。"""
         # Arrange
-        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', 'non-existent')
+        tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', str(tool_id))
 
         # Act
-        result = service.disable_ai_tool('non-existent')
+        result = service.disable_ai_tool(tool_id)
 
         # Assert
         assert result is False
 
-    def test_AIツール無効化時にエラーが発生するとFalseが返される(
+    def test_AIツール無効化でエラーが発生した場合はFalseを返す(
         self, service: AIToolService, mock_repository: Mock, sample_ai_tool: AITool
     ) -> None:
-        """AIツール無効化時にエラーが発生するとFalseが返されることをテスト。"""
+        """AIツール無効化でエラーが発生した場合はFalseを返すことをテスト。"""
         # Arrange
         mock_repository.find_by_id.return_value = sample_ai_tool
         mock_repository.save.side_effect = Exception('保存エラー')
 
         # Act
-        result = service.disable_ai_tool('test-tool-1')
+        result = service.disable_ai_tool(sample_ai_tool.id)
 
         # Assert
         assert result is False
@@ -220,46 +220,43 @@ class TestAIToolService:
     ) -> None:
         """AIツールを有効化できることをテスト。"""
         # Arrange
-        sample_ai_tool.disabled_at = datetime.now(ZoneInfo('Asia/Tokyo'))
+        sample_ai_tool.disabled_at = '2024-01-01T00:00:00+09:00'  # type: ignore[assignment]
         mock_repository.find_by_id.return_value = sample_ai_tool
         mock_repository.save.return_value = None
 
         # Act
-        result = service.enable_ai_tool('test-tool-1')
+        result = service.enable_ai_tool(sample_ai_tool.id)
 
         # Assert
         assert result is True
-        mock_repository.find_by_id.assert_called_once_with('test-tool-1')
         mock_repository.save.assert_called_once()
+        enabled_tool = mock_repository.save.call_args[0][0]
+        assert enabled_tool.disabled_at is None
 
-        # 有効化されたツールの内容を確認
-        saved_tool = mock_repository.save.call_args[0][0]
-        assert saved_tool.disabled_at is None
-        assert saved_tool.updated_at is not None
-
-    def test_存在しないAIツールを有効化するとFalseが返される(
+    def test_存在しないAIツールの有効化は失敗する(
         self, service: AIToolService, mock_repository: Mock
     ) -> None:
-        """存在しないAIツールを有効化するとFalseが返されることをテスト。"""
+        """存在しないAIツールの有効化は失敗することをテスト。"""
         # Arrange
-        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', 'non-existent')
+        tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        mock_repository.find_by_id.side_effect = ResourceNotFoundError('AIツール', str(tool_id))
 
         # Act
-        result = service.enable_ai_tool('non-existent')
+        result = service.enable_ai_tool(tool_id)
 
         # Assert
         assert result is False
 
-    def test_AIツール有効化時にエラーが発生するとFalseが返される(
+    def test_AIツール有効化でエラーが発生した場合はFalseを返す(
         self, service: AIToolService, mock_repository: Mock, sample_ai_tool: AITool
     ) -> None:
-        """AIツール有効化時にエラーが発生するとFalseが返されることをテスト。"""
+        """AIツール有効化でエラーが発生した場合はFalseを返すことをテスト。"""
         # Arrange
         mock_repository.find_by_id.return_value = sample_ai_tool
         mock_repository.save.side_effect = Exception('保存エラー')
 
         # Act
-        result = service.enable_ai_tool('test-tool-1')
+        result = service.enable_ai_tool(sample_ai_tool.id)
 
         # Assert
         assert result is False

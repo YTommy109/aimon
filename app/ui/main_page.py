@@ -1,6 +1,7 @@
 """メインページのUIを定義するモジュール。"""
 
 import logging
+import os
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -24,9 +25,13 @@ setup_logger()
 logger = logging.getLogger('aiman')
 
 
-@st.cache_resource
 def get_services() -> tuple[Any, Any]:
     """サービス層のインスタンスを取得。"""
+    # 環境変数の設定を確認
+    app_env = os.getenv('APP_ENV', 'development')
+    logger.info(f'Creating services for environment: {app_env}')
+    logger.info(f'Data directory: {config.data_dir_path}')
+
     project_repo = JsonProjectRepository(config.data_dir_path)
     ai_tool_repo = JsonAIToolRepository(config.data_dir_path)
 
@@ -81,3 +86,5 @@ def render_main_page() -> None:
 
 if __name__ == '__main__':
     render_main_page()
+
+__all__ = ['render_main_page', 'st']

@@ -1,11 +1,16 @@
-"""JsonProjectRepositoryのテスト。"""
+"""プロジェクトリポジトリのテスト。"""
 
+import json
+import os
+import stat
+import tempfile
 from pathlib import Path
 from uuid import UUID
 
 import pytest
 
 from app.errors import PathIsDirectoryError, ResourceNotFoundError
+from app.models import AIToolID, ProjectID
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 
@@ -13,188 +18,199 @@ from app.repositories.project_repository import JsonProjectRepository
 class TestJsonProjectRepository:
     """JsonProjectRepositoryのテストクラス。"""
 
-    def test_プロジェクトが正常に保存される(
-        self, project_repository: JsonProjectRepository
+    @pytest.fixture
+    def temp_dir(self) -> Path:
+        """一時ディレクトリを作成する。"""
+        return Path(tempfile.mkdtemp())
+
+    @pytest.fixture
+    def repository(self, temp_dir: Path) -> JsonProjectRepository:
+        """リポジトリを作成する。"""
+        return JsonProjectRepository(temp_dir)
+
+    @pytest.fixture
+    def sample_project(self) -> Project:
+        """サンプルプロジェクトを作成する。"""
+        return Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+
+    def test_プロジェクト一覧を取得できる(
+        self, repository: JsonProjectRepository, sample_project: Project
     ) -> None:
-        """プロジェクトが正常に保存されることをテストする。"""
+        """プロジェクト一覧を取得できることをテスト。"""
         # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
+        repository.save(sample_project)
 
         # Act
-        project_repository.save(project)
-        saved_projects = project_repository.find_all()
-
-        # Assert
-        assert len(saved_projects) == 1
-        assert saved_projects[0].name == project.name
-
-    def test_プロジェクトが正常に取得される(
-        self, project_repository: JsonProjectRepository
-    ) -> None:
-        """プロジェクトが正常に取得されることをテストする。"""
-        # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        project_repository.save(project)
-
-        # Act
-        found_project = project_repository.find_by_id(project.id)
-
-        # Assert
-        assert found_project is not None
-        assert found_project.name == project.name
-
-    def test_存在しないプロジェクトは例外を投げる(
-        self, project_repository: JsonProjectRepository
-    ) -> None:
-        """存在しないプロジェクトは例外を投げることをテストする。"""
-        # Arrange
-        non_existent_id = UUID('12345678-1234-1234-1234-123456789012')
-
-        # Act & Assert
-        with pytest.raises(ResourceNotFoundError) as exc_info:
-            project_repository.find_by_id(non_existent_id)
-        assert str(non_existent_id) in str(exc_info.value)
-
-    def test_プロジェクトの結果が正常に更新される(
-        self, project_repository: JsonProjectRepository
-    ) -> None:
-        """プロジェクトの結果が正常に更新されることをテストする。"""
-        # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        project_repository.save(project)
-        result = {'processed_files': ['file1.txt'], 'message': '完了'}
-
-        # Act
-        project.result = result
-        project_repository.save(project)
-
-        # Assert
-        updated_project = project_repository.find_by_id(project.id)
-        assert updated_project is not None
-        assert updated_project.result == result
-
-    def test_データディレクトリが存在しない場合に作成される(self, tmp_path: Path) -> None:
-        """データディレクトリが存在しない場合に作成されることをテストする。"""
-        # Arrange
-        data_dir = tmp_path / 'data'
-
-        # Act
-        JsonProjectRepository(data_dir)
-
-        # Assert
-        assert data_dir.exists()
-        assert data_dir.is_dir()
-
-    def test_データディレクトリがファイルの場合にディレクトリに変換される(
-        self, tmp_path: Path
-    ) -> None:
-        """データディレクトリがファイルの場合にディレクトリに変換されることをテストする。"""
-        # Arrange
-        data_dir = tmp_path / 'data'
-        data_dir.write_text('old content')
-
-        # Act
-        JsonProjectRepository(data_dir)
-
-        # Assert
-        assert data_dir.exists()
-        assert data_dir.is_dir()
-        assert (data_dir / 'projects.json').exists()
-
-    def test_プロジェクトファイルが存在しない場合に作成される(self, tmp_path: Path) -> None:
-        """プロジェクトファイルが存在しない場合に作成されることをテストする。"""
-        # Arrange
-        data_dir = tmp_path / 'data'
-        data_dir.mkdir()
-
-        # Act
-        JsonProjectRepository(data_dir)
-
-        # Assert
-        projects_file = data_dir / 'projects.json'
-        assert projects_file.exists()
-        assert projects_file.read_text() == '[]'
-
-    def test_プロジェクトファイルがディレクトリの場合に例外が発生する(self, tmp_path: Path) -> None:
-        """プロジェクトファイルがディレクトリの場合に例外が発生することをテストする。"""
-        # Arrange
-        data_dir = tmp_path / 'data'
-        data_dir.mkdir()
-        projects_file = data_dir / 'projects.json'
-        projects_file.mkdir()
-
-        # Act & Assert
-        with pytest.raises(PathIsDirectoryError):
-            JsonProjectRepository(data_dir)
-
-    def test_複数のプロジェクトが正常に保存される(
-        self, project_repository: JsonProjectRepository
-    ) -> None:
-        """複数のプロジェクトが正常に保存されることをテストする。"""
-        # Arrange
-        project1 = Project(name='プロジェクト1', source='/path1', ai_tool='tool1')
-        project2 = Project(name='プロジェクト2', source='/path2', ai_tool='tool2')
-
-        # Act
-        project_repository.save(project1)
-        project_repository.save(project2)
-        saved_projects = project_repository.find_all()
-
-        # Assert
-        assert len(saved_projects) == 2
-        assert any(p.name == 'プロジェクト1' for p in saved_projects)
-        assert any(p.name == 'プロジェクト2' for p in saved_projects)
-
-    def test_既存のプロジェクトが更新される(
-        self, project_repository: JsonProjectRepository
-    ) -> None:
-        """既存のプロジェクトが更新されることをテストする。"""
-        # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        project_repository.save(project)
-
-        # Act
-        project.name = '更新されたプロジェクト'
-        project_repository.save(project)
-
-        # Assert
-        updated_project = project_repository.find_by_id(project.id)
-        assert updated_project is not None
-        assert updated_project.name == '更新されたプロジェクト'
-
-    def test_空のプロジェクトリストが正常に読み込まれる(
-        self, project_repository: JsonProjectRepository
-    ) -> None:
-        """空のプロジェクトリストが正常に読み込まれることをテストする。"""
-        # Act
-        projects = project_repository.find_all()
-
-        # Assert
-        assert projects == []
-
-    def test_JSONファイルが存在しない場合に空のリストが返される(self, tmp_path: Path) -> None:
-        """JSONファイルが存在しない場合に空のリストが返されることをテストする。"""
-        # Arrange
-        data_dir = tmp_path / 'data'
-        data_dir.mkdir()
-
-        # Act
-        repository = JsonProjectRepository(data_dir)
-        # projects.jsonファイルを削除
-        (data_dir / 'projects.json').unlink()
         projects = repository.find_all()
 
         # Assert
-        assert projects == []
+        assert len(projects) == 1
+        assert projects[0].id == sample_project.id
+        assert projects[0].name == sample_project.name
+        assert projects[0].source == sample_project.source
+        assert projects[0].ai_tool == sample_project.ai_tool
 
-    def test_書き込み先がディレクトリの場合に例外が発生する(self, tmp_path: Path) -> None:
-        """書き込み先がディレクトリの場合に例外が発生することをテストする。"""
+    def test_IDでプロジェクトを取得できる(
+        self, repository: JsonProjectRepository, sample_project: Project
+    ) -> None:
+        """IDでプロジェクトを取得できることをテスト。"""
         # Arrange
-        data_dir = tmp_path / 'data'
-        data_dir.mkdir()
-        projects_file = data_dir / 'projects.json'
-        projects_file.mkdir()  # ディレクトリとして作成
+        repository.save(sample_project)
+
+        # Act
+        found_project = repository.find_by_id(sample_project.id)
+
+        # Assert
+        assert found_project.id == sample_project.id
+        assert found_project.name == sample_project.name
+        assert found_project.source == sample_project.source
+        assert found_project.ai_tool == sample_project.ai_tool
+
+    def test_存在しないIDでプロジェクトを取得するとResourceNotFoundErrorが発生する(
+        self, repository: JsonProjectRepository
+    ) -> None:
+        """存在しないIDでプロジェクトを取得するとResourceNotFoundErrorが発生することをテスト。"""
+        # Act & Assert
+        with pytest.raises(ResourceNotFoundError):
+            repository.find_by_id(ProjectID(UUID('12345678-1234-5678-1234-567812345678')))
+
+    def test_プロジェクトを保存できる(
+        self, repository: JsonProjectRepository, sample_project: Project
+    ) -> None:
+        """プロジェクトを保存できることをテスト。"""
+        # Act
+        repository.save(sample_project)
+
+        # Assert
+        projects = repository.find_all()
+        assert len(projects) == 1
+        assert projects[0].id == sample_project.id
+
+    def test_複数のプロジェクトを保存できる(self, repository: JsonProjectRepository) -> None:
+        """複数のプロジェクトを保存できることをテスト。"""
+        # Arrange
+        project1 = Project(
+            name='プロジェクト1',
+            source='/path1',
+            ai_tool=AIToolID(UUID('11111111-1111-1111-1111-111111111111')),
+        )
+        project2 = Project(
+            name='プロジェクト2',
+            source='/path2',
+            ai_tool=AIToolID(UUID('22222222-2222-2222-2222-222222222222')),
+        )
+
+        # Act
+        repository.save(project1)
+        repository.save(project2)
+
+        # Assert
+        projects = repository.find_all()
+        assert len(projects) == 2
+        project_ids = [project.id for project in projects]
+        assert project1.id in project_ids
+        assert project2.id in project_ids
+
+    def test_プロジェクトを更新できる(
+        self, repository: JsonProjectRepository, sample_project: Project
+    ) -> None:
+        """プロジェクトを更新できることをテスト。"""
+        # Arrange
+        repository.save(sample_project)
+
+        # Act
+        sample_project.name = '更新されたプロジェクト名'
+        sample_project.source = '/updated/path'
+        repository.save(sample_project)
+
+        # Assert
+        updated_project = repository.find_by_id(sample_project.id)
+        assert updated_project.name == '更新されたプロジェクト名'
+        assert updated_project.source == '/updated/path'
+
+    def test_空のファイルから開始できる(self, repository: JsonProjectRepository) -> None:
+        """空のファイルから開始できることをテスト。"""
+        # Act
+        projects = repository.find_all()
+
+        # Assert
+        assert len(projects) == 0
+
+    def test_JSONファイルが正しく作成される(
+        self, repository: JsonProjectRepository, sample_project: Project
+    ) -> None:
+        """JSONファイルが正しく作成されることをテスト。"""
+        # Act
+        repository.save(sample_project)
+
+        # Assert
+        json_file = repository.projects_path
+        assert json_file.exists()
+
+        with open(json_file, encoding='utf-8') as f:
+            data = json.load(f)
+            assert len(data) == 1
+            assert data[0]['name'] == sample_project.name
+            assert data[0]['source'] == sample_project.source
+            assert data[0]['ai_tool'] == str(sample_project.ai_tool)
+
+    def test_JSONファイル読み込みエラー時に空リストを返す(
+        self, repository: JsonProjectRepository, temp_dir: Path
+    ) -> None:
+        """JSONファイル読み込みエラー時に空リストを返すことをテスト。"""
+        # Arrange
+        invalid_json_file = temp_dir / 'projects.json'
+        invalid_json_file.write_text('invalid json content')
+
+        # Act
+        projects = repository.find_all()
+
+        # Assert
+        assert len(projects) == 0
+
+    def test_保存時にエラーが発生しても例外を再送出する(
+        self, repository: JsonProjectRepository, sample_project: Project, temp_dir: Path
+    ) -> None:
+        """保存時にエラーが発生しても例外を再送出することをテスト。"""
+        # Arrange
+        # 読み取り専用ディレクトリを作成して書き込みエラーを発生させる
+        read_only_dir = temp_dir / 'readonly'
+        read_only_dir.mkdir()
+        os.chmod(read_only_dir, stat.S_IREAD)
+
+        repository.projects_path = read_only_dir / 'projects.json'
+
+        # Act & Assert
+        with pytest.raises(OSError, match='Permission denied'):
+            repository.save(sample_project)
+
+    def test_データディレクトリがファイルとして存在する場合にファイル移動処理が実行される(
+        self, temp_dir: Path
+    ) -> None:
+        """データディレクトリがファイルとして存在する場合にファイル移動処理が実行されることをテスト。"""
+        # Arrange
+        file_path = temp_dir / 'data_dir'
+        file_path.write_text('test content')
+
+        # Act
+        JsonProjectRepository(file_path)
+
+        # Assert
+        assert file_path.is_dir()
+        assert (file_path / 'projects.json').exists()
+
+    def test_プロジェクトファイルがディレクトリとして存在する場合にPathIsDirectoryErrorが発生する(
+        self, temp_dir: Path
+    ) -> None:
+        """プロジェクトファイルがディレクトリとして存在する場合にPathIsDirectoryErrorが発生することをテスト。"""
+        # Arrange
+        projects_dir = temp_dir / 'projects.json'
+        projects_dir.mkdir()
 
         # Act & Assert
         with pytest.raises(PathIsDirectoryError):
-            JsonProjectRepository(data_dir)
+            JsonProjectRepository(temp_dir)

@@ -1,7 +1,8 @@
 """アプリケーション全体で利用するカスタム例外クラスを定義します。"""
 
 from abc import ABC, abstractmethod
-from uuid import UUID
+
+from app.models import AIToolID, ProjectID
 
 
 class BaseError(Exception):
@@ -27,7 +28,7 @@ class WorkerError(Exception):
 class ProjectAlreadyRunningError(WorkerError):
     """プロジェクトが既に実行中の場合の例外クラス。"""
 
-    def __init__(self, project_id: str | UUID) -> None:
+    def __init__(self, project_id: str | ProjectID) -> None:
         """
         例外を初期化します。
 
@@ -40,7 +41,7 @@ class ProjectAlreadyRunningError(WorkerError):
 class ProjectProcessingError(WorkerError):
     """プロジェクト処理中に発生したエラーを表す例外クラス。"""
 
-    def __init__(self, project_id: str | UUID) -> None:
+    def __init__(self, project_id: str | ProjectID) -> None:
         """
         例外を初期化します。
 
@@ -104,16 +105,16 @@ class FileWritingError(FileProcessingError):
 
 
 class PathIsDirectoryError(FileProcessingError):
-    """ファイルであるべきパスがディレクトリだった場合の例外クラス。"""
+    """パスがディレクトリである場合の例外クラス。"""
 
     def __init__(self, path: str) -> None:
         """
         例外を初期化します。
 
         Args:
-            path: ディレクトリだったパス。
+            path: ディレクトリとして存在するパス。
         """
-        super().__init__(f'パス {path} はディレクトリです。ファイルである必要があります')
+        super().__init__(f'パス {path} はディレクトリです')
 
 
 class FileDeletingError(FileProcessingError):
@@ -130,7 +131,7 @@ class FileDeletingError(FileProcessingError):
 
 
 class DataManagerError(WorkerError):
-    """データマネージャーに関連するエラーを表す例外クラス。"""
+    """データ管理に関連するエラーを表す例外クラス。"""
 
     def __init__(self, message: str) -> None:
         """
@@ -139,18 +140,18 @@ class DataManagerError(WorkerError):
         Args:
             message: エラーメッセージ。
         """
-        super().__init__(f'データマネージャーでエラーが発生しました: {message}')
+        super().__init__(f'データ管理エラー: {message}')
 
 
 class ResourceNotFoundError(WorkerError):
-    """指定されたリソースが見つからない場合の例外クラス。"""
+    """リソースが見つからない場合の例外クラス。"""
 
-    def __init__(self, resource_type: str, resource_id: str | UUID) -> None:
+    def __init__(self, resource_type: str, resource_id: str | ProjectID | AIToolID) -> None:
         """
         例外を初期化します。
 
         Args:
-            resource_type: リソースの種類 (例: 'Project', 'AI Tool')。
-            resource_id: リソースのID。
+            resource_type: リソースの種類。
+            resource_id: リソースID。
         """
         super().__init__(f'{resource_type} {resource_id} が見つかりません')

@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import httpx
 
@@ -13,7 +14,7 @@ logger = logging.getLogger('aiman')
 class AsyncGenericAIToolExecutor:
     """非同期エンドポイントURLを呼び出す汎用AIツール実行クラス。"""
 
-    def __init__(self, ai_tool_id: str, endpoint_url: str) -> None:
+    def __init__(self, ai_tool_id: UUID, endpoint_url: str) -> None:
         """AIツールエグゼキューターを初期化します。
 
         Args:
@@ -94,6 +95,7 @@ class AsyncGenericAIToolExecutor:
 
         return {
             'text': text_content,
+            'source_path': source_path,
         }
 
     def _read_source_content(self, source_path: str) -> str:
@@ -264,7 +266,7 @@ class AsyncGenericAIToolExecutor:
             {
                 'project_id': project_id,
                 'source_path': source_path,
-                'ai_tool_id': self.ai_tool_id,
+                'ai_tool_id': str(self.ai_tool_id),
                 'endpoint_url': self.endpoint_url,
             }
         )

@@ -5,9 +5,9 @@ import logging
 import shutil
 from pathlib import Path
 from typing import Any, cast
-from uuid import UUID
 
 from app.errors import PathIsDirectoryError, ResourceNotFoundError
+from app.models import ProjectID
 from app.models.project import Project
 
 logger = logging.getLogger('aiman')
@@ -27,7 +27,7 @@ class JsonProjectRepository:
         self._ensure_data_dir_exists()
         self._ensure_projects_file_exists()
 
-    def find_by_id(self, project_id: UUID) -> Project:
+    def find_by_id(self, project_id: ProjectID) -> Project:
         """指定されたIDのプロジェクトを取得します。
 
         Args:
@@ -42,7 +42,7 @@ class JsonProjectRepository:
         projects = self.find_all()
         project = next((p for p in projects if p.id == project_id), None)
         if project is None:
-            raise ResourceNotFoundError('Project', project_id)
+            raise ResourceNotFoundError('Project', str(project_id))
         return project
 
     def find_all(self) -> list[Project]:
@@ -90,11 +90,17 @@ class JsonProjectRepository:
 
     def _read_json(self, path: Path) -> list[dict[str, Any]]:
         """JSONファイルを読み込みます。"""
-        if not path.exists():
-            return []
-        with open(path, encoding='utf-8') as f:
-            data = json.load(f)
-            return cast(list[dict[str, Any]], data)
+        result = []
+
+        if path.exists():
+            try:
+                with open(path, encoding='utf-8') as f:
+                    data = json.load(f)
+                    result = cast(list[dict[str, Any]], data)
+            except Exception as e:
+                logger.error(f'JSONファイル読み込みエラー: {path}, エラー: {e}')
+
+        return result
 
     def _write_json(self, path: Path, data: list[dict[str, Any]]) -> None:
         """JSONファイルに書き込みます。"""

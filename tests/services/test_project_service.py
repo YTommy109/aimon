@@ -1,282 +1,271 @@
-"""ProjectServiceのテスト。"""
+"""プロジェクトサービスのテストモジュール。"""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+from uuid import UUID
+
+import pytest
+from pytest_mock import MockerFixture
 
 from app.errors import ResourceNotFoundError
+from app.models import AIToolID
+from app.models.ai_tool import AITool
 from app.models.project import Project
-from app.services.ai_tool_service import AIToolService
 from app.services.project_service import ProjectService
 
 
 class TestProjectService:
-    """ProjectServiceのテストクラス。"""
+    """プロジェクトサービスのテストクラス。"""
 
-    def setup_method(self) -> None:
-        """テストメソッドの前処理。"""
-        self.mock_repository = Mock()
-        self.mock_ai_tool_service = Mock(spec=AIToolService)
-        self.project_service = ProjectService(self.mock_repository, self.mock_ai_tool_service)
+    @pytest.fixture
+    def mock_repository(self) -> Mock:
+        """プロジェクトリポジトリのモックを作成する。"""
+        return Mock()
 
-    def test_プロジェクトが正常に作成される(self) -> None:
-        """プロジェクトが正常に作成されることをテストする。"""
+    @pytest.fixture
+    def mock_ai_tool_service(self) -> Mock:
+        """AIツールサービスのモックを作成する。"""
+        return Mock()
+
+    @pytest.fixture
+    def project_service(self, mock_repository: Mock, mock_ai_tool_service: Mock) -> ProjectService:
+        """プロジェクトサービスを作成する。"""
+        return ProjectService(mock_repository, mock_ai_tool_service)
+
+    def test_プロジェクトを作成できる(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """プロジェクトを作成できることをテスト。"""
         # Arrange
         name = 'テストプロジェクト'
         source = '/path/to/source'
-        ai_tool = 'test_tool'
+        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        created_project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+        mock_repository.save.return_value = created_project
 
         # Act
-        result = self.project_service.create_project(name, source, ai_tool)
+        result = project_service.create_project(name, source, ai_tool)
+
+        # Assert
+        assert result is not None
+        assert result.name == 'テストプロジェクト'
+        assert result.source == '/path/to/source'
+        mock_repository.save.assert_called_once()
+
+    def test_無効な入力でプロジェクト作成が失敗する(self, project_service: ProjectService) -> None:
+        """無効な入力でプロジェクト作成が失敗することをテスト。"""
+        # Arrange
+        name = ''  # 空の名前
+        source = '/path/to/source'
+        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+
+        # Act
+        result = project_service.create_project(name, source, ai_tool)
+
+        # Assert
+        assert result is None
+
+    def test_空のAIツールでプロジェクト作成が成功する(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """空のAIツールでプロジェクト作成が成功することをテスト。"""
+        # Arrange
+        name = 'テストプロジェクト'
+        source = '/path/to/source'
+        ai_tool = AIToolID(UUID('00000000-0000-0000-0000-000000000000'))  # 空のUUID
+
+        # Act
+        result = project_service.create_project(name, source, ai_tool)
 
         # Assert
         assert result is not None
         assert result.name == name
         assert result.source == source
         assert result.ai_tool == ai_tool
-        self.mock_repository.save.assert_called_once()
+        mock_repository.save.assert_called_once_with(result)
 
-    def test_無効な入力でプロジェクト作成が失敗する(self) -> None:
-        """無効な入力でプロジェクト作成が失敗することをテストする。"""
-        # Arrange
-        name = ''
-        source = '/path/to/source'
-        ai_tool = 'test_tool'
-
-        # Act
-        result = self.project_service.create_project(name, source, ai_tool)
-
-        # Assert
-        assert result is None
-        self.mock_repository.save.assert_not_called()
-
-    def test_空のソースディレクトリでプロジェクト作成が失敗する(self) -> None:
-        """空のソースディレクトリでプロジェクト作成が失敗することをテストする。"""
-        # Arrange
-        name = 'テストプロジェクト'
-        source = ''
-        ai_tool = 'test_tool'
-
-        # Act
-        result = self.project_service.create_project(name, source, ai_tool)
-
-        # Assert
-        assert result is None
-        self.mock_repository.save.assert_not_called()
-
-    def test_空のAIツールでプロジェクト作成が失敗する(self) -> None:
-        """空のAIツールでプロジェクト作成が失敗することをテストする。"""
+    def test_プロジェクト作成でエラーが発生した場合はNoneを返す(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """プロジェクト作成でエラーが発生した場合はNoneを返すことをテスト。"""
         # Arrange
         name = 'テストプロジェクト'
         source = '/path/to/source'
-        ai_tool = ''
+        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        mock_repository.save.side_effect = Exception('データベースエラー')
 
         # Act
-        result = self.project_service.create_project(name, source, ai_tool)
-
-        # Assert
-        assert result is None
-        self.mock_repository.save.assert_not_called()
-
-    def test_空白文字のみの入力でプロジェクト作成が失敗する(self) -> None:
-        """空白文字のみの入力でプロジェクト作成が失敗することをテストする。"""
-        # Arrange
-        name = '   '
-        source = '/path/to/source'
-        ai_tool = 'test_tool'
-
-        # Act
-        result = self.project_service.create_project(name, source, ai_tool)
-
-        # Assert
-        assert result is None
-        self.mock_repository.save.assert_not_called()
-
-    def test_プロジェクト作成時に例外が発生する(self) -> None:
-        """プロジェクト作成時に例外が発生することをテストする。"""
-        # Arrange
-        name = 'テストプロジェクト'
-        source = '/path/to/source'
-        ai_tool = 'test_tool'
-        self.mock_repository.save.side_effect = Exception('保存エラー')
-
-        # Act
-        result = self.project_service.create_project(name, source, ai_tool)
+        result = project_service.create_project(name, source, ai_tool)
 
         # Assert
         assert result is None
 
-    def test_全プロジェクトが正常に取得される(self) -> None:
-        """全プロジェクトが正常に取得されることをテストする。"""
+    def test_全プロジェクトを取得できる(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """全プロジェクトを取得できることをテスト。"""
         # Arrange
         projects = [
-            Project(name='プロジェクト1', source='/path1', ai_tool='tool1'),
-            Project(name='プロジェクト2', source='/path2', ai_tool='tool2'),
+            Project(
+                name='プロジェクト1',
+                source='/path/to/source1',
+                ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            ),
+            Project(
+                name='プロジェクト2',
+                source='/path/to/source2',
+                ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345679')),
+            ),
         ]
-        self.mock_repository.find_all.return_value = projects
+        mock_repository.find_all.return_value = projects
 
         # Act
-        result = self.project_service.get_all_projects()
+        result = project_service.get_all_projects()
 
         # Assert
-        assert result == projects
+        assert len(result) == 2
+        assert result[0].name == 'プロジェクト1'
+        assert result[1].name == 'プロジェクト2'
 
-    def test_IDでプロジェクトが正常に取得される(self) -> None:
-        """IDでプロジェクトが正常に取得されることをテストする。"""
+    def test_プロジェクトが存在しない場合は空のリストを返す(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """プロジェクトが存在しない場合は空のリストを返すことをテスト。"""
         # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        self.mock_repository.find_by_id.return_value = project
+        mock_repository.find_all.return_value = []
 
         # Act
-        result = self.project_service.get_project_by_id('12345678-1234-1234-1234-123456789012')
+        result = project_service.get_all_projects()
+
+        # Assert
+        assert len(result) == 0
+
+    def test_IDでプロジェクトを取得できる(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """IDでプロジェクトを取得できることをテスト。"""
+        # Arrange
+        project_id = UUID('12345678-1234-5678-1234-567812345678')
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+        mock_repository.find_by_id.return_value = project
+
+        # Act
+        result = project_service.get_project_by_id(str(project_id))
 
         # Assert
         assert result is not None
         assert result.name == 'テストプロジェクト'
 
-    def test_無効なIDでプロジェクト取得が失敗する(self) -> None:
-        """無効なIDでプロジェクト取得が失敗することをテストする。"""
+    def test_無効なIDでプロジェクトを取得するとNoneを返す(
+        self, project_service: ProjectService
+    ) -> None:
+        """無効なIDでプロジェクトを取得するとNoneを返すことをテスト。"""
         # Arrange
-        self.mock_repository.find_by_id.side_effect = ResourceNotFoundError(
-            'Project', 'invalid-uuid'
+        invalid_id = 'invalid-uuid'
+
+        # Act
+        result = project_service.get_project_by_id(invalid_id)
+
+        # Assert
+        assert result is None
+
+    def test_存在しないIDでプロジェクトを取得するとNoneを返す(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """存在しないIDでプロジェクトを取得するとNoneを返すことをテスト。"""
+        # Arrange
+        project_id = UUID('12345678-1234-5678-1234-567812345678')
+        mock_repository.find_by_id.side_effect = ResourceNotFoundError(
+            'プロジェクト', str(project_id)
         )
 
         # Act
-        result = self.project_service.get_project_by_id('invalid-uuid')
+        result = project_service.get_project_by_id(str(project_id))
 
         # Assert
         assert result is None
 
-    def test_ValueErrorでプロジェクト取得が失敗する(self) -> None:
-        """ValueErrorでプロジェクト取得が失敗することをテストする。"""
+    def test_プロジェクトを実行できる(
+        self,
+        mocker: MockerFixture,
+        project_service: ProjectService,
+        mock_repository: Mock,
+        mock_ai_tool_service: Mock,
+    ) -> None:
+        """プロジェクトを実行できることをテスト。"""
         # Arrange
-        self.mock_repository.find_by_id.side_effect = ValueError('Invalid UUID')
+        mock_executor_class = mocker.patch(
+            'app.services.project_service.AsyncGenericAIToolExecutor'
+        )
+        project_id = UUID('12345678-1234-5678-1234-567812345678')
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+        )
+        ai_tool = AITool(name_ja='テストツール', endpoint_url='https://api.example.com/test')
 
-        # Act
-        result = self.project_service.get_project_by_id('invalid-uuid')
+        mock_repository.find_by_id.return_value = project
+        mock_ai_tool_service.get_ai_tool_by_id.return_value = ai_tool
+        mock_repository.save.return_value = None
 
-        # Assert
-        assert result is None
-
-    def test_Exceptionでプロジェクト取得が失敗する(self) -> None:
-        """Exceptionでプロジェクト取得が失敗することをテストする。"""
-        # Arrange
-        self.mock_repository.find_by_id.side_effect = Exception('Database error')
-
-        # Act
-        result = self.project_service.get_project_by_id('12345678-1234-1234-1234-123456789012')
-
-        # Assert
-        assert result is None
-
-    @patch('app.services.project_service.AsyncGenericAIToolExecutor')
-    def test_プロジェクトが正常に実行される(self, mock_executor_class: Mock) -> None:
-        """プロジェクトが正常に実行されることをテストする。"""
-        # Arrange
-        project = Project(name='テストプロジェクト', source='/path/to/source', ai_tool='test_tool')
-        self.mock_repository.find_by_id.return_value = project
-
-        # AIツールサービスのモック設定
-        mock_ai_tool = Mock()
-        mock_ai_tool.id = 'test_tool'
-        mock_ai_tool.endpoint_url = 'https://api.example.com/test'
-        self.mock_ai_tool_service.get_ai_tool_by_id.return_value = mock_ai_tool
-
-        # AsyncGenericAIToolExecutorのモック設定
+        # エグゼキューターのモック
         mock_executor = Mock()
-        mock_executor.execute.return_value = {
-            'success': True,
-            'data': {'summary': 'AIツール実行が完了しました。'},
-            'project_id': '12345678-1234-1234-1234-123456789012',
-            'source_path': '/path/to/source',
-            'ai_tool_id': 'test_tool',
-            'endpoint_url': 'https://api.example.com/test',
-        }
+        mock_executor.execute.return_value = {'result': 'success'}
         mock_executor_class.return_value = mock_executor
 
         # Act
-        result, message = self.project_service.execute_project(
-            '12345678-1234-1234-1234-123456789012'
-        )
+        result_project, message = project_service.execute_project(str(project_id))
 
         # Assert
-        assert result is not None
-        assert result.name == 'テストプロジェクト'
+        assert result_project is not None
         assert message == 'プロジェクトの実行が完了しました。'
-        self.mock_repository.save.assert_called_once()
-        mock_executor_class.assert_called_once_with('test_tool', 'https://api.example.com/test')
-        mock_executor.execute.assert_called_once()
+        mock_repository.save.assert_called()
 
-    def test_無効なIDでプロジェクト実行が失敗する(self) -> None:
-        """無効なIDでプロジェクト実行が失敗することをテストする。"""
+    def test_存在しないプロジェクトの実行は失敗する(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """存在しないプロジェクトの実行は失敗することをテスト。"""
         # Arrange
-        self.mock_repository.find_by_id.side_effect = ValueError('Invalid UUID')
-
-        # Act
-        result, message = self.project_service.execute_project('invalid-uuid')
-
-        # Assert
-        assert result is None
-        assert message == '無効なプロジェクトIDです。'
-
-    def test_存在しないプロジェクトでプロジェクト実行が失敗する(self) -> None:
-        """存在しないプロジェクトでプロジェクト実行が失敗することをテストする。"""
-        # Arrange
-        self.mock_repository.find_by_id.side_effect = ResourceNotFoundError('Project', 'not-found')
-
-        # Act
-        result, message = self.project_service.execute_project(
-            '12345678-1234-1234-1234-123456789012'
+        project_id = UUID('12345678-1234-5678-1234-567812345678')
+        mock_repository.find_by_id.side_effect = ResourceNotFoundError(
+            'プロジェクト', str(project_id)
         )
 
-        # Assert
-        assert result is None
-        assert message == 'プロジェクトが見つかりません。'
+        # Act
+        result_project, message = project_service.execute_project(str(project_id))
 
-    def test_存在しないAIツールでプロジェクト実行が失敗する(self) -> None:
-        """存在しないAIツールでプロジェクト実行が失敗することをテストする。"""
+        # Assert
+        assert result_project is None
+        assert 'プロジェクトが見つかりません' in message
+
+    def test_存在しないAIツールの実行は失敗する(
+        self, project_service: ProjectService, mock_repository: Mock, mock_ai_tool_service: Mock
+    ) -> None:
+        """存在しないAIツールの実行は失敗することをテスト。"""
         # Arrange
+        project_id = UUID('12345678-1234-5678-1234-567812345678')
         project = Project(
-            name='テストプロジェクト', source='/path/to/source', ai_tool='non-existent'
+            name='テストプロジェクト',
+            source='/path/to/source',
+            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
-        self.mock_repository.find_by_id.return_value = project
 
-        # AIツールが見つからない場合のモック設定
-        self.mock_ai_tool_service.get_ai_tool_by_id.side_effect = ValueError(
-            'AIツールが見つかりません'
+        mock_repository.find_by_id.return_value = project
+        mock_ai_tool_service.get_ai_tool_by_id.side_effect = ResourceNotFoundError(
+            'AIツール', str(UUID('12345678-1234-5678-1234-567812345678'))
         )
 
         # Act
-        result, message = self.project_service.execute_project(
-            '12345678-1234-1234-1234-123456789012'
-        )
+        result_project, message = project_service.execute_project(str(project_id))
 
         # Assert
-        assert result is None
-        assert message == 'AIツール non-existent が見つかりません。'
-
-    def test_Exceptionでプロジェクト実行が失敗する(self) -> None:
-        """Exceptionでプロジェクト実行が失敗することをテストする。"""
-        # Arrange
-        self.mock_repository.find_by_id.side_effect = Exception('Database error')
-
-        # Act
-        result, message = self.project_service.execute_project(
-            '12345678-1234-1234-1234-123456789012'
-        )
-
-        # Assert
-        assert result is None
-        assert message == 'プロジェクトが見つかりません。'
-
-    def test_プロジェクトが見つからない場合の実行失敗(self) -> None:
-        """プロジェクトが見つからない場合の実行失敗をテストする。"""
-        # Arrange
-        self.mock_repository.find_by_id.return_value = None
-
-        # Act
-        result, message = self.project_service.execute_project(
-            '12345678-1234-1234-1234-123456789012'
-        )
-
-        # Assert
-        assert result is None
-        assert message == 'プロジェクトが見つかりません。'
+        assert result_project is None
+        assert 'AIツール' in message

@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from app.models import AIToolID
 from app.models.ai_tool import AITool
 from app.repositories.ai_tool_repository import JsonAIToolRepository
 
@@ -31,7 +32,7 @@ class AIToolService:
         """
         return self.repository.find_all_tools()
 
-    def get_ai_tool_by_id(self, tool_id: str) -> AITool:
+    def get_ai_tool_by_id(self, tool_id: AIToolID) -> AITool:
         """IDでAIツールを取得する。
 
         Args:
@@ -45,11 +46,10 @@ class AIToolService:
         """
         return self.repository.find_by_id(tool_id)
 
-    def create_ai_tool(self, tool_id: str, name: str, description: str, endpoint_url: str) -> bool:
+    def create_ai_tool(self, name: str, description: str, endpoint_url: str) -> bool:
         """AIツールを作成する。
 
         Args:
-            tool_id: ツールID。
             name: ツール名。
             description: 説明。
             endpoint_url: エンドポイントURL。
@@ -58,16 +58,22 @@ class AIToolService:
             作成成功時はTrue。
         """
         try:
-            ai_tool = AITool(
-                id=tool_id, name_ja=name, description=description, endpoint_url=endpoint_url
+            self.logger.info(
+                f'AIツール作成開始: name={name}, '
+                f'description={description}, endpoint_url={endpoint_url}'
             )
+            ai_tool = AITool(name_ja=name, description=description, endpoint_url=endpoint_url)
+            self.logger.info(f'AIツールオブジェクト作成完了: id={ai_tool.id}')
             self.repository.save(ai_tool)
+            self.logger.info(f'AIツール保存完了: id={ai_tool.id}')
             return True
         except Exception as e:
             self.logger.error(f'AIツール作成エラー: {e}')
             return False
 
-    def update_ai_tool(self, tool_id: str, name: str, description: str, endpoint_url: str) -> bool:
+    def update_ai_tool(
+        self, tool_id: AIToolID, name: str, description: str, endpoint_url: str
+    ) -> bool:
         """AIツールを更新する。
 
         Args:
@@ -94,7 +100,7 @@ class AIToolService:
             self.logger.error(f'AIツール更新エラー: {e}')
         return success
 
-    def disable_ai_tool(self, tool_id: str) -> bool:
+    def disable_ai_tool(self, tool_id: AIToolID) -> bool:
         """AIツールを無効化する。
 
         Args:
@@ -116,7 +122,7 @@ class AIToolService:
             self.logger.error(f'AIツール無効化エラー: {e}')
         return success
 
-    def enable_ai_tool(self, tool_id: str) -> bool:
+    def enable_ai_tool(self, tool_id: AIToolID) -> bool:
         """AIツールを有効化する。
 
         Args:

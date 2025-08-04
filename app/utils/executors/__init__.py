@@ -1,5 +1,5 @@
 """AIツール実行のインフラストラクチャモジュール。"""
 
-from .azure_functions_executor import AsyncGenericAIToolExecutor
+from .command_executor import CommandExecutor
 
-__all__ = ['AsyncGenericAIToolExecutor']
+__all__ = ['CommandExecutor']

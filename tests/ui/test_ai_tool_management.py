@@ -29,7 +29,7 @@ class TestAIToolManagement:
             id=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
             name_ja='テスト用AIツール',
             description='テスト用のAIツールです',
-            endpoint_url='https://example.com/api',
+            command='curl -X GET https://example.com/api',
         )
 
     @pytest.fixture
@@ -39,7 +39,7 @@ class TestAIToolManagement:
             id=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
             name_ja='テスト用AIツール',
             description='テスト用のAIツールです',
-            endpoint_url='https://example.com/api',
+            command='curl -X GET https://example.com/api',
         )
         tool.disabled_at = tool.created_at
         return tool
@@ -114,10 +114,10 @@ class TestAIToolManagement:
         mock_ai_tool_service.get_all_ai_tools.assert_called_once()
         assert mock_write.call_count > 0  # 何らかの出力がある
 
-    def test_ツール情報カラムが描画される(
-        self, mocker: MockerFixture, sample_ai_tool: AITool
+    def test_ツール情報と操作が描画される(
+        self, mocker: MockerFixture, sample_ai_tool: AITool, mock_ai_tool_service: Mock
     ) -> None:
-        """ツール情報カラムが正常に描画されることをテストする。"""
+        """ツール情報と操作が正常に描画されることをテストする。"""
         # Arrange
         mock_cols = [Mock() for _ in range(4)]
         for col in mock_cols:
@@ -126,12 +126,16 @@ class TestAIToolManagement:
         mock_write = mocker.patch.object(ai_tool_management.st, 'write')
 
         # Act
-        ai_tool_management._render_tool_info_columns(sample_ai_tool, mock_cols)
+        ai_tool_management._render_tool_info_and_actions(
+            sample_ai_tool, mock_ai_tool_service, mock_cols
+        )
 
         # Assert
-        assert mock_write.call_count >= 4  # 通番、名前、説明、ステータス
+        assert mock_write.call_count >= 3  # 通番、名前、説明
 
-    def test_通番が正しく表示される(self, mocker: MockerFixture, sample_ai_tool: AITool) -> None:
+    def test_通番が正しく表示される(
+        self, mocker: MockerFixture, sample_ai_tool: AITool, mock_ai_tool_service: Mock
+    ) -> None:
         """通番が正しく表示されることをテストする。"""
         # Arrange
         mock_cols = [Mock() for _ in range(4)]
@@ -141,7 +145,9 @@ class TestAIToolManagement:
         mock_write = mocker.patch.object(ai_tool_management.st, 'write')
 
         # Act
-        ai_tool_management._render_tool_info_columns(sample_ai_tool, mock_cols)
+        ai_tool_management._render_tool_info_and_actions(
+            sample_ai_tool, mock_ai_tool_service, mock_cols
+        )
 
         # Assert
         # 通番の書き込みが呼ばれていることを確認
@@ -165,7 +171,7 @@ class TestAIToolManagement:
         mock_columns.return_value = mock_action_cols
 
         # Act
-        ai_tool_management._render_tool_actions(sample_ai_tool, mock_ai_tool_service)
+        ai_tool_management._render_tool_actions_inline(sample_ai_tool, mock_ai_tool_service)
 
         # Assert
         assert mock_button.call_count >= 2  # 編集ボタンと無効化ボタン
@@ -187,7 +193,9 @@ class TestAIToolManagement:
         mock_columns.return_value = mock_action_cols
 
         # Act
-        ai_tool_management._render_tool_actions(sample_ai_tool_disabled, mock_ai_tool_service)
+        ai_tool_management._render_tool_actions_inline(
+            sample_ai_tool_disabled, mock_ai_tool_service
+        )
 
         # Assert
         assert mock_button.call_count >= 2  # 編集ボタンと有効化ボタン
@@ -202,7 +210,7 @@ class TestAIToolManagement:
         tool_info = {
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         mock_ai_tool_service.create_ai_tool.return_value = True
 
@@ -225,7 +233,7 @@ class TestAIToolManagement:
         tool_info = {
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         mock_ai_tool_service.create_ai_tool.return_value = False
 
@@ -247,7 +255,7 @@ class TestAIToolManagement:
             'tool_id': '12345678-1234-5678-1234-567812345678',
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         mock_ai_tool_service.update_ai_tool.return_value = True
 
@@ -274,7 +282,7 @@ class TestAIToolManagement:
             'tool_id': '12345678-1234-5678-1234-567812345678',
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         mock_ai_tool_service.update_ai_tool.return_value = False
 
@@ -365,7 +373,7 @@ class TestAIToolManagement:
         tool_info = {
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         mock_cols = [Mock(), Mock()]
         for col in mock_cols:
@@ -388,7 +396,7 @@ class TestAIToolManagement:
             'tool_id': '12345678-1234-5678-1234-567812345678',
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         mock_cols = [Mock(), Mock()]
         for col in mock_cols:
@@ -409,12 +417,12 @@ class TestAIToolManagement:
         valid_tool_info = {
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
         invalid_tool_info = {
             'name': '',  # 空の名前
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
 
         # Act & Assert
@@ -550,10 +558,10 @@ class TestAIToolManagement:
         # Assert
         mock_error.assert_called_once()
 
-    def test_ツール情報カラム描画時のエラーハンドリング(
-        self, mocker: MockerFixture, sample_ai_tool: AITool
+    def test_ツール情報と操作描画時のエラーハンドリング(
+        self, mocker: MockerFixture, sample_ai_tool: AITool, mock_ai_tool_service: Mock
     ) -> None:
-        """ツール情報カラム描画時のエラーハンドリングが正常に動作することをテストする。"""
+        """ツール情報と操作描画時のエラーハンドリングが正常に動作することをテストする。"""
         # Arrange
         mock_error = mocker.patch.object(ai_tool_management.st, 'error')
         mocker.patch.object(ai_tool_management.st, 'session_state', {'APP_ENV': 'test'})
@@ -563,7 +571,9 @@ class TestAIToolManagement:
             col.__exit__ = Mock(return_value=None)
 
         # Act
-        ai_tool_management._render_tool_info_columns(sample_ai_tool, mock_cols)
+        ai_tool_management._render_tool_info_and_actions(
+            sample_ai_tool, mock_ai_tool_service, mock_cols
+        )
 
         # Assert
         # エラーハンドリングは内部で行われるため、エラーは発生しない
@@ -581,7 +591,7 @@ class TestAIToolManagement:
         mock_cols[0].__exit__ = Mock(return_value=None)
 
         # Act
-        ai_tool_management._render_tool_actions(sample_ai_tool, mock_ai_tool_service)
+        ai_tool_management._render_tool_actions_inline(sample_ai_tool, mock_ai_tool_service)
 
         # Assert
         # エラーハンドリングは内部で行われるため、エラーは発生しない
@@ -598,7 +608,7 @@ class TestAIToolManagement:
             id=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
             name_ja='テストツール',
             description='テスト用',
-            endpoint_url='https://example.com/api',
+            command='curl -X GET https://example.com/api',
         )
         mock_ai_tool_service.get_all_ai_tools.return_value = [sample_tool]
 
@@ -639,7 +649,7 @@ class TestAIToolManagement:
         tool_info = {
             'name': '',  # 空の名前でバリデーションエラー
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
 
         # Act
@@ -658,7 +668,7 @@ class TestAIToolManagement:
         tool_info = {
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
 
         # Act
@@ -677,7 +687,7 @@ class TestAIToolManagement:
             'tool_id': '12345678-1234-5678-1234-567812345678',
             'name': 'テストツール',
             'description': 'テスト用',
-            'endpoint_url': 'https://example.com/api',
+            'command': 'https://example.com/api',
         }
 
         # Act

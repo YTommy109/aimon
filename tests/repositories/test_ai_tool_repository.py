@@ -34,7 +34,7 @@ class TestJsonAIToolRepository:
         return AITool(
             name_ja='テストツール',
             description='テスト用のAIツール',
-            endpoint_url='https://api.example.com/test',
+            command='curl -X GET https://api.example.com/test',
         )
 
     def test_AIツール一覧を取得できる(
@@ -52,7 +52,7 @@ class TestJsonAIToolRepository:
         assert tools[0].id == sample_ai_tool.id
         assert tools[0].name_ja == sample_ai_tool.name_ja
         assert tools[0].description == sample_ai_tool.description
-        assert tools[0].endpoint_url == sample_ai_tool.endpoint_url
+        assert tools[0].command == sample_ai_tool.command
 
     def test_IDでAIツールを取得できる(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool
@@ -68,7 +68,7 @@ class TestJsonAIToolRepository:
         assert found_tool.id == sample_ai_tool.id
         assert found_tool.name_ja == sample_ai_tool.name_ja
         assert found_tool.description == sample_ai_tool.description
-        assert found_tool.endpoint_url == sample_ai_tool.endpoint_url
+        assert found_tool.command == sample_ai_tool.command
 
     def test_存在しないIDでAIツールを取得するとResourceNotFoundErrorが発生する(
         self, repository: JsonAIToolRepository
@@ -96,12 +96,12 @@ class TestJsonAIToolRepository:
         tool1 = AITool(
             name_ja='ツール1',
             description='ツール1の説明',
-            endpoint_url='https://api.example.com/tool1',
+            command='curl -X GET https://api.example.com/tool1',
         )
         tool2 = AITool(
             name_ja='ツール2',
             description='ツール2の説明',
-            endpoint_url='https://api.example.com/tool2',
+            command='curl -X GET https://api.example.com/tool2',
         )
 
         # Act
@@ -156,7 +156,7 @@ class TestJsonAIToolRepository:
             assert len(data) == 1
             assert data[0]['name_ja'] == sample_ai_tool.name_ja
             assert data[0]['description'] == sample_ai_tool.description
-            assert data[0]['endpoint_url'] == sample_ai_tool.endpoint_url
+            assert data[0]['command'] == sample_ai_tool.command
 
     def test_JSONファイル読み込みエラー時に空リストを返す(
         self, repository: JsonAIToolRepository, temp_dir: Path

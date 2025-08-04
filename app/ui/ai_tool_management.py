@@ -225,7 +225,7 @@ def _render_table_header() -> None:
     with cols[2]:
         st.write('**説明**')
     with cols[3]:
-        st.write('**状態**')
+        st.write('**操作**')
     st.divider()
 
 
@@ -237,15 +237,17 @@ def _render_tool_row(tool: AITool, ai_tool_service: AIToolService) -> None:
         ai_tool_service: AIツールサービス。
     """
     cols = st.columns(4)
-    _render_tool_info_columns(tool, cols)
-    _render_tool_actions(tool, ai_tool_service)
+    _render_tool_info_and_actions(tool, ai_tool_service, cols)
 
 
-def _render_tool_info_columns(tool: AITool, cols: list[Any]) -> None:
-    """ツール情報カラムの描画。
+def _render_tool_info_and_actions(
+    tool: AITool, ai_tool_service: AIToolService, cols: list[Any]
+) -> None:
+    """ツール情報と操作ボタンを描画。
 
     Args:
         tool: AIツールオブジェクト。
+        ai_tool_service: AIツールサービス。
         cols: Streamlitカラムリスト。
     """
     # 通番を取得（セッション状態から取得するか、インデックスを使用）
@@ -260,12 +262,11 @@ def _render_tool_info_columns(tool: AITool, cols: list[Any]) -> None:
     with cols[2]:
         st.write(tool.description or '')
     with cols[3]:
-        status = '無効' if tool.disabled_at else '有効'
-        st.write(status)
+        _render_tool_actions_inline(tool, ai_tool_service)
 
 
-def _render_tool_actions(tool: AITool, ai_tool_service: AIToolService) -> None:
-    """ツール操作ボタンの描画。
+def _render_tool_actions_inline(tool: AITool, ai_tool_service: AIToolService) -> None:
+    """ツール操作ボタンをインラインで描画。
 
     Args:
         tool: AIツールオブジェクト。
@@ -308,7 +309,7 @@ def _render_creation_form() -> None:
     tool_info = {
         'name': st.text_input('ツール名', key='create_name'),
         'description': st.text_area('説明', key='create_description'),
-        'endpoint_url': st.text_input('エンドポイントURL', key='create_endpoint_url'),
+        'command': st.text_input('実行コマンド', key='create_command'),
     }
     _render_creation_form_buttons(tool_info)
 
@@ -351,10 +352,10 @@ def _render_edit_form(tool: AITool) -> None:
         'tool_id': tool.id,
         'name': st.text_input('ツール名', value=tool.name_ja, key='edit_name'),
         'description': st.text_area('説明', value=tool.description or '', key='edit_description'),
-        'endpoint_url': st.text_input(
-            'エンドポイントURL',
-            value=tool.endpoint_url,
-            key='edit_endpoint_url',
+        'command': st.text_input(
+            '実行コマンド',
+            value=tool.command or '',
+            key='edit_command',
         ),
     }
     _render_edit_form_buttons(tool_info)
@@ -466,7 +467,7 @@ def _execute_creation(ai_tool_service: AIToolService, tool_info: dict[str, str])
     result = ai_tool_service.create_ai_tool(
         tool_info['name'],
         tool_info['description'],
-        tool_info['endpoint_url'],
+        tool_info['command'],
     )
 
     if st.session_state.get('APP_ENV') == 'test':
@@ -499,7 +500,7 @@ def _handle_creation_error(e: Exception, tool_info: dict[str, str]) -> None:
 
 def _clear_creation_form() -> None:
     """作成フォームの値をクリアする。"""
-    form_keys = ['create_name', 'create_description', 'create_endpoint_url']
+    form_keys = ['create_name', 'create_description', 'create_command']
     for key in form_keys:
         if key in st.session_state:
             del st.session_state[key]
@@ -625,7 +626,7 @@ def _handle_update_tool(tool_info: dict[str, Any]) -> None:
         tool_info['tool_id'],
         tool_info['name'],
         tool_info['description'],
-        tool_info['endpoint_url'],
+        tool_info.get('command', ''),
     )
     if success:
         _handle_successful_update()

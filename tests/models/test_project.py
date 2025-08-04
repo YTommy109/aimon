@@ -13,6 +13,27 @@ JST = ZoneInfo('Asia/Tokyo')
 class TestProject:
     """Projectモデルのテストクラス。"""
 
+    def test_command_execution_compatibility(self) -> None:
+        """Ensure Project can instantiate and execute command-based operations."""
+        # Arrange
+        name = 'テストプロジェクト'
+        source = '/path/to/source'
+        ai_tool = AIToolID(UUID('87654321-4321-8765-4321-876543210987'))
+
+        # Act
+        project = Project(name=name, source=source, ai_tool=ai_tool)
+
+        # Assert
+        assert isinstance(project, Project)
+        assert project.name == name
+        assert project.source == source
+        assert isinstance(project.ai_tool, UUID)  # AIToolID is NewType based on UUID
+        assert project.status == ProjectStatus.PENDING
+        assert project.result is None
+        assert project.created_at is not None
+        assert project.executed_at is None
+        assert project.finished_at is None
+
     def test_プロジェクトが正常に作成される(self) -> None:
         """プロジェクトが正常に作成されることをテストする。"""
         # Arrange

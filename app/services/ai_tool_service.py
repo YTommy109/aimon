@@ -46,23 +46,22 @@ class AIToolService:
         """
         return self.repository.find_by_id(tool_id)
 
-    def create_ai_tool(self, name: str, description: str, endpoint_url: str) -> bool:
+    def create_ai_tool(self, name: str, description: str, command: str) -> bool:
         """AIツールを作成する。
 
         Args:
             name: ツール名。
             description: 説明。
-            endpoint_url: エンドポイントURL。
+            command: 実行コマンド。
 
         Returns:
             作成成功時はTrue。
         """
         try:
             self.logger.info(
-                f'AIツール作成開始: name={name}, '
-                f'description={description}, endpoint_url={endpoint_url}'
+                f'AIツール作成開始: name={name}, description={description}, command={command}'
             )
-            ai_tool = AITool(name_ja=name, description=description, endpoint_url=endpoint_url)
+            ai_tool = AITool(name_ja=name, description=description, command=command)
             self.logger.info(f'AIツールオブジェクト作成完了: id={ai_tool.id}')
             self.repository.save(ai_tool)
             self.logger.info(f'AIツール保存完了: id={ai_tool.id}')
@@ -71,16 +70,14 @@ class AIToolService:
             self.logger.error(f'AIツール作成エラー: {e}')
             return False
 
-    def update_ai_tool(
-        self, tool_id: AIToolID, name: str, description: str, endpoint_url: str
-    ) -> bool:
+    def update_ai_tool(self, tool_id: AIToolID, name: str, description: str, command: str) -> bool:
         """AIツールを更新する。
 
         Args:
             tool_id: ツールID。
             name: ツール名。
             description: 説明。
-            endpoint_url: エンドポイントURL。
+            command: 実行コマンド。
 
         Returns:
             更新成功時はTrue。
@@ -90,7 +87,7 @@ class AIToolService:
             ai_tool = self.repository.find_by_id(tool_id)
             ai_tool.name_ja = name
             ai_tool.description = description
-            ai_tool.endpoint_url = endpoint_url
+            ai_tool.command = command
             ai_tool.updated_at = datetime.now(JST)
             self.repository.save(ai_tool)
             success = True

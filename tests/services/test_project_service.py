@@ -201,16 +201,14 @@ class TestProjectService:
     ) -> None:
         """プロジェクトを実行できることをテスト。"""
         # Arrange
-        mock_executor_class = mocker.patch(
-            'app.services.project_service.AsyncGenericAIToolExecutor'
-        )
+        mock_executor_class = mocker.patch('app.services.project_service.CommandExecutor')
         project_id = UUID('12345678-1234-5678-1234-567812345678')
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
             ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
-        ai_tool = AITool(name_ja='テストツール', endpoint_url='https://api.example.com/test')
+        ai_tool = AITool(name_ja='テストツール', command='curl -X GET https://api.example.com/test')
 
         mock_repository.find_by_id.return_value = project
         mock_ai_tool_service.get_ai_tool_by_id.return_value = ai_tool

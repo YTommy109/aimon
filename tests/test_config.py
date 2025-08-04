@@ -112,3 +112,38 @@ def test_ログファイルパス(mocker: MockerFixture) -> None:
 
     # Assert
     assert config.log_file_path == Path('log') / 'app.log'
+
+
+def test_Unixコマンド実行設定のデフォルト値(mocker: MockerFixture) -> None:
+    # Arrange
+    mocker.patch.dict(os.environ, {}, clear=True)
+
+    # Act
+    config = Config()
+
+    # Assert
+    assert config.COMMAND_TIMEOUT == 300
+    assert config.MAX_COMMAND_LENGTH == 1000
+    assert 'python' in config.ALLOWED_COMMAND_PREFIXES
+    assert 'node' in config.ALLOWED_COMMAND_PREFIXES
+    assert 'npm' in config.ALLOWED_COMMAND_PREFIXES
+    assert 'git' in config.ALLOWED_COMMAND_PREFIXES
+    assert 'rm -rf' in config.BLOCKED_COMMANDS
+    assert 'sudo' in config.BLOCKED_COMMANDS
+    assert 'passwd' in config.BLOCKED_COMMANDS
+
+
+def test_環境変数からUnixコマンド設定を読み込める(mocker: MockerFixture) -> None:
+    # Arrange
+    env_values = {
+        'COMMAND_TIMEOUT': '600',
+        'MAX_COMMAND_LENGTH': '2000',
+    }
+    mocker.patch.dict(os.environ, env_values, clear=True)
+
+    # Act
+    config = Config()
+
+    # Assert
+    assert config.COMMAND_TIMEOUT == 600
+    assert config.MAX_COMMAND_LENGTH == 2000

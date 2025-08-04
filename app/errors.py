@@ -5,11 +5,29 @@ from abc import ABC, abstractmethod
 from app.models import AIToolID, ProjectID
 
 
-class BaseError(Exception):
+class AppError(Exception):
     """すべての例外の基底クラス。"""
 
 
-class FormValidationError(BaseError):
+class CommandExecutionError(AppError):
+    """Exception raised for errors in the command execution process."""
+
+    def __init__(self, command: str, message: str = 'Command execution failed'):
+        self.command = command
+        self.message = message
+        super().__init__(f'{message}: {command}')
+
+
+class CommandSecurityError(AppError):
+    """Exception raised for security errors related to command execution."""
+
+    def __init__(self, command: str, message: str = 'Security violation detected'):
+        self.command = command
+        self.message = message
+        super().__init__(f'{message}: {command}')
+
+
+class FormValidationError(AppError):
     """フォーム入力の検証に関連する基底例外クラス。"""
 
 

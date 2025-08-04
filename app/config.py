@@ -25,6 +25,29 @@ class Config(BaseSettings):
     # UI設定
     AUTO_REFRESH_INTERVAL: int = 1000  # milliseconds
 
+    # Unixコマンド実行設定
+    COMMAND_TIMEOUT: int = 300  # seconds (5 minutes)
+    MAX_COMMAND_LENGTH: int = 1000  # characters
+    ALLOWED_COMMAND_PREFIXES: list[str] = [
+        'python',
+        'node',
+        'npm',
+        'pip',
+        'poetry',
+        'git',
+        'curl',
+        'wget',
+    ]
+    BLOCKED_COMMANDS: list[str] = [
+        'rm -rf',
+        'sudo',
+        'su',
+        'chmod 777',
+        'passwd',
+        'useradd',
+        'userdel',
+    ]
+
     @property
     def data_dir_path(self) -> Path:
         """現在の環境に応じたデータディレクトリのパスを返します。"""

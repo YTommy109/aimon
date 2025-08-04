@@ -1,0 +1,59 @@
+---
+description: AI rules derived by SpecStory from the project AI interaction history
+globs: *
+---
+
+## HEADERS
+
+## PROJECT RULES
+
+### General Rules
+- The AI coding assistant must adhere to all instructions provided in this file.
+- The AI coding assistant should always ask for clarification when uncertain.
+- The AI coding assistant should provide multiple options when possible.
+
+### pyproject.toml Modification Rules
+
+- **NEVER** directly modify the `pyproject.toml` file without explicit user consent.
+- **ALWAYS** propose dependency additions or removals to the user for approval before implementing them.
+- **ALWAYS** consult the user before making any configuration changes to `pyproject.toml`.
+- If a change to `pyproject.toml` is needed, the AI assistant should first request permission from the user.
+
+### File Deletion Rules
+- Before deleting a file, **ALWAYS** confirm that:
+    - The file contains only comments or placeholder code.
+    - The file is not referenced or imported anywhere in the project.
+    - The current implementation does not rely on the file's functionality.
+- If all conditions are met, the AI assistant MAY delete the file after notifying the user.
+
+### Command Execution Rules
+
+- When executing commands using `subprocess.run`, the AI coding assistant must ensure the command includes the target directory path.
+- The `{source_path}` placeholder MUST be used within the command string to represent the project's source directory.
+- The AI coding assistant must validate that the command string contains the `{source_path}` placeholder before execution, if the placeholder is present in the command. If the placeholder is not present, the command will be executed as is.
+- The working directory for command execution should remain the Streamlit app's launch directory. Do not set `cwd` in `subprocess.run`.
+- AI tool commands should be configured to specify the target directory using the `{source_path}` placeholder (e.g., `ait analyze {source_path}`).
+
+## TECH STACK
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+
+## CODING STANDARDS
+
+## DEBUGGING
+
+## WORKFLOW & RELEASE RULES
+
+- After modifying code, **ALWAYS** run `ruff format` and `ruff check --fix` to ensure code quality and formatting.
+- When function names are changed, **ALWAYS** remember to update the corresponding tests.
+
+## `.cursorrules` SPECIFIC RULES
+
+- The AI coding assistant should respect rules defined in `.cursor/rules` or `.cursorrules` to restrict its actions.
+- Prefer the `.cursor/rules` directory for rule files; `.cursorrules` is considered an older approach.
+- The current preferred way to define rules is to place `{filename}.mdc` files under the `.cursor/rules` directory. These files specify rules in a structured format.
+
+## GIT ATTRIBUTES RULES
+
+- Important configuration files should be treated as read-only within Git.
+- Example: `pyproject.toml -text` in `.gitattributes` marks the file as read-only.

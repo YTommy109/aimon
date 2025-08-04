@@ -30,7 +30,7 @@ class TestAIToolService:
         return AITool(
             name_ja='テストツール',
             description='テスト用のAIツール',
-            endpoint_url='https://api.example.com/test',
+            command='curl -X GET https://api.example.com/test',
         )
 
     def test_全AIツールを取得できる(
@@ -91,7 +91,7 @@ class TestAIToolService:
         assert isinstance(saved_tool.id, UUID)  # NewTypeは内部的にはUUID
         assert saved_tool.name_ja == '新規ツール'
         assert saved_tool.description == '新規ツールの説明'
-        assert saved_tool.endpoint_url == 'https://api.example.com/new'
+        assert saved_tool.command == 'https://api.example.com/new'
 
     def test_AIツール作成でエラーが発生した場合はFalseを返す(
         self, service: AIToolService, mock_repository: Mock
@@ -130,7 +130,7 @@ class TestAIToolService:
         updated_tool = mock_repository.save.call_args[0][0]
         assert updated_tool.name_ja == '更新されたツール名'
         assert updated_tool.description == '更新された説明'
-        assert updated_tool.endpoint_url == 'https://api.example.com/updated'
+        assert updated_tool.command == 'https://api.example.com/updated'
 
     def test_存在しないAIツールの更新は失敗する(
         self, service: AIToolService, mock_repository: Mock

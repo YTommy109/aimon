@@ -10,7 +10,7 @@ from app.models.ai_tool import AITool
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 from app.services.ai_tool_service import AIToolService
-from app.utils.executors.azure_functions_executor import AsyncGenericAIToolExecutor
+from app.utils.executors import CommandExecutor
 
 logger = logging.getLogger('aiman')
 
@@ -372,10 +372,9 @@ class ProjectService:
         logger.debug(f'[DEBUG] プロジェクトステータス更新完了: executed_at={project.executed_at}')
 
         logger.debug(
-            f'[DEBUG] AIツール実行開始: ai_tool_id={ai_tool.id}, '
-            f'endpoint_url={ai_tool.endpoint_url}'
+            f'[DEBUG] AIツール実行開始: ai_tool_id={ai_tool.id}, command={ai_tool.command}'
         )
-        executor = AsyncGenericAIToolExecutor(ai_tool.id, ai_tool.endpoint_url)
+        executor = CommandExecutor(ai_tool.id, ai_tool.command)
         logger.debug('[DEBUG] AIツール実行クラス作成完了')
 
         logger.debug(

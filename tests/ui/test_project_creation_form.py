@@ -34,12 +34,12 @@ class TestProjectCreationForm:
             AITool(
                 name_ja='テストツール1',
                 description='テスト用のAIツール',
-                endpoint_url='https://api.example.com/test1',
+                command='curl -X GET https://api.example.com/test1',
             ),
             AITool(
                 name_ja='テストツール2',
                 description='テスト用のAIツール2',
-                endpoint_url='https://api.example.com/test2',
+                command='curl -X GET https://api.example.com/test2',
             ),
         ]
 

@@ -4,7 +4,9 @@ from uuid import UUID
 
 from app.errors import (
     APIConfigurationError,
-    BaseError,
+    AppError,
+    CommandExecutionError,
+    CommandSecurityError,
     DataManagerError,
     FileDeletingError,
     FileProcessingError,
@@ -21,22 +23,80 @@ from app.errors import (
 from app.models import AIToolID, ProjectID
 
 
-class TestBaseError:
-    """BaseErrorのテストクラス。"""
+class TestAppError:
+    """AppErrorのテストクラス。"""
 
-    def test_BaseErrorがExceptionを継承している(self) -> None:
-        """BaseErrorがExceptionを継承していることをテスト。"""
+    def test_AppErrorがExceptionを継承している(self) -> None:
+        """AppErrorがExceptionを継承していることをテスト。"""
         # Assert
-        assert issubclass(BaseError, Exception)
+        assert issubclass(AppError, Exception)
+
+
+class TestCommandExecutionError:
+    """CommandExecutionErrorのテストクラス。"""
+
+    def test_CommandExecutionErrorがAppErrorを継承している(self) -> None:
+        """CommandExecutionErrorがAppErrorを継承していることをテスト。"""
+        # Assert
+        assert issubclass(CommandExecutionError, AppError)
+
+    def test_コマンドとカスタムメッセージでCommandExecutionErrorが作成される(self) -> None:
+        """コマンドとカスタムメッセージでCommandExecutionErrorが作成されることをテスト。"""
+        # Act
+        error = CommandExecutionError('python script.py', 'Script failed to execute')
+
+        # Assert
+        assert error.command == 'python script.py'
+        assert error.message == 'Script failed to execute'
+        assert str(error) == 'Script failed to execute: python script.py'
+
+    def test_デフォルトメッセージでCommandExecutionErrorが作成される(self) -> None:
+        """デフォルトメッセージでCommandExecutionErrorが作成されることをテスト。"""
+        # Act
+        error = CommandExecutionError('node app.js')
+
+        # Assert
+        assert error.command == 'node app.js'
+        assert error.message == 'Command execution failed'
+        assert str(error) == 'Command execution failed: node app.js'
+
+
+class TestCommandSecurityError:
+    """CommandSecurityErrorのテストクラス。"""
+
+    def test_CommandSecurityErrorがAppErrorを継承している(self) -> None:
+        """CommandSecurityErrorがAppErrorを継承していることをテスト。"""
+        # Assert
+        assert issubclass(CommandSecurityError, AppError)
+
+    def test_コマンドとカスタムメッセージでCommandSecurityErrorが作成される(self) -> None:
+        """コマンドとカスタムメッセージでCommandSecurityErrorが作成されることをテスト。"""
+        # Act
+        error = CommandSecurityError('rm -rf /', 'Dangerous command detected')
+
+        # Assert
+        assert error.command == 'rm -rf /'
+        assert error.message == 'Dangerous command detected'
+        assert str(error) == 'Dangerous command detected: rm -rf /'
+
+    def test_デフォルトメッセージでCommandSecurityErrorが作成される(self) -> None:
+        """デフォルトメッセージでCommandSecurityErrorが作成されることをテスト。"""
+        # Act
+        error = CommandSecurityError('sudo password')
+
+        # Assert
+        assert error.command == 'sudo password'
+        assert error.message == 'Security violation detected'
+        assert str(error) == 'Security violation detected: sudo password'
 
 
 class TestFormValidationError:
     """FormValidationErrorのテストクラス。"""
 
-    def test_FormValidationErrorがBaseErrorを継承している(self) -> None:
-        """FormValidationErrorがBaseErrorを継承していることをテスト。"""
+    def test_FormValidationErrorがAppErrorを継承している(self) -> None:
+        """FormValidationErrorがAppErrorを継承していることをテスト。"""
         # Assert
-        assert issubclass(FormValidationError, BaseError)
+        assert issubclass(FormValidationError, AppError)
 
 
 class TestRequiredFieldsEmptyError:

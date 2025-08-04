@@ -53,7 +53,7 @@ class TestAIToolCreation:
         page.get_by_label('説明').fill('テスト用のツール新規')
         page.wait_for_timeout(500)  # 入力の完了を待つ
 
-        page.get_by_label('エンドポイントURL').fill('https://example.com/api')
+        page.get_by_label('コマンド').fill('python -c "print("Hello, World!")"')
         page.wait_for_timeout(500)  # 入力の完了を待つ
 
         # 登録ボタンをクリック
@@ -95,7 +95,7 @@ class TestAIToolCreation:
         # When
         page.get_by_label('ツール名').fill('')
         page.get_by_label('説明').fill('テスト用のツール')
-        page.get_by_label('エンドポイントURL').fill('https://example.com/api')
+        page.get_by_label('コマンド').fill('python -c "print("test result")"')
         page.get_by_role('button', name='登録').first.click()
         page.wait_for_timeout(1000)
 
@@ -121,18 +121,18 @@ class TestAIToolCreation:
         page.get_by_role('button', name='新規AIツール登録').click()
         page.get_by_label('ツール名').fill('テストツール無効URL')
         page.get_by_label('説明').fill('テスト用のツール無効URL')
-        page.get_by_label('エンドポイントURL').fill('invalid-url')
+        page.get_by_label('コマンド').fill('')
         page.get_by_role('button', name='登録').first.click()
         page.wait_for_timeout(1000)
 
         # Then
         try:
-            expect(
-                page.get_by_text('エンドポイントURLは有効なURLである必要があります。')
-            ).to_be_visible(timeout=5000)
+            expect(page.get_by_text('コマンドは必須です。')).to_be_visible(timeout=5000)
         except Exception as e:
-            print(f'URLバリデーションエラーメッセージの確認でエラー: {e}')
-            print('URLバリデーションエラーメッセージの確認に失敗しましたが、テストを続行します。')
+            print(f'コマンドバリデーションエラーメッセージの確認でエラー: {e}')
+            print(
+                'コマンドバリデーションエラーメッセージの確認に失敗しましたが、テストを続行します。'
+            )
 
     def test_空の説明でツールを作成できない(self, page_with_ai_tool_management: Page) -> None:
         """空の説明でツールを作成できないことをテスト。"""
@@ -143,7 +143,7 @@ class TestAIToolCreation:
         page.get_by_role('button', name='新規AIツール登録').click()
         page.get_by_label('ツール名').fill('テストツール空説明')
         page.get_by_label('説明').fill('')
-        page.get_by_label('エンドポイントURL').fill('https://example.com/api')
+        page.get_by_label('コマンド').fill('python -c "print("test command")"')
         page.get_by_role('button', name='登録').first.click()
         page.wait_for_timeout(1000)
 
@@ -154,26 +154,26 @@ class TestAIToolCreation:
             print(f'説明バリデーションエラーメッセージの確認でエラー: {e}')
             print('説明バリデーションエラーメッセージの確認に失敗しましたが、テストを続行します。')
 
-    def test_空のURLでツールを作成できない(self, page_with_ai_tool_management: Page) -> None:
-        """空のURLでツールを作成できないことをテスト。"""
+    def test_空のコマンドでツールを作成できない(self, page_with_ai_tool_management: Page) -> None:
+        """空のコマンドでツールを作成できないことをテスト。"""
         # Given
         page = page_with_ai_tool_management
 
         # When
         page.get_by_role('button', name='新規AIツール登録').click()
-        page.get_by_label('ツール名').fill('テストツール空URL')
-        page.get_by_label('説明').fill('テスト用のツール空URL')
-        page.get_by_label('エンドポイントURL').fill('')
+        page.get_by_label('ツール名').fill('テストツール空コマンド')
+        page.get_by_label('説明').fill('テスト用のツール空コマンド')
+        page.get_by_label('コマンド').fill('')
         page.get_by_role('button', name='登録').first.click()
         page.wait_for_timeout(1000)
 
         # Then
         try:
-            expect(page.get_by_text('エンドポイントURLは必須です。')).to_be_visible(timeout=5000)
+            expect(page.get_by_text('コマンドは必須です。')).to_be_visible(timeout=5000)
         except Exception as e:
-            print(f'URL必須バリデーションエラーメッセージの確認でエラー: {e}')
+            print(f'コマンド必須バリデーションエラーメッセージの確認でエラー: {e}')
             print(
-                'URL必須バリデーションエラーメッセージの確認に失敗しましたが、テストを続行します。'
+                'コマンド必須バリデーションエラーメッセージの確認に失敗しましたが、テストを続行します。'
             )
 
 
@@ -197,7 +197,7 @@ class TestAIToolList:
         page.get_by_role('button', name='新規AIツール登録').click()
         page.get_by_label('ツール名').fill('test_tool_list')
         page.get_by_label('説明').fill('テスト用リスト')
-        page.get_by_label('エンドポイントURL').fill('https://example.com/api')
+        page.get_by_label('コマンド').fill('python -c "print("list test")"')
         page.get_by_role('button', name='登録').first.click()
         page.wait_for_timeout(1000)
 
@@ -231,7 +231,7 @@ class TestAIToolEdit:
         page.get_by_role('button', name='新規AIツール登録').click()
         page.get_by_label('ツール名').fill('test_tool_edit')
         page.get_by_label('説明').fill('テスト用編集')
-        page.get_by_label('エンドポイントURL').fill('https://example.com/api')
+        page.get_by_label('コマンド').fill('python -c "print("edit test")"')
         page.get_by_role('button', name='登録').first.click()
         page.wait_for_timeout(3000)
 
@@ -273,7 +273,7 @@ class TestAIToolEdit:
         page.get_by_role('button', name='編集').first.click()
         page.get_by_label('ツール名').fill('テストツール編集済み')
         page.get_by_label('説明').fill('テスト用のツール編集済み')
-        page.get_by_label('エンドポイントURL').fill('https://example.com/api/edited')
+        page.get_by_label('コマンド').fill('python -c "print("edited test")"')
         page.get_by_role('button', name='更新').first.click()
         page.wait_for_timeout(1000)
 
@@ -293,8 +293,105 @@ class TestAIToolEdit:
         # Then
         expect(page.get_by_text('無効')).to_be_visible(timeout=5000)
 
-    # TODO: 無効化されたツールの有効化機能は、現在の仕様では一覧に表示されないため実装できない
-    # 将来的に無効化されたツールも表示する仕様に変更された場合に、このテストを有効化する
+
+class TestAIToolCommandExecution:
+    """AIツールのUnixコマンド実行機能のテスト。"""
+
+    def test_正常なコマンドでAIツールを作成できる(self, page_with_ai_tool_management: Page) -> None:
+        """正常なコマンドでAIツールを作成できることをテスト。"""
+        # Given
+        page = page_with_ai_tool_management
+
+        # When
+        page.get_by_role('button', name='新規AIツール登録').click()
+        page.get_by_label('ツール名').fill('コマンド実行テスト')
+        page.get_by_label('説明').fill('Unixコマンド実行のテスト')
+        page.get_by_label('コマンド').fill('echo "Hello from command"')
+        page.get_by_role('button', name='登録').first.click()
+        page.wait_for_timeout(3000)
+
+        # Then
+        page.reload()
+        page.wait_for_timeout(2000)
+        expect(page.get_by_text('コマンド実行テスト')).to_be_visible(timeout=10000)
+
+    def test_Pythonコマンドでツールを作成できる(self, page_with_ai_tool_management: Page) -> None:
+        """Pythonコマンドでツールを作成できることをテスト。"""
+        # Given
+        page = page_with_ai_tool_management
+
+        # When
+        page.get_by_role('button', name='新規AIツール登録').click()
+        page.get_by_label('ツール名').fill('Pythonコマンドテスト')
+        page.get_by_label('説明').fill('Pythonコマンド実行のテスト')
+        page.get_by_label('コマンド').fill('python -c "import sys; print(sys.version_info)"')
+        page.get_by_role('button', name='登録').first.click()
+        page.wait_for_timeout(3000)
+
+        # Then
+        page.reload()
+        page.wait_for_timeout(2000)
+        expect(page.get_by_text('Pythonコマンドテスト')).to_be_visible(timeout=10000)
+
+    def test_複雑なコマンドでツールを作成できる(self, page_with_ai_tool_management: Page) -> None:
+        """複雑なコマンドでツールを作成できることをテスト。"""
+        # Given
+        page = page_with_ai_tool_management
+
+        # When
+        page.get_by_role('button', name='新規AIツール登録').click()
+        page.get_by_label('ツール名').fill('複雑コマンドテスト')
+        page.get_by_label('説明').fill('複雑なコマンド実行のテスト')
+        # パイプを使った複雑なコマンド
+        page.get_by_label('コマンド').fill(r'ls -la | grep "^\." | wc -l')
+        page.get_by_role('button', name='登録').first.click()
+        page.wait_for_timeout(3000)
+
+        # Then
+        page.reload()
+        page.wait_for_timeout(2000)
+        expect(page.get_by_text('複雑コマンドテスト')).to_be_visible(timeout=10000)
+
+    def test_引数付きコマンドでツールを作成できる(self, page_with_ai_tool_management: Page) -> None:
+        """引数付きコマンドでツールを作成できることをテスト。"""
+        # Given
+        page = page_with_ai_tool_management
+
+        # When
+        page.get_by_role('button', name='新規AIツール登録').click()
+        page.get_by_label('ツール名').fill('引数付きコマンドテスト')
+        page.get_by_label('説明').fill('引数付きコマンド実行のテスト')
+        page.get_by_label('コマンド').fill('node -e "console.log(process.argv.slice(2))" arg1 arg2')
+        page.get_by_role('button', name='登録').first.click()
+        page.wait_for_timeout(3000)
+
+        # Then
+        page.reload()
+        page.wait_for_timeout(2000)
+        expect(page.get_by_text('引数付きコマンドテスト')).to_be_visible(timeout=10000)
+
+    def test_環境変数を使うコマンドでツールを作成できる(
+        self, page_with_ai_tool_management: Page
+    ) -> None:
+        """環境変数を使うコマンドでツールを作成できることをテスト。"""
+        # Given
+        page = page_with_ai_tool_management
+
+        # When
+        page.get_by_role('button', name='新規AIツール登録').click()
+        page.get_by_label('ツール名').fill('環境変数コマンドテスト')
+        page.get_by_label('説明').fill('環境変数を使うコマンド実行のテスト')
+        page.get_by_label('コマンド').fill('echo "Current user: $USER"')
+        page.get_by_role('button', name='登録').first.click()
+        page.wait_for_timeout(3000)
+
+        # Then
+        page.reload()
+        page.wait_for_timeout(2000)
+        expect(page.get_by_text('環境変数コマンドテスト')).to_be_visible(timeout=10000)
+
+    # 現在の仕様では無効化されたツールは一覧に表示されないため、有効化機能のテストは保留
+    # 将来的に無効化されたツールも表示する仕様に変更された場合に有効化する
     # def test_無効化されたツールを有効化できる(self, page_with_ai_tool_management: Page) -> None:
     #     # Given
     #     page = page_with_ai_tool_management

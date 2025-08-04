@@ -211,9 +211,12 @@ max-statements = 15 # 関数内の文の最大数（可読性保持、LLM品質�
 
 [tool.mypy]
 python_version = "3.12" # 対象Pythonバージョン
-strict = true # 厳格モード有効（高品質コード保証）
+strict = true           # 厳格モード有効（高品質コード保証）
 show_error_codes = true # エラーコードを表示（精密な制御のため）
-pretty = true # 色付きで見やすいエラー表示
+pretty = true           # 色付きで見やすいエラー表示
+
+exclude = ["ait"]
+
 enable_error_code = [
     "truthy-bool",
     "redundant-expr",
@@ -309,5 +312,7 @@ ignore_names = [
     "side_effect",
     "__enter__",
     "__exit__",
+    "cls",
+    "validate_command_not_empty",
 ]
 ignore_decorators = ["@pytest.fixture"]

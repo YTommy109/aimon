@@ -3,7 +3,7 @@
 ## 1. 概要
 
 このドキュメントは、AIツール連携Webアプリケーションの仕様を定義するものです。
-このシステムは、**AIツールをAPIとして提供するAzure Functions**を呼び出して、ローカルファイルシステム上のテキストファイル群に対する処理を非同期に実行し、その進捗と結果を管理します。
+このシステムは、**AIツールをUnixコマンドとして提供**し、ローカルファイルシステム上のファイル群に対する処理を非同期に実行し、その進捗と結果を管理します。
 
 ## 2. システム構成
 
@@ -11,7 +11,7 @@
 
 - **フロントエンド**: Streamlitベースのユーザーインターフェース
 - **バックエンド**:
-  - Azure Functions上で動作するAIツール群
+  - Unixコマンドとして提供されるAIツール群
   - ローカルで動作する非同期処理エンジン
 - **データストア**: ローカルファイルシステム上のJSONファイル
 
@@ -42,11 +42,11 @@ graph TB
         JPR[JsonProjectRepository]
         JAR[JsonAIToolRepository]
         FP[FileProcessor]
-        AFE[AzureFunctionsExecutor]
+        CME[CommandExecutor]
     end
     
     subgraph "External"
-        AF[Azure Functions]
+        UC[Unix Commands]
         FS[File System]
     end
     
@@ -58,7 +58,7 @@ graph TB
     JPR --> E
     JAR --> E
     FP --> FS
-    AFE --> AF
+    CME --> UC
 ```
 
 ### 2.3. レイヤー別責務
@@ -91,7 +91,7 @@ graph TB
   - `JsonProjectRepository`: プロジェクトデータのJSON永続化
   - `JsonAIToolRepository`: AIツールデータのJSON永続化
   - `FileProcessor`: ファイル処理ロジック
-  - `AzureFunctionsExecutor`: Azure Functions API連携
+  - `CommandExecutor`: Unixコマンド実行エンジン
 
 ### 2.4. 開発環境
 
@@ -175,12 +175,12 @@ graph TB
 ### 3.2. AIツール実行機能
 
 - **実行エンジン**:
-  - AIツールは**Azure FunctionsのAPIエンドポイント**として提供され、本アプリケーションはそれを呼び出します。
-  - **注**: 開発段階では、Azure Functions環境が未整備のため、暫定的にGoogle Gemini APIを直接呼び出して代替しています。
+  - AIツールは**Unixコマンド**として提供され、本アプリケーションはsubprocessでそれを呼び出します。
+  - 各AIツールは独自のファイルパース機能を持ち、指定されたディレクトリ内のファイルを処理します。
 - **処理フロー**:
-    1. 指定された「対象ディレクトリのパス」内にあるすべての`.txt`および`.xlsx`ファイルを処理対象とします。
-    2. 各ファイルの内容を読み込み、Azure Functions上のAIツールに送信します。
-    3. APIから得られた結果を、対象ディレクトリ内に適切なファイル名で保存します。
+    1. 指定された「対象ディレクトリのパス」をAIツールのUnixコマンドに引数として渡します。
+    2. subprocessでUnixコマンドを実行し、AIツールがディレクトリ内のファイルを処理します。
+    3. AIツールが処理結果を適切なファイル名で対象ディレクトリ内に保存します。
     4. 処理が完了したら、プロジェクトのステータスを「完了」に更新し、終了日時を記録します。
 
 ### 3.3. AIツール管理機能
@@ -195,7 +195,7 @@ graph TB
 
 - **AIツール一覧表示**:
   - `ai_tools.json` に登録されているAIツールを一覧で表示します。
-  - 表示項目: `ID`, `ツール名`, `説明`, `登録日時`, `最終更新日時`, `状態`
+  - 表示項目: `ID`, `ツール名`, `説明`, `コマンド`, `登録日時`, `最終更新日時`, `状態`
   - 各行に「編集」「無効化/有効化」ボタンを配置します。
 - **AIツール登録**:
   - 「新規ツール登録」ボタンを配置します。
@@ -203,6 +203,7 @@ graph TB
     - ツールID (`id`): 半角英数字とハイフンのみ。
     - ツール名 (`name_ja`)
     - 説明 (`description`)
+    - コマンド (`command`): 実行するUnixコマンド（例: `python /path/to/tool.py`）
 - **AIツール編集**:
   - 「編集」ボタンを押すと、登録時と同様のモーダルが開き、既存の情報を編集できます。
 - **AIツール状態変更**:
@@ -216,11 +217,12 @@ graph TB
 - **目的**: システムで利用可能なAIツールの定義を管理します。
 - **形式**: JSON
 - **ファイル名**: `ai_tools.json`
-- **エンティティ**: AITool (app/domain/entities.py)
+- **エンティティ**: AITool (app/models/ai_tool.py)
 - **主要項目**:
   - `id` (str): ツールの一意識別子（半角英数字とハイフン）
   - `name_ja` (str): ツールの日本語名
   - `description` (str): ツールの説明文
+  - `command` (str): 実行するUnixコマンド
   - `created_at` (datetime): 作成日時（日本時間）
   - `updated_at` (datetime): 最終更新日時（日本時間）
   - `disabled_at` (datetime | None): 無効化日時（論理削除用、有効な場合はnull）
@@ -233,6 +235,7 @@ graph TB
     "id": "meeting-summarizer",
     "name_ja": "会議議事録要約",
     "description": "会議の音声や議事録を要約してアクションアイテムを抽出",
+    "command": "python /usr/local/bin/meeting-summarizer.py",
     "created_at": "2024-01-15T10:30:00+09:00",
     "updated_at": "2024-01-15T10:30:00+09:00",
     "disabled_at": null
@@ -241,6 +244,7 @@ graph TB
     "id": "document-analyzer",
     "name_ja": "文書分析",
     "description": "複数の文書から重要な情報を抽出・分析",
+    "command": "node /usr/local/bin/document-analyzer.js",
     "created_at": "2024-01-16T14:20:00+09:00",
     "updated_at": "2024-01-20T09:15:00+09:00",
     "disabled_at": "2024-01-25T16:45:00+09:00"
@@ -271,8 +275,8 @@ graph TB
    - カバレッジ目標: 80%以上
 
 2. **インテグレーションテスト**:
-   - 対象: モジュール間の連携、外部APIとの通信
-   - 特記: Azure Functions環境が未整備の間は、モックを使用
+   - 対象: モジュール間の連携、Unixコマンドとの通信
+   - 特記: テスト用のモックコマンドを使用
 
 3. **E2Eテスト**:
    - 対象: ユーザーインターフェースを含むシステム全体
@@ -319,8 +323,9 @@ graph TB
 
 ### 6.4. セキュリティ要件
 
-- **API認証情報**:
-  - 認証情報の安全な管理
+- **コマンド実行**:
+  - 実行するコマンドの適切な検証
+  - 危険なコマンドの実行防止
   - ログやエラーメッセージでの機密情報の保護
 
 - **ファイルアクセス**:

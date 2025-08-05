@@ -179,7 +179,8 @@ vulture path='':
     set -euo pipefail
 
     if [[ '{{path}}' == '' ]]; then
-        vulture app pages tests tests_e2e
+        # テストを除外してアプリケーションコードのみをチェック
+        vulture app pages
     else
         vulture {{path}}
     fi

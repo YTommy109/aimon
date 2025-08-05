@@ -75,15 +75,9 @@ class CommandExecutor:
                 'output': output,
             }
         except subprocess.TimeoutExpired as e:
-            logger.error(f'[ERROR] Command execution timed out after {config.COMMAND_TIMEOUT}s')
-            raise CommandExecutionError(
-                self.command, f'Command timed out after {config.COMMAND_TIMEOUT} seconds'
-            ) from e
+            raise CommandExecutionError(self.command, timeout_seconds=config.COMMAND_TIMEOUT) from e
         except subprocess.CalledProcessError as e:
-            logger.error(f'[ERROR] Command execution failed: {e.stderr}')
-            raise CommandExecutionError(
-                self.command, f'Command execution failed: {e.stderr}'
-            ) from e
+            raise CommandExecutionError(self.command, stderr=e.stderr) from e
 
     def _validate_command_security(self) -> None:
         """Validate command against security policies.
@@ -116,7 +110,7 @@ class CommandExecutor:
         if len(self.command) > config.MAX_COMMAND_LENGTH:
             raise CommandSecurityError(
                 self.command,
-                f'Command exceeds maximum length of {config.MAX_COMMAND_LENGTH} characters',
+                reason=f'コマンドが最大長 {config.MAX_COMMAND_LENGTH} 文字を超えています',
             )
 
     def _validate_blocked_commands(self) -> None:
@@ -124,7 +118,7 @@ class CommandExecutor:
         for blocked in config.BLOCKED_COMMANDS:
             if blocked in self.command:
                 raise CommandSecurityError(
-                    self.command, f'Command contains blocked pattern: {blocked}'
+                    self.command, reason=f'ブロックされたパターンが含まれています: {blocked}'
                 )
 
     def _validate_allowed_prefixes(self) -> None:
@@ -143,5 +137,6 @@ class CommandExecutor:
         if not is_allowed:
             allowed_list = ', '.join(config.ALLOWED_COMMAND_PREFIXES)
             raise CommandSecurityError(
-                self.command, f'Command must start with one of the allowed prefixes: {allowed_list}'
+                self.command,
+                reason=f'許可されたプレフィックスで始まる必要があります: {allowed_list}',
             )

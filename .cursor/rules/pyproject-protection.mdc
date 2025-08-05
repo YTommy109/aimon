@@ -1,7 +1,6 @@
 ---
 alwaysApply: true
 ---
-
 # pyproject.toml 保護ルール
 
 ## 重要な制限事項

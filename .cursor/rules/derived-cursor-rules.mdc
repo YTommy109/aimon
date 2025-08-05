@@ -33,12 +33,36 @@ globs: *
 - The AI coding assistant must validate that the command string contains the `{source_path}` placeholder before execution, if the placeholder is present in the command. If the placeholder is not present, the command will be executed as is.
 - The working directory for command execution should remain the Streamlit app's launch directory. Do not set `cwd` in `subprocess.run`.
 - AI tool commands should be configured to specify the target directory using the `{source_path}` placeholder (e.g., `ait analyze {source_path}`).
+- The AI coding assistant should ensure that commands like `pushd` and `popd` are included in the list of allowed command prefixes if they are used in the execution of AI tools.
+- When using `subprocess` to execute commands, be aware that login shells (e.g., `.zshrc`, `.bashrc`) are not automatically loaded. To ensure environment variables are correctly set, consider the following approaches:
+    - **Direct Environment Variable Setting:** Set environment variables directly in the `env` argument of `subprocess.run`.
+    - **Loading `.envrc`:** Load environment variables from the `.envrc` file and pass them to `subprocess.run`.
+    - **Shell Execution:** Execute commands through the shell to force loading of login shell configurations (e.g., using `zsh -c "source ~/.zshrc && command"`).
+
+### Data Serialization Rules
+
+- When using Pydantic's `model_dump` method for serializing models to JSON:
+    - The AI coding assistant should be aware that `@property` attributes are included by default.
+    - To exclude `@property` attributes, use the `exclude` parameter in `model_dump`. For example: `model_dump(mode='json', exclude={'attribute_name'})`.
+    - This is particularly important for calculated properties that should not be persisted in the data store (e.g., a `status` property derived from date fields).
+- When saving project data, exclude the `status` attribute from the `Project` model when using `model_dump` to prevent it from being written to `projects.json`.
+
+### ValueError Handling
+- The AI coding assistant should be aware of the common causes of `ValueError` in the project:
+    - **Empty AI Tool Command:** When creating or updating an AI tool, the `command` field cannot be an empty string or contain only whitespace.
+    - **Invalid Project ID:** The project ID must be a valid UUID format.
+    - **AI Tool Not Found:** When retrieving an AI tool by ID, the ID must exist in the repository.
 
 ## TECH STACK
 
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
 
 ## CODING STANDARDS
+
+### Exception Handling and Logging
+
+- **Exception Messages:** When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
+- **Centralized Logging:** Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged.
 
 ## DEBUGGING
 
@@ -57,3 +81,10 @@ globs: *
 
 - Important configuration files should be treated as read-only within Git.
 - Example: `pyproject.toml -text` in `.gitattributes` marks the file as read-only.
+
+## VULTURE CONFIGURATION RULES
+
+- When running `vulture`, target application code (e.g., `app` and `pages`) and exclude test directories (e.g., `tests`, `tests_e2e`) to accurately identify unused code in the application.
+- Set the minimum confidence level for `vulture` to 60 to ensure that potential unused code is detected, while minimizing false positives.
+- Add any excluded files to the `exclude` list in `pyproject.toml` under the `[tool.vulture]` section.
+- Add any ignored names to the `ignore_names` list in `pyproject.toml` under the `[tool.vulture]` section.

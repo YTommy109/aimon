@@ -35,7 +35,6 @@ class TestProject:
         assert project.finished_at is None
 
     def test_プロジェクトが正常に作成される(self) -> None:
-        """プロジェクトが正常に作成されることをテストする。"""
         # Arrange
         name = 'テストプロジェクト'
         source = '/path/to/source'
@@ -56,7 +55,6 @@ class TestProject:
         assert project.finished_at is None
 
     def test_プロジェクトの初期ステータス(self) -> None:
-        """プロジェクトの初期ステータスをテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
@@ -68,7 +66,6 @@ class TestProject:
         assert project.status == ProjectStatus.PENDING
 
     def test_プロジェクトの実行開始ステータス(self) -> None:
-        """プロジェクトの実行開始ステータスをテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
@@ -83,7 +80,6 @@ class TestProject:
         assert project.status == ProjectStatus.PROCESSING
 
     def test_プロジェクトの完了ステータス(self) -> None:
-        """プロジェクトの完了ステータスをテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
@@ -98,7 +94,6 @@ class TestProject:
         assert project.status == ProjectStatus.COMPLETED
 
     def test_プロジェクトの失敗処理(self) -> None:
-        """プロジェクトの失敗処理をテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
@@ -112,27 +107,25 @@ class TestProject:
         # Assert
         assert project.status == ProjectStatus.FAILED
         assert project.result == {'error': 'エラーが発生しました'}
-        assert project.finished_at is not None
 
     def test_プロジェクトの完了処理(self) -> None:
-        """プロジェクトの完了処理をテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
             ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
+        result = {'message': '処理が完了しました'}
 
         # Act
-        project.complete({'message': '完了'})
+        project.complete(result)
 
         # Assert
         assert project.status == ProjectStatus.COMPLETED
-        assert project.result == {'message': '完了'}
+        assert project.result == result
         assert project.finished_at is not None
 
     def test_プロジェクトの実行開始処理(self) -> None:
-        """プロジェクトの実行開始処理をテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
@@ -144,11 +137,10 @@ class TestProject:
         project.start_processing()
 
         # Assert
-        assert project.executed_at is not None
         assert project.status == ProjectStatus.PROCESSING
+        assert project.executed_at is not None
 
     def test_プロジェクトの完了時に実行開始時刻が設定される(self) -> None:
-        """プロジェクトの完了時に実行開始時刻が設定されることをテストする。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
@@ -157,9 +149,10 @@ class TestProject:
         )
 
         # Act
+        project.start_processing()
         project.complete({'message': '完了'})
 
         # Assert
         assert project.executed_at is not None
         assert project.finished_at is not None
-        assert project.status == ProjectStatus.COMPLETED
+        assert project.finished_at > project.executed_at

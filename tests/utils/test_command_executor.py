@@ -190,7 +190,7 @@ class TestCommandExecutor:
         command = 'echo "' + 'x' * 1000 + '"'
 
         # Act & Assert
-        with pytest.raises(CommandSecurityError, match='Command exceeds maximum length'):
+        with pytest.raises(CommandSecurityError, match='コマンドが最大長'):
             CommandExecutor(ai_tool_id, command)
 
     def test_ブロックされたコマンドがセキュリティエラーを発生させる(self) -> None:
@@ -201,7 +201,9 @@ class TestCommandExecutor:
 
         for command in blocked_commands:
             # Act & Assert
-            with pytest.raises(CommandSecurityError, match='Command contains blocked pattern'):
+            with pytest.raises(
+                CommandSecurityError, match='ブロックされたパターンが含まれています'
+            ):
                 CommandExecutor(ai_tool_id, command)
 
     @patch('app.config.config.ALLOWED_COMMAND_PREFIXES', ['python', 'node'])
@@ -213,7 +215,7 @@ class TestCommandExecutor:
 
         # Act & Assert
         with pytest.raises(
-            CommandSecurityError, match='Command must start with one of the allowed prefixes'
+            CommandSecurityError, match='許可されたプレフィックスで始まる必要があります'
         ):
             CommandExecutor(ai_tool_id, command)
 
@@ -223,6 +225,22 @@ class TestCommandExecutor:
         # Arrange
         ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
         commands = ['python script.py', 'node app.js']
+
+        for command in commands:
+            # Act (例外が発生しないことを確認)
+            executor = CommandExecutor(ai_tool_id, command)
+
+            # Assert
+            assert executor.command == command
+
+    def test_pushd_popdコマンドが許可されている(self) -> None:
+        """pushdとpopdコマンドが許可されていることをテスト。"""
+        # Arrange
+        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        commands = [
+            'pushd ait && python -m ait.main OVERVIEW -d {source_path} && popd',
+            'pushd /tmp && ls && popd',
+        ]
 
         for command in commands:
             # Act (例外が発生しないことを確認)
@@ -272,7 +290,7 @@ class TestCommandExecutor:
         mock_subprocess_run.side_effect = subprocess.TimeoutExpired(command, 300)
 
         # Act & Assert
-        with pytest.raises(CommandExecutionError, match='Command timed out after'):
+        with pytest.raises(CommandExecutionError, match='コマンドが.*秒でタイムアウトしました'):
             executor.execute(project_id, source_path)
 
     def test_新しいCommandExecutionErrorが発生する(self, mocker: MockerFixture) -> None:

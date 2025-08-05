@@ -60,7 +60,7 @@ class JsonAIToolRepository:
         try:
             return next(tool for tool in tools if tool.id == tool_id)
         except StopIteration:
-            raise ResourceNotFoundError('AIツール', str(tool_id)) from None
+            raise ResourceNotFoundError('AIツール', tool_id) from None
 
     def save(self, ai_tool: AITool) -> None:
         """AIツールを保存します。"""

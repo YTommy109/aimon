@@ -44,7 +44,6 @@ class TestProjectCreationForm:
         ]
 
     def test_AIツールオプションが正しく作成される(self, sample_ai_tools: list[AITool]) -> None:
-        """AIツールオプションが正しく作成されることをテスト。"""
         # Act
         all_options, ai_tool_options = project_creation_form._create_ai_tool_options(
             sample_ai_tools
@@ -60,7 +59,6 @@ class TestProjectCreationForm:
         assert ai_tool_options[sample_ai_tools[1].id] == 'テストツール2 (テスト用のAIツール2)'
 
     def test_AIツールフォーマットが正しく動作する(self, sample_ai_tools: list[AITool]) -> None:
-        """AIツールフォーマットが正しく動作することをテスト。"""
         # Arrange
         _, ai_tool_options = project_creation_form._create_ai_tool_options(sample_ai_tools)
 
@@ -71,7 +69,6 @@ class TestProjectCreationForm:
         assert result == 'テストツール1 (テスト用のAIツール)'
 
     def test_セパレータのフォーマットが正しく動作する(self, sample_ai_tools: list[AITool]) -> None:
-        """セパレータのフォーマットが正しく動作することをテスト。"""
         # Arrange
         _, ai_tool_options = project_creation_form._create_ai_tool_options(sample_ai_tools)
 
@@ -82,15 +79,14 @@ class TestProjectCreationForm:
         assert result == '--- 内蔵ツール ---'
 
     def test_有効な入力値の検証が成功する(self) -> None:
-        """有効な入力値の検証が成功することをテスト。"""
         # Arrange
         project_name = 'テストプロジェクト'
-        source_dir = '/test/path'
-        selected_ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        source = '/test/path'
+        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         is_valid, error_message = project_creation_form._validate_project_inputs(
-            project_name, source_dir, selected_ai_tool_id
+            project_name, source, ai_tool
         )
 
         # Assert
@@ -98,15 +94,14 @@ class TestProjectCreationForm:
         assert error_message == ''
 
     def test_無効な入力値の検証が失敗する(self) -> None:
-        """無効な入力値の検証が失敗することをテスト。"""
         # Arrange
-        project_name = ''
-        source_dir = '/test/path'
-        selected_ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        project_name = ''  # 空の名前
+        source = '/test/path'
+        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         is_valid, error_message = project_creation_form._validate_project_inputs(
-            project_name, source_dir, selected_ai_tool_id
+            project_name, source, ai_tool
         )
 
         # Assert
@@ -114,15 +109,14 @@ class TestProjectCreationForm:
         assert 'プロジェクト名と対象ディレクトリのパスを入力してください' in error_message
 
     def test_AIツールが選択されていない場合の検証が失敗する(self) -> None:
-        """AIツールが選択されていない場合の検証が失敗することをテスト。"""
         # Arrange
         project_name = 'テストプロジェクト'
-        source_dir = '/test/path'
-        selected_ai_tool_id = None
+        source = '/test/path'
+        selected_ai_tool_id = None  # AIツールが選択されていない
 
         # Act
         is_valid, error_message = project_creation_form._validate_project_inputs(
-            project_name, source_dir, selected_ai_tool_id
+            project_name, source, selected_ai_tool_id
         )
 
         # Assert
@@ -130,46 +124,41 @@ class TestProjectCreationForm:
         assert 'AIツールを選択してください' in error_message
 
     def test_AIツールの存在確認が成功する(self, mock_ai_tool_service: Mock) -> None:
-        """AIツールの存在確認が成功することをテスト。"""
         # Arrange
-        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        ai_tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
         mock_ai_tool_service.get_ai_tool_by_id.return_value = Mock()
 
         # Act
-        result = project_creation_form._validate_ai_tool_exists(
-            AIToolID(ai_tool_id), mock_ai_tool_service
-        )
+        result = project_creation_form._validate_ai_tool_exists(ai_tool_id, mock_ai_tool_service)
 
         # Assert
         assert result is True
         mock_ai_tool_service.get_ai_tool_by_id.assert_called_once_with(ai_tool_id)
 
     def test_AIツールの存在確認が失敗する(self, mock_ai_tool_service: Mock) -> None:
-        """AIツールの存在確認が失敗することをテスト。"""
         # Arrange
-        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        ai_tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
         mock_ai_tool_service.get_ai_tool_by_id.side_effect = ResourceNotFoundError(
-            'AIツール', AIToolID(ai_tool_id)
+            'AIツール', ai_tool_id
         )
 
         # Act
-        result = project_creation_form._validate_ai_tool_exists(
-            AIToolID(ai_tool_id), mock_ai_tool_service
-        )
+        result = project_creation_form._validate_ai_tool_exists(ai_tool_id, mock_ai_tool_service)
 
         # Assert
         assert result is False
+        mock_ai_tool_service.get_ai_tool_by_id.assert_called_once_with(ai_tool_id)
 
     def test_プロジェクト作成の検証が成功する(
         self, mock_project_service: Mock, mock_ai_tool_service: Mock
     ) -> None:
-        """プロジェクト作成の検証が成功することをテスト。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
             source='/test/path',
             ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
+
         mock_ai_tool_service.get_ai_tool_by_id.return_value = Mock()
         mock_project_service.create_project.return_value = project
 
@@ -185,14 +174,16 @@ class TestProjectCreationForm:
     def test_AIツールが見つからない場合のプロジェクト作成が失敗する(
         self, mock_project_service: Mock, mock_ai_tool_service: Mock
     ) -> None:
-        """AIツールが見つからない場合のプロジェクト作成が失敗することをテスト。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
             source='/test/path',
             ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
-        mock_ai_tool_service.get_ai_tool_by_id.side_effect = Exception('AIツールが見つかりません')
+
+        mock_ai_tool_service.get_ai_tool_by_id.side_effect = ResourceNotFoundError(
+            'AIツール', project.ai_tool
+        )
 
         # Act
         success, message = project_creation_form._create_project_with_validation(
@@ -206,13 +197,13 @@ class TestProjectCreationForm:
     def test_プロジェクト作成が失敗する場合(
         self, mock_project_service: Mock, mock_ai_tool_service: Mock
     ) -> None:
-        """プロジェクト作成が失敗する場合をテスト。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
             source='/test/path',
             ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
+
         mock_ai_tool_service.get_ai_tool_by_id.return_value = Mock()
         mock_project_service.create_project.return_value = None
 
@@ -226,11 +217,10 @@ class TestProjectCreationForm:
         assert message == 'プロジェクトの作成に失敗しました。'
 
     def test_ProjectFormInputsが正しく作成される(self) -> None:
-        """ProjectFormInputsが正しく作成されることをテスト。"""
         # Arrange
         project_name = 'テストプロジェクト'
         source_dir = '/test/path'
-        selected_ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        selected_ai_tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
 
         # Act
         inputs = project_creation_form.ProjectFormInputs(
@@ -245,29 +235,27 @@ class TestProjectCreationForm:
         assert inputs.selected_ai_tool_id == selected_ai_tool_id
 
     def test_AIツールの存在確認で例外が発生した場合(self, mock_ai_tool_service: Mock) -> None:
-        """AIツールの存在確認で例外が発生した場合をテスト。"""
         # Arrange
-        ai_tool_id = UUID('12345678-1234-5678-1234-567812345678')
+        ai_tool_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
         mock_ai_tool_service.get_ai_tool_by_id.side_effect = Exception('予期しないエラー')
 
         # Act
-        result = project_creation_form._validate_ai_tool_exists(
-            AIToolID(ai_tool_id), mock_ai_tool_service
-        )
+        result = project_creation_form._validate_ai_tool_exists(ai_tool_id, mock_ai_tool_service)
 
         # Assert
         assert result is False
+        mock_ai_tool_service.get_ai_tool_by_id.assert_called_once_with(ai_tool_id)
 
     def test_プロジェクト作成で例外が発生した場合(
         self, mock_project_service: Mock, mock_ai_tool_service: Mock
     ) -> None:
-        """プロジェクト作成で例外が発生した場合をテスト。"""
         # Arrange
         project = Project(
             name='テストプロジェクト',
             source='/test/path',
             ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
         )
+
         mock_ai_tool_service.get_ai_tool_by_id.return_value = Mock()
         mock_project_service.create_project.side_effect = Exception('プロジェクト作成エラー')
 
@@ -281,7 +269,6 @@ class TestProjectCreationForm:
         assert message == 'プロジェクトの作成に失敗しました。'
 
     def test_空のAIツールリストでオプションが作成される(self) -> None:
-        """空のAIツールリストでオプションが作成されることをテスト。"""
         # Act
         all_options, ai_tool_options = project_creation_form._create_ai_tool_options([])
 

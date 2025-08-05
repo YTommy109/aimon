@@ -10,21 +10,63 @@ class AppError(Exception):
 
 
 class CommandExecutionError(AppError):
-    """Exception raised for errors in the command execution process."""
+    """コマンド実行エラーを表す例外クラス。"""
 
-    def __init__(self, command: str, message: str = 'Command execution failed'):
+    def __init__(self, command: str, timeout_seconds: int | None = None, stderr: str | None = None):
+        """
+        例外を初期化します。
+
+        Args:
+            command: 実行に失敗したコマンド。
+            timeout_seconds: タイムアウト時間(秒)。
+            stderr: 標準エラー出力。
+        """
         self.command = command
-        self.message = message
-        super().__init__(f'{message}: {command}')
+        self.timeout_seconds = timeout_seconds
+        self.stderr = stderr
+        super().__init__(self._generate_message())
+
+    def _generate_message(self) -> str:
+        """
+        エラーメッセージを生成します。
+
+        Returns:
+            生成されたエラーメッセージ。
+        """
+        if self.timeout_seconds:
+            message = f'コマンドが {self.timeout_seconds} 秒でタイムアウトしました: {self.command}'
+        elif self.stderr:
+            message = f'コマンド実行に失敗しました: {self.stderr}'
+        else:
+            message = f'コマンド実行に失敗しました: {self.command}'
+        return message
 
 
 class CommandSecurityError(AppError):
-    """Exception raised for security errors related to command execution."""
+    """コマンド実行時のセキュリティエラーを表す例外クラス。"""
 
-    def __init__(self, command: str, message: str = 'Security violation detected'):
+    def __init__(self, command: str, reason: str | None = None):
+        """
+        例外を初期化します。
+
+        Args:
+            command: セキュリティ違反を起こしたコマンド。
+            reason: セキュリティ違反の理由。
+        """
         self.command = command
-        self.message = message
-        super().__init__(f'{message}: {command}')
+        self.reason = reason
+        super().__init__(self._generate_message())
+
+    def _generate_message(self) -> str:
+        """
+        エラーメッセージを生成します。
+
+        Returns:
+            生成されたエラーメッセージ。
+        """
+        if self.reason:
+            return f'セキュリティ違反が検出されました({self.reason}): {self.command}'
+        return f'セキュリティ違反が検出されました: {self.command}'
 
 
 class FormValidationError(AppError):
@@ -46,7 +88,7 @@ class WorkerError(Exception):
 class ProjectAlreadyRunningError(WorkerError):
     """プロジェクトが既に実行中の場合の例外クラス。"""
 
-    def __init__(self, project_id: str | ProjectID) -> None:
+    def __init__(self, project_id: ProjectID) -> None:
         """
         例外を初期化します。
 
@@ -59,7 +101,7 @@ class ProjectAlreadyRunningError(WorkerError):
 class ProjectProcessingError(WorkerError):
     """プロジェクト処理中に発生したエラーを表す例外クラス。"""
 
-    def __init__(self, project_id: str | ProjectID) -> None:
+    def __init__(self, project_id: ProjectID) -> None:
         """
         例外を初期化します。
 
@@ -164,7 +206,7 @@ class DataManagerError(WorkerError):
 class ResourceNotFoundError(WorkerError):
     """リソースが見つからない場合の例外クラス。"""
 
-    def __init__(self, resource_type: str, resource_id: str | ProjectID | AIToolID) -> None:
+    def __init__(self, resource_type: str, resource_id: ProjectID | AIToolID) -> None:
         """
         例外を初期化します。
 

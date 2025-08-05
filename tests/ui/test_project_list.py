@@ -61,7 +61,6 @@ class TestProjectList:
     def test_PENDING状態のプロジェクトのアイコンが正しく取得される(
         self, sample_project: Project
     ) -> None:
-        """PENDING状態のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Arrange
         sample_project.executed_at = None
         sample_project.finished_at = None
@@ -75,7 +74,6 @@ class TestProjectList:
     def test_PROCESSING状態のプロジェクトのアイコンが正しく取得される(
         self, sample_project: Project
     ) -> None:
-        """PROCESSING状態のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Arrange
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
         sample_project.finished_at = None
@@ -89,7 +87,6 @@ class TestProjectList:
     def test_COMPLETED状態のプロジェクトのアイコンが正しく取得される(
         self, sample_project: Project
     ) -> None:
-        """COMPLETED状態のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Arrange
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
         sample_project.finished_at = datetime.now(ZoneInfo('Asia/Tokyo'))
@@ -103,7 +100,6 @@ class TestProjectList:
     def test_FAILED状態のプロジェクトのアイコンが正しく取得される(
         self, sample_project: Project
     ) -> None:
-        """FAILED状態のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Arrange
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
         sample_project.finished_at = datetime.now(ZoneInfo('Asia/Tokyo'))
@@ -119,7 +115,6 @@ class TestProjectList:
     def test_実行中のプロジェクトのアイコンが正しく取得される(
         self, sample_project: Project
     ) -> None:
-        """実行中のプロジェクトのアイコンが正しく取得されることをテスト。"""
         # Act
         icon = project_list._get_status_icon(sample_project, is_running=True)
 
@@ -127,7 +122,6 @@ class TestProjectList:
         assert icon == '🏃'
 
     def test_ヘッダーカラムが正しく描画される(self, mocker: MockerFixture) -> None:
-        """ヘッダーカラムが正しく描画されることをテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_divider = mocker.patch.object(project_list.st, 'divider')
@@ -150,7 +144,6 @@ class TestProjectList:
         mock_divider.assert_called_once()
 
     def test_プロジェクトが空の場合にメッセージが表示される(self, mocker: MockerFixture) -> None:
-        """プロジェクトが空の場合にメッセージが表示されることをテスト。"""
         # Arrange
         mock_header = mocker.patch.object(project_list.st, 'header')
         mock_info = mocker.patch.object(project_list.st, 'info')
@@ -165,7 +158,6 @@ class TestProjectList:
         mock_info.assert_called_once_with('まだプロジェクトがありません。')
 
     def test_プロジェクト一覧が正しく描画される(self, mocker: MockerFixture) -> None:
-        """プロジェクト一覧が正しく描画されることをテスト。"""
         # Arrange
         mock_header = mocker.patch.object(project_list.st, 'header')
         mock_session_state = MockSessionState()
@@ -186,7 +178,6 @@ class TestProjectList:
         mock_header.assert_called_once_with('プロジェクト一覧')
 
     def test_プロジェクト行が正しく描画される(self, mocker: MockerFixture) -> None:
-        """プロジェクト行が正しく描画されることをテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_session_state = MockSessionState({'running_workers': {}})
@@ -221,7 +212,6 @@ class TestProjectList:
         mock_cols[5].button.assert_called_once()  # 実行ボタン
 
     def test_詳細ボタンが押された場合にモーダルが開く(self, mocker: MockerFixture) -> None:
-        """詳細ボタンが押された場合にモーダルが開くことをテスト。"""
         # Arrange
         mock_session_state = Mock()
         mock_session_state.running_workers = {}
@@ -248,7 +238,6 @@ class TestProjectList:
     def test_実行ボタンが押された場合にプロジェクトが実行される(
         self, mocker: MockerFixture
     ) -> None:
-        """実行ボタンが押された場合にプロジェクトが実行されることをテスト。"""
         # Arrange
         mock_session_state = Mock()
         mock_session_state.running_workers = {}
@@ -273,14 +262,13 @@ class TestProjectList:
         )
 
         # Assert
-        mock_project_service.execute_project.assert_called_once_with(str(sample_project.id))
+        mock_project_service.execute_project.assert_called_once_with(sample_project.id)
         mock_info.assert_called_once_with('実行成功')
         mock_rerun.assert_called_once()
 
     def test_実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示される(
         self, mocker: MockerFixture
     ) -> None:
-        """実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示されることをテスト。"""
         # Arrange
         mock_session_state = Mock()
         mock_session_state.running_workers = {}
@@ -304,11 +292,10 @@ class TestProjectList:
         )
 
         # Assert
-        mock_project_service.execute_project.assert_called_once_with(str(sample_project.id))
+        mock_project_service.execute_project.assert_called_once_with(sample_project.id)
         mock_error.assert_called_once_with('実行失敗')
 
     def test_ボタンが押されない場合は何も起こらない(self, mocker: MockerFixture) -> None:
-        """ボタンが押されない場合は何も起こらないことをテスト。"""
         # Arrange
         mock_session_state = Mock()
         mock_session_state.running_workers = {}
@@ -334,7 +321,6 @@ class TestProjectList:
         mock_project_service.execute_project.assert_not_called()
 
     def test_実行済みプロジェクトの行が正しく描画される(self, mocker: MockerFixture) -> None:
-        """実行済みプロジェクトの行が正しく描画されることをテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_session_state = MockSessionState({'running_workers': {}})
@@ -369,7 +355,6 @@ class TestProjectList:
         mock_cols[5].button.assert_not_called()
 
     def test_実行中のプロジェクトの行が正しく描画される(self, mocker: MockerFixture) -> None:
-        """実行中のプロジェクトの行が正しく描画されることをテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_session_state = MockSessionState(
@@ -402,7 +387,6 @@ class TestProjectList:
                 col.write.assert_called()
 
     def test_running_workersが初期化される(self, mocker: MockerFixture) -> None:
-        """running_workersが初期化されることをテスト。"""
         # Arrange
         mock_session_state = MockSessionState()
         mocker.patch.object(project_list.st, 'session_state', mock_session_state)
@@ -418,7 +402,6 @@ class TestProjectList:
         assert mock_session_state['running_workers'] == {}
 
     def test_プロジェクト行の各カラムが正しく描画される(self, mocker: MockerFixture) -> None:
-        """プロジェクト行の各カラムが正しく描画されることをテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_session_state = MockSessionState({'running_workers': {}})
@@ -451,7 +434,6 @@ class TestProjectList:
         mock_cols[5].button.assert_called()
 
     def test_実行日時がNoneの場合の処理(self, mocker: MockerFixture) -> None:
-        """実行日時がNoneの場合の処理をテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_session_state = MockSessionState({'running_workers': {}})
@@ -485,7 +467,6 @@ class TestProjectList:
         mock_cols[5].button.assert_called()
 
     def test_実行日時が設定されている場合の処理(self, mocker: MockerFixture) -> None:
-        """実行日時が設定されている場合の処理をテスト。"""
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
         mock_session_state = MockSessionState({'running_workers': {}})

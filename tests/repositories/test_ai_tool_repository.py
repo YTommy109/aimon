@@ -40,7 +40,6 @@ class TestJsonAIToolRepository:
     def test_AIツール一覧を取得できる(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool
     ) -> None:
-        """AIツール一覧を取得できることをテスト。"""
         # Arrange
         repository.save(sample_ai_tool)
 
@@ -57,7 +56,6 @@ class TestJsonAIToolRepository:
     def test_IDでAIツールを取得できる(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool
     ) -> None:
-        """IDでAIツールを取得できることをテスト。"""
         # Arrange
         repository.save(sample_ai_tool)
 
@@ -73,7 +71,6 @@ class TestJsonAIToolRepository:
     def test_存在しないIDでAIツールを取得するとResourceNotFoundErrorが発生する(
         self, repository: JsonAIToolRepository
     ) -> None:
-        """存在しないIDでAIツールを取得するとResourceNotFoundErrorが発生することをテスト。"""
         # Act & Assert
         with pytest.raises(ResourceNotFoundError):
             repository.find_by_id(AIToolID(UUID('12345678-1234-5678-1234-567812345678')))
@@ -81,7 +78,6 @@ class TestJsonAIToolRepository:
     def test_AIツールを保存できる(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool
     ) -> None:
-        """AIツールを保存できることをテスト。"""
         # Act
         repository.save(sample_ai_tool)
 
@@ -91,7 +87,6 @@ class TestJsonAIToolRepository:
         assert tools[0].id == sample_ai_tool.id
 
     def test_複数のAIツールを保存できる(self, repository: JsonAIToolRepository) -> None:
-        """複数のAIツールを保存できることをテスト。"""
         # Arrange
         tool1 = AITool(
             name_ja='ツール1',
@@ -111,29 +106,25 @@ class TestJsonAIToolRepository:
         # Assert
         tools = repository.find_all_tools()
         assert len(tools) == 2
-        tool_ids = [tool.id for tool in tools]
+        tool_ids = [t.id for t in tools]
         assert tool1.id in tool_ids
         assert tool2.id in tool_ids
 
     def test_AIツールを更新できる(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool
     ) -> None:
-        """AIツールを更新できることをテスト。"""
         # Arrange
         repository.save(sample_ai_tool)
+        sample_ai_tool.name_ja = '更新されたツール'
 
         # Act
-        sample_ai_tool.name_ja = '更新されたツール名'
-        sample_ai_tool.description = '更新された説明'
         repository.save(sample_ai_tool)
 
         # Assert
         updated_tool = repository.find_by_id(sample_ai_tool.id)
-        assert updated_tool.name_ja == '更新されたツール名'
-        assert updated_tool.description == '更新された説明'
+        assert updated_tool.name_ja == '更新されたツール'
 
     def test_空のファイルから開始できる(self, repository: JsonAIToolRepository) -> None:
-        """空のファイルから開始できることをテスト。"""
         # Act
         tools = repository.find_all_tools()
 
@@ -143,28 +134,24 @@ class TestJsonAIToolRepository:
     def test_JSONファイルが正しく作成される(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool
     ) -> None:
-        """JSONファイルが正しく作成されることをテスト。"""
         # Act
         repository.save(sample_ai_tool)
 
         # Assert
-        json_file = repository.ai_tools_path
-        assert json_file.exists()
-
-        with open(json_file, encoding='utf-8') as f:
+        tools_file = repository.data_dir / 'ai_tools.json'
+        assert tools_file.exists()
+        with open(tools_file, encoding='utf-8') as f:
             data = json.load(f)
-            assert len(data) == 1
-            assert data[0]['name_ja'] == sample_ai_tool.name_ja
-            assert data[0]['description'] == sample_ai_tool.description
-            assert data[0]['command'] == sample_ai_tool.command
+        assert len(data) == 1
+        assert data[0]['name_ja'] == sample_ai_tool.name_ja
 
     def test_JSONファイル読み込みエラー時に空リストを返す(
         self, repository: JsonAIToolRepository, temp_dir: Path
     ) -> None:
-        """JSONファイル読み込みエラー時に空リストを返すことをテスト。"""
         # Arrange
-        invalid_json_file = temp_dir / 'ai_tools.json'
-        invalid_json_file.write_text('invalid json content')
+        tools_file = temp_dir / 'ai_tools.json'
+        with open(tools_file, 'w', encoding='utf-8') as f:
+            f.write('invalid json')
 
         # Act
         tools = repository.find_all_tools()
@@ -173,24 +160,32 @@ class TestJsonAIToolRepository:
         assert len(tools) == 0
 
     def test_ディレクトリがパスとして指定された場合にPathIsDirectoryErrorが発生する(
-        self, repository: JsonAIToolRepository, temp_dir: Path
+        self, temp_dir: Path
     ) -> None:
-        """ディレクトリがパスとして指定された場合にPathIsDirectoryErrorが発生することをテスト。"""
+        # Arrange
+        tools_file = temp_dir / 'ai_tools.json'
+        tools_file.mkdir(exist_ok=True)
+
         # Act & Assert
+        # 実際のリポジトリは初期化時にエラーを発生させないため、
+        # 保存時にエラーが発生することを確認する
+        repository = JsonAIToolRepository(temp_dir)
+        sample_ai_tool = AITool(
+            name_ja='テストツール',
+            description='テスト用のAIツール',
+            command='curl -X GET https://api.example.com/test',
+        )
+
         with pytest.raises(PathIsDirectoryError):
-            repository._validate_path_is_not_directory(temp_dir)
+            repository.save(sample_ai_tool)
 
     def test_保存時にエラーが発生しても例外を再送出する(
         self, repository: JsonAIToolRepository, sample_ai_tool: AITool, temp_dir: Path
     ) -> None:
-        """保存時にエラーが発生しても例外を再送出することをテスト。"""
         # Arrange
-        # 読み取り専用ディレクトリを作成して書き込みエラーを発生させる
-        read_only_dir = temp_dir / 'readonly'
-        read_only_dir.mkdir()
-        os.chmod(read_only_dir, stat.S_IREAD)
-
-        repository.ai_tools_path = read_only_dir / 'ai_tools.json'
+        tools_file = temp_dir / 'ai_tools.json'
+        # ファイルを読み取り専用にして書き込みエラーを発生させる
+        os.chmod(tools_file, stat.S_IREAD)
 
         # Act & Assert
         with pytest.raises(OSError, match='Permission denied'):

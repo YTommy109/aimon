@@ -42,7 +42,7 @@ class JsonProjectRepository:
         projects = self.find_all()
         project = next((p for p in projects if p.id == project_id), None)
         if project is None:
-            raise ResourceNotFoundError('Project', str(project_id))
+            raise ResourceNotFoundError('Project', project_id)
         return project
 
     def find_all(self) -> list[Project]:
@@ -85,7 +85,7 @@ class JsonProjectRepository:
 
     def _save_projects(self, projects: list[Project]) -> None:
         """プロジェクトのリストを保存します。"""
-        projects_data = [p.model_dump(mode='json') for p in projects]
+        projects_data = [p.model_dump(mode='json', exclude={'status'}) for p in projects]
         self._write_json(self.projects_path, projects_data)
 
     def _read_json(self, path: Path) -> list[dict[str, Any]]:

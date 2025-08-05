@@ -99,7 +99,7 @@ def _handle_project_buttons(
         logger.info(
             f'[Streamlit] 実行ボタン押下: project_id={project.id}, ai_tool={project.ai_tool}'
         )
-        updated_project, message = project_service.execute_project(str(project.id))
+        updated_project, message = project_service.execute_project(project.id)
         if updated_project:
             st.info(message)
             st.rerun()

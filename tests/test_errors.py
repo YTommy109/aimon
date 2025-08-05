@@ -27,7 +27,6 @@ class TestAppError:
     """AppErrorのテストクラス。"""
 
     def test_AppErrorがExceptionを継承している(self) -> None:
-        """AppErrorがExceptionを継承していることをテスト。"""
         # Assert
         assert issubclass(AppError, Exception)
 
@@ -36,65 +35,70 @@ class TestCommandExecutionError:
     """CommandExecutionErrorのテストクラス。"""
 
     def test_CommandExecutionErrorがAppErrorを継承している(self) -> None:
-        """CommandExecutionErrorがAppErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(CommandExecutionError, AppError)
 
-    def test_コマンドとカスタムメッセージでCommandExecutionErrorが作成される(self) -> None:
-        """コマンドとカスタムメッセージでCommandExecutionErrorが作成されることをテスト。"""
+    def test_タイムアウトでCommandExecutionErrorが作成される(self) -> None:
         # Act
-        error = CommandExecutionError('python script.py', 'Script failed to execute')
+        error = CommandExecutionError('python script.py', timeout_seconds=30)
 
         # Assert
         assert error.command == 'python script.py'
-        assert error.message == 'Script failed to execute'
-        assert str(error) == 'Script failed to execute: python script.py'
+        assert error.timeout_seconds == 30
+        assert error.stderr is None
+        assert str(error) == 'コマンドが 30 秒でタイムアウトしました: python script.py'
 
-    def test_デフォルトメッセージでCommandExecutionErrorが作成される(self) -> None:
-        """デフォルトメッセージでCommandExecutionErrorが作成されることをテスト。"""
+    def test_stderrでCommandExecutionErrorが作成される(self) -> None:
         # Act
-        error = CommandExecutionError('node app.js')
+        error = CommandExecutionError('node app.js', stderr='Module not found')
 
         # Assert
         assert error.command == 'node app.js'
-        assert error.message == 'Command execution failed'
-        assert str(error) == 'Command execution failed: node app.js'
+        assert error.timeout_seconds is None
+        assert error.stderr == 'Module not found'
+        assert str(error) == 'コマンド実行に失敗しました: Module not found'
+
+    def test_デフォルトメッセージでCommandExecutionErrorが作成される(self) -> None:
+        # Act
+        error = CommandExecutionError('ruby script.rb')
+
+        # Assert
+        assert error.command == 'ruby script.rb'
+        assert error.timeout_seconds is None
+        assert error.stderr is None
+        assert str(error) == 'コマンド実行に失敗しました: ruby script.rb'
 
 
 class TestCommandSecurityError:
     """CommandSecurityErrorのテストクラス。"""
 
     def test_CommandSecurityErrorがAppErrorを継承している(self) -> None:
-        """CommandSecurityErrorがAppErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(CommandSecurityError, AppError)
 
-    def test_コマンドとカスタムメッセージでCommandSecurityErrorが作成される(self) -> None:
-        """コマンドとカスタムメッセージでCommandSecurityErrorが作成されることをテスト。"""
+    def test_理由付きでCommandSecurityErrorが作成される(self) -> None:
         # Act
-        error = CommandSecurityError('rm -rf /', 'Dangerous command detected')
+        error = CommandSecurityError('rm -rf /', reason='危険なコマンド')
 
         # Assert
         assert error.command == 'rm -rf /'
-        assert error.message == 'Dangerous command detected'
-        assert str(error) == 'Dangerous command detected: rm -rf /'
+        assert error.reason == '危険なコマンド'
+        assert str(error) == 'セキュリティ違反が検出されました(危険なコマンド): rm -rf /'
 
     def test_デフォルトメッセージでCommandSecurityErrorが作成される(self) -> None:
-        """デフォルトメッセージでCommandSecurityErrorが作成されることをテスト。"""
         # Act
         error = CommandSecurityError('sudo password')
 
         # Assert
         assert error.command == 'sudo password'
-        assert error.message == 'Security violation detected'
-        assert str(error) == 'Security violation detected: sudo password'
+        assert error.reason is None
+        assert str(error) == 'セキュリティ違反が検出されました: sudo password'
 
 
 class TestFormValidationError:
     """FormValidationErrorのテストクラス。"""
 
     def test_FormValidationErrorがAppErrorを継承している(self) -> None:
-        """FormValidationErrorがAppErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(FormValidationError, AppError)
 
@@ -103,12 +107,10 @@ class TestRequiredFieldsEmptyError:
     """RequiredFieldsEmptyErrorのテストクラス。"""
 
     def test_RequiredFieldsEmptyErrorがFormValidationErrorを継承している(self) -> None:
-        """RequiredFieldsEmptyErrorがFormValidationErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(RequiredFieldsEmptyError, FormValidationError)
 
     def test_RequiredFieldsEmptyErrorのメッセージが正しい(self) -> None:
-        """RequiredFieldsEmptyErrorのメッセージが正しいことをテスト。"""
         # Act
         error = RequiredFieldsEmptyError()
 
@@ -120,7 +122,6 @@ class TestWorkerError:
     """WorkerErrorのテストクラス。"""
 
     def test_WorkerErrorがExceptionを継承している(self) -> None:
-        """WorkerErrorがExceptionを継承していることをテスト。"""
         # Assert
         assert issubclass(WorkerError, Exception)
 
@@ -129,20 +130,20 @@ class TestProjectAlreadyRunningError:
     """ProjectAlreadyRunningErrorのテストクラス。"""
 
     def test_ProjectAlreadyRunningErrorがWorkerErrorを継承している(self) -> None:
-        """ProjectAlreadyRunningErrorがWorkerErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(ProjectAlreadyRunningError, WorkerError)
 
     def test_文字列IDでProjectAlreadyRunningErrorが作成される(self) -> None:
-        """文字列IDでProjectAlreadyRunningErrorが作成されることをテスト。"""
+        # Arrange
+        project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
+
         # Act
-        error = ProjectAlreadyRunningError('test-project-1')
+        error = ProjectAlreadyRunningError(project_id)
 
         # Assert
-        assert str(error) == 'プロジェクト test-project-1 は既に実行中です'
+        assert str(error) == f'プロジェクト {project_id} は既に実行中です'
 
     def test_ProjectIDでProjectAlreadyRunningErrorが作成される(self) -> None:
-        """ProjectIDでProjectAlreadyRunningErrorが作成されることをテスト。"""
         # Arrange
         project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
 
@@ -157,20 +158,20 @@ class TestProjectProcessingError:
     """ProjectProcessingErrorのテストクラス。"""
 
     def test_ProjectProcessingErrorがWorkerErrorを継承している(self) -> None:
-        """ProjectProcessingErrorがWorkerErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(ProjectProcessingError, WorkerError)
 
     def test_文字列IDでProjectProcessingErrorが作成される(self) -> None:
-        """文字列IDでProjectProcessingErrorが作成されることをテスト。"""
+        # Arrange
+        project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
+
         # Act
-        error = ProjectProcessingError('test-project-1')
+        error = ProjectProcessingError(project_id)
 
         # Assert
-        assert str(error) == 'プロジェクト test-project-1 の処理中にエラーが発生しました'
+        assert str(error) == f'プロジェクト {project_id} の処理中にエラーが発生しました'
 
     def test_ProjectIDでProjectProcessingErrorが作成される(self) -> None:
-        """ProjectIDでProjectProcessingErrorが作成されることをテスト。"""
         # Arrange
         project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
 
@@ -185,12 +186,10 @@ class TestAPIConfigurationError:
     """APIConfigurationErrorのテストクラス。"""
 
     def test_APIConfigurationErrorがWorkerErrorを継承している(self) -> None:
-        """APIConfigurationErrorがWorkerErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(APIConfigurationError, WorkerError)
 
     def test_APIConfigurationErrorのメッセージが正しい(self) -> None:
-        """APIConfigurationErrorのメッセージが正しいことをテスト。"""
         # Act
         error = APIConfigurationError('API key is missing')
 
@@ -202,12 +201,10 @@ class TestFileProcessingError:
     """FileProcessingErrorのテストクラス。"""
 
     def test_FileProcessingErrorがWorkerErrorを継承している(self) -> None:
-        """FileProcessingErrorがWorkerErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(FileProcessingError, WorkerError)
 
     def test_FileProcessingErrorが抽象クラスである(self) -> None:
-        """FileProcessingErrorが抽象クラスであることをテスト。"""
         # Act & Assert
         # 抽象クラスなので直接インスタンス化できない
         # 実際にはTypeErrorではなく、抽象メソッドが実装されていないためエラーになる
@@ -219,12 +216,10 @@ class TestFileReadingError:
     """FileReadingErrorのテストクラス。"""
 
     def test_FileReadingErrorがFileProcessingErrorを継承している(self) -> None:
-        """FileReadingErrorがFileProcessingErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(FileReadingError, FileProcessingError)
 
     def test_FileReadingErrorのメッセージが正しい(self) -> None:
-        """FileReadingErrorのメッセージが正しいことをテスト。"""
         # Act
         error = FileReadingError('/path/to/file.txt')
 
@@ -236,12 +231,10 @@ class TestFileWritingError:
     """FileWritingErrorのテストクラス。"""
 
     def test_FileWritingErrorがFileProcessingErrorを継承している(self) -> None:
-        """FileWritingErrorがFileProcessingErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(FileWritingError, FileProcessingError)
 
     def test_FileWritingErrorのメッセージが正しい(self) -> None:
-        """FileWritingErrorのメッセージが正しいことをテスト。"""
         # Act
         error = FileWritingError('/path/to/file.txt')
 
@@ -253,12 +246,10 @@ class TestPathIsDirectoryError:
     """PathIsDirectoryErrorのテストクラス。"""
 
     def test_PathIsDirectoryErrorがFileProcessingErrorを継承している(self) -> None:
-        """PathIsDirectoryErrorがFileProcessingErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(PathIsDirectoryError, FileProcessingError)
 
     def test_PathIsDirectoryErrorのメッセージが正しい(self) -> None:
-        """PathIsDirectoryErrorのメッセージが正しいことをテスト。"""
         # Act
         error = PathIsDirectoryError('/path/to/directory')
 
@@ -270,12 +261,10 @@ class TestFileDeletingError:
     """FileDeletingErrorのテストクラス。"""
 
     def test_FileDeletingErrorがFileProcessingErrorを継承している(self) -> None:
-        """FileDeletingErrorがFileProcessingErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(FileDeletingError, FileProcessingError)
 
     def test_FileDeletingErrorのメッセージが正しい(self) -> None:
-        """FileDeletingErrorのメッセージが正しいことをテスト。"""
         # Act
         error = FileDeletingError('/path/to/file.txt')
 
@@ -287,12 +276,10 @@ class TestDataManagerError:
     """DataManagerErrorのテストクラス。"""
 
     def test_DataManagerErrorがWorkerErrorを継承している(self) -> None:
-        """DataManagerErrorがWorkerErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(DataManagerError, WorkerError)
 
     def test_DataManagerErrorのメッセージが正しい(self) -> None:
-        """DataManagerErrorのメッセージが正しいことをテスト。"""
         # Act
         error = DataManagerError('Database connection failed')
 
@@ -304,20 +291,20 @@ class TestResourceNotFoundError:
     """ResourceNotFoundErrorのテストクラス。"""
 
     def test_ResourceNotFoundErrorがWorkerErrorを継承している(self) -> None:
-        """ResourceNotFoundErrorがWorkerErrorを継承していることをテスト。"""
         # Assert
         assert issubclass(ResourceNotFoundError, WorkerError)
 
     def test_文字列IDでResourceNotFoundErrorが作成される(self) -> None:
-        """文字列IDでResourceNotFoundErrorが作成されることをテスト。"""
+        # Arrange
+        project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
+
         # Act
-        error = ResourceNotFoundError('Project', 'test-project-1')
+        error = ResourceNotFoundError('Project', project_id)
 
         # Assert
-        assert str(error) == 'Project test-project-1 が見つかりません'
+        assert str(error) == f'Project {project_id} が見つかりません'
 
     def test_AIToolIDでResourceNotFoundErrorが作成される(self) -> None:
-        """AIToolIDでResourceNotFoundErrorが作成されることをテスト。"""
         # Arrange
         resource_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
 

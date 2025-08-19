@@ -11,8 +11,7 @@ class TestProjectWorkflow:
     def test_基本的なUnixコマンドでワークフローが機能する(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
-        # メインページに移動
-        page.goto(page.url.replace('/AI_Tool_Management', ''))
+
         expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
             timeout=10000
         )
@@ -21,7 +20,7 @@ class TestProjectWorkflow:
         # プロジェクトを作成
         project_name_input = page.get_by_label('プロジェクト名')
         source_dir_input = page.get_by_label('対象ディレクトリのパス')
-        ai_tool_select = page.get_by_label('AIツールを選択')
+        ai_tool_select = page.get_by_label('ツールタイプを選択')
         create_button = page.get_by_role('button', name='プロジェクト作成')
 
         project_name_input.fill('ワークフローテスト - Unixコマンド')
@@ -251,7 +250,7 @@ class TestProjectWorkflow:
     def test_AIツール選択ドロップダウンが正常に動作する(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
-        ai_tool_select = page.get_by_label('AIツールを選択')
+        ai_tool_select = page.get_by_label('ツールタイプを選択')
 
         # When
         ai_tool_select.click()

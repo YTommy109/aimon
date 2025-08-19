@@ -96,9 +96,7 @@ def _handle_project_buttons(
         modal.open()
     if button_state['exec_btn']:
         logger = logging.getLogger('aiman')
-        logger.info(
-            f'[Streamlit] 実行ボタン押下: project_id={project.id}, ai_tool={project.ai_tool}'
-        )
+        logger.info(f'[Streamlit] 実行ボタン押下: project_id={project.id}, tool={project.tool}')
         updated_project, message = project_service.execute_project(project.id)
         if updated_project:
             st.info(message)

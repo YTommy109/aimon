@@ -5,8 +5,6 @@ from uuid import UUID
 from app.errors import (
     APIConfigurationError,
     AppError,
-    CommandExecutionError,
-    CommandSecurityError,
     DataManagerError,
     FileDeletingError,
     FileProcessingError,
@@ -20,7 +18,7 @@ from app.errors import (
     ResourceNotFoundError,
     WorkerError,
 )
-from app.models import AIToolID, ProjectID
+from app.models import ProjectID
 
 
 class TestAppError:
@@ -29,70 +27,6 @@ class TestAppError:
     def test_AppErrorがExceptionを継承している(self) -> None:
         # Assert
         assert issubclass(AppError, Exception)
-
-
-class TestCommandExecutionError:
-    """CommandExecutionErrorのテストクラス。"""
-
-    def test_CommandExecutionErrorがAppErrorを継承している(self) -> None:
-        # Assert
-        assert issubclass(CommandExecutionError, AppError)
-
-    def test_タイムアウトでCommandExecutionErrorが作成される(self) -> None:
-        # Act
-        error = CommandExecutionError('python script.py', timeout_seconds=30)
-
-        # Assert
-        assert error.command == 'python script.py'
-        assert error.timeout_seconds == 30
-        assert error.stderr is None
-        assert str(error) == 'コマンドが 30 秒でタイムアウトしました: python script.py'
-
-    def test_stderrでCommandExecutionErrorが作成される(self) -> None:
-        # Act
-        error = CommandExecutionError('node app.js', stderr='Module not found')
-
-        # Assert
-        assert error.command == 'node app.js'
-        assert error.timeout_seconds is None
-        assert error.stderr == 'Module not found'
-        assert str(error) == 'コマンド実行に失敗しました: Module not found'
-
-    def test_デフォルトメッセージでCommandExecutionErrorが作成される(self) -> None:
-        # Act
-        error = CommandExecutionError('ruby script.rb')
-
-        # Assert
-        assert error.command == 'ruby script.rb'
-        assert error.timeout_seconds is None
-        assert error.stderr is None
-        assert str(error) == 'コマンド実行に失敗しました: ruby script.rb'
-
-
-class TestCommandSecurityError:
-    """CommandSecurityErrorのテストクラス。"""
-
-    def test_CommandSecurityErrorがAppErrorを継承している(self) -> None:
-        # Assert
-        assert issubclass(CommandSecurityError, AppError)
-
-    def test_理由付きでCommandSecurityErrorが作成される(self) -> None:
-        # Act
-        error = CommandSecurityError('rm -rf /', reason='危険なコマンド')
-
-        # Assert
-        assert error.command == 'rm -rf /'
-        assert error.reason == '危険なコマンド'
-        assert str(error) == 'セキュリティ違反が検出されました(危険なコマンド): rm -rf /'
-
-    def test_デフォルトメッセージでCommandSecurityErrorが作成される(self) -> None:
-        # Act
-        error = CommandSecurityError('sudo password')
-
-        # Assert
-        assert error.command == 'sudo password'
-        assert error.reason is None
-        assert str(error) == 'セキュリティ違反が検出されました: sudo password'
 
 
 class TestFormValidationError:
@@ -303,13 +237,3 @@ class TestResourceNotFoundError:
 
         # Assert
         assert str(error) == f'Project {project_id} が見つかりません'
-
-    def test_AIToolIDでResourceNotFoundErrorが作成される(self) -> None:
-        # Arrange
-        resource_id = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
-
-        # Act
-        error = ResourceNotFoundError('AI Tool', resource_id)
-
-        # Assert
-        assert str(error) == f'AI Tool {resource_id} が見つかりません'

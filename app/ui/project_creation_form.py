@@ -1,15 +1,11 @@
 """プロジェクト作成フォームのUIモジュール。"""
 
 from dataclasses import dataclass
-from uuid import UUID
 
 import streamlit as st
 
-from app.errors import ResourceNotFoundError
-from app.models import AIToolID
-from app.models.ai_tool import AITool
+from app.models import ToolType
 from app.models.project import Project
-from app.services.ai_tool_service import AIToolService
 from app.services.project_service import ProjectService
 
 
@@ -17,34 +13,13 @@ from app.services.project_service import ProjectService
 class ProjectFormInputs:
     project_name: str | None
     source_dir: str | None
-    selected_ai_tool_id: UUID | None
-
-
-def _create_ai_tool_options(
-    ai_tools: list[AITool],
-) -> tuple[list[UUID | None], dict[AIToolID, str]]:
-    """プロジェクト作成フォーム用のAIツールオプションを作成します。"""
-    ai_tool_options = {tool.id: f'{tool.name_ja} ({tool.description})' for tool in ai_tools}
-
-    # セパレータを追加（JSONからツールが存在する場合のみ）
-    all_options: list[UUID | None] = list(ai_tool_options.keys())
-    if all_options:
-        all_options.append(None)  # セパレータ用
-
-    return all_options, ai_tool_options
-
-
-def _format_ai_tool(tool_id: UUID | None, ai_tool_options: dict[AIToolID, str]) -> str:
-    """プロジェクト作成フォーム用のAIツールフォーマット関数。"""
-    if tool_id is None:
-        return '--- 内蔵ツール ---'
-    return ai_tool_options.get(AIToolID(tool_id), '不明なツール')
+    selected_tool_type: ToolType | None = None
 
 
 def _validate_project_inputs(
     project_name: str | None,
     source_dir: str | None,
-    selected_ai_tool_id: UUID | None,
+    selected_tool_type: ToolType | None = None,
 ) -> tuple[bool, str]:
     """プロジェクト入力値の検証を行う。
 
@@ -61,8 +36,8 @@ def _validate_project_inputs(
         or (source_dir and not source_dir.strip())
     ):
         error_message = 'プロジェクト名と対象ディレクトリのパスを入力してください。'
-    elif selected_ai_tool_id is None:
-        error_message = 'AIツールを選択してください。'
+    elif selected_tool_type is None:
+        error_message = '内蔵ツールを選択してください。'
 
     if error_message:
         return False, error_message
@@ -70,48 +45,28 @@ def _validate_project_inputs(
     return True, ''
 
 
-def _validate_ai_tool_exists(ai_tool_id: AIToolID, ai_tool_service: AIToolService) -> bool:
-    try:
-        ai_tool_service.get_ai_tool_by_id(ai_tool_id)
-        return True
-    except (ResourceNotFoundError, Exception):
-        return False
-
-
 def _create_project_with_validation(
     project: Project,
     project_service: ProjectService,
-    ai_tool_service: AIToolService,
 ) -> tuple[bool, str]:
     """プロジェクト作成を検証付きで実行する。
 
     Args:
         project: 作成するプロジェクトオブジェクト
         project_service: プロジェクトサービス
-        ai_tool_service: AIツールサービス
 
     Returns:
         (成功フラグ, メッセージ)
     """
-    success = True
-    message = 'プロジェクトを作成しました。'
-
-    if not _validate_ai_tool_exists(project.ai_tool, ai_tool_service):
-        success = False
-        message = '選択されたAIツールが見つかりません。'
-    else:
-        try:
-            created_project = project_service.create_project(
-                project.name, project.source, project.ai_tool
-            )
-            if created_project is None:
-                success = False
-                message = 'プロジェクトの作成に失敗しました。'
-        except Exception:
-            success = False
+    try:
+        created_project = project_service.create_project(project.name, project.source, project.tool)
+        if created_project is None:
             message = 'プロジェクトの作成に失敗しました。'
-
-    return success, message
+        else:
+            message = 'プロジェクトを作成しました。'
+        return created_project is not None, message
+    except Exception:
+        return False, 'プロジェクトの作成に失敗しました。'
 
 
 def _display_result_message(*, success: bool, message: str) -> None:
@@ -125,76 +80,66 @@ def _display_result_message(*, success: bool, message: str) -> None:
 def _handle_project_creation_button(
     project: Project | None,
     project_service: ProjectService,
-    ai_tool_service: AIToolService,
 ) -> None:
     """プロジェクト作成ボタンの処理。
 
     Args:
         project: 作成するプロジェクトオブジェクト
         project_service: プロジェクトサービス
-        ai_tool_service: AIツールサービス
     """
     if project is not None:
-        _handle_form_submission(project, project_service, ai_tool_service)
+        _handle_form_submission(project, project_service)
 
 
 def _handle_form_submission(
     project: Project,
     project_service: ProjectService,
-    ai_tool_service: AIToolService,
 ) -> None:
     """フォーム送信の処理。
 
     Args:
         project: 作成するプロジェクトオブジェクト
         project_service: プロジェクトサービス
-        ai_tool_service: AIツールサービス
     """
-    success, message = _create_project_with_validation(project, project_service, ai_tool_service)
+    success, message = _create_project_with_validation(project, project_service)
     _display_result_message(success=success, message=message)
 
 
-def _render_form_inputs(
-    ai_tool_service: AIToolService,
-) -> tuple[str | None, str | None, UUID | None]:
+def _render_form_inputs() -> tuple[str | None, str | None, ToolType | None]:
     """フォームの入力フィールドを描画する。
 
     Returns:
-        (プロジェクト名, ソースディレクトリ, 選択されたAIツールID)
+        (プロジェクト名, ソースディレクトリ, 選択された内蔵ツールタイプ)
     """
     project_name: str | None = st.text_input('プロジェクト名')
     source_dir: str | None = st.text_input('対象ディレクトリのパス')
     # 入力値の前後空白を除去
     source_dir = source_dir.strip() if source_dir else None
-    ai_tools = ai_tool_service.get_all_ai_tools()
-    all_options, ai_tool_options = _create_ai_tool_options(ai_tools)
-
-    selected_ai_tool_id: UUID | None = st.selectbox(
-        'AIツールを選択',
-        options=all_options,
-        format_func=lambda tool_id: _format_ai_tool(tool_id, ai_tool_options),
-        index=None,
-        placeholder='選択...',
+    # 内蔵ツール（固定2択）
+    internal_tool_options: list[ToolType | None] = [None, ToolType.OVERVIEW, ToolType.REVIEW]
+    selected_tool_type: ToolType | None = st.selectbox(
+        '内蔵ツールを選択',
+        options=internal_tool_options,
+        format_func=lambda t: '選択...' if t is None else str(t),
+        index=0,
     )
 
-    return project_name, source_dir, selected_ai_tool_id
+    return project_name, source_dir, selected_tool_type
 
 
 def _handle_form_submission_logic(
     inputs: ProjectFormInputs,
     project_service: ProjectService,
-    ai_tool_service: AIToolService,
 ) -> None:
     """フォーム送信ロジックの処理。
 
     Args:
         inputs: フォーム入力値
         project_service: プロジェクトサービス
-        ai_tool_service: AIツールサービス
     """
     # 入力値の検証
     is_valid, error_message = _validate_project_inputs(
-        inputs.project_name, inputs.source_dir, inputs.selected_ai_tool_id
+        inputs.project_name, inputs.source_dir, inputs.selected_tool_type
     )
 
     if not is_valid:
@@ -202,43 +147,40 @@ def _handle_form_submission_logic(
         return
 
     # プロジェクトオブジェクトの作成
-    assert inputs.selected_ai_tool_id is not None
     assert inputs.project_name is not None
     assert inputs.source_dir is not None
+    assert inputs.selected_tool_type is not None
     project = Project(
         name=inputs.project_name,
         source=inputs.source_dir,
-        ai_tool=AIToolID(inputs.selected_ai_tool_id),
+        tool=inputs.selected_tool_type,
     )
 
     # プロジェクト作成の実行
-    _handle_project_creation_button(project, project_service, ai_tool_service)
+    _handle_project_creation_button(project, project_service)
 
 
-def render_project_creation_form(
-    project_service: ProjectService, ai_tool_service: AIToolService
-) -> None:
+def render_project_creation_form(project_service: ProjectService) -> None:
     """プロジェクト作成フォームを描画する。
 
     Args:
         project_service: プロジェクトサービス。
-        ai_tool_service: AIツールサービス。
     """
     st.header('プロジェクト作成')
 
     # フォーム入力の取得
-    project_name, source_dir, selected_ai_tool_id = _render_form_inputs(ai_tool_service)
+    project_name, source_dir, selected_tool_type = _render_form_inputs()
 
     # フォーム入力オブジェクトの作成
     inputs = ProjectFormInputs(
         project_name=project_name,
         source_dir=source_dir,
-        selected_ai_tool_id=selected_ai_tool_id,
+        selected_tool_type=selected_tool_type,
     )
 
     # 作成ボタンの処理
     if st.button('プロジェクト作成'):
-        _handle_form_submission_logic(inputs, project_service, ai_tool_service)
+        _handle_form_submission_logic(inputs, project_service)
 
 
 __all__ = ['render_project_creation_form', 'st']

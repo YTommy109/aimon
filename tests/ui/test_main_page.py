@@ -2,13 +2,12 @@
 
 from datetime import datetime
 from unittest.mock import Mock
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
 from pytest_mock import MockerFixture
 
-from app.models import AIToolID
+from app.models import ToolType
 from app.models.project import Project
 from app.ui import main_page
 
@@ -22,17 +21,12 @@ class TestMainPage:
         return Mock()
 
     @pytest.fixture
-    def mock_ai_tool_service(self) -> Mock:
-        """AIツールサービスのモックを作成する。"""
-        return Mock()
-
-    @pytest.fixture
     def sample_project(self) -> Project:
         """サンプルのプロジェクトを作成する。"""
         return Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
     def test_セッション状態が初期化される(self, mocker: MockerFixture) -> None:
@@ -52,11 +46,9 @@ class TestMainPage:
     def test_既にセッション状態が存在する場合は変更されない(self) -> None:
         # Arrange
         existing_project_service = Mock()
-        existing_ai_tool_service = Mock()
         # モックを使用してセッション状態をシミュレート
         mock_session_state = {
             'project_service': existing_project_service,
-            'ai_tool_service': existing_ai_tool_service,
         }
 
         # Act
@@ -65,7 +57,6 @@ class TestMainPage:
 
         # Assert
         assert mock_session_state['project_service'] == existing_project_service
-        assert mock_session_state['ai_tool_service'] == existing_ai_tool_service
 
     def test_プロジェクトのソートキーが正しく取得される(self, sample_project: Project) -> None:
         # Arrange
@@ -88,7 +79,7 @@ class TestMainPage:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
         project.created_at = naive_datetime
 
@@ -103,12 +94,11 @@ class TestMainPage:
     def test_サービスが正しく取得される(self) -> None:
         # Arrange
         # Act
-        project_service, ai_tool_service = main_page.get_services()
+        project_service = main_page.get_services()
 
         # Assert
         # 実際のサービスが作成されることを確認
         assert project_service is not None
-        assert ai_tool_service is not None
 
     def test_メインページが正しく描画される(self, mocker: MockerFixture) -> None:
         # Arrange
@@ -124,8 +114,7 @@ class TestMainPage:
         mock_render_project_list = mocker.patch.object(main_page, 'render_project_list')
 
         mock_project_service = Mock()
-        mock_ai_tool_service = Mock()
-        mock_get_services.return_value = (mock_project_service, mock_ai_tool_service)
+        mock_get_services.return_value = mock_project_service
 
         # Act
         main_page.render_main_page()
@@ -133,9 +122,7 @@ class TestMainPage:
         # Assert
         mock_initialize_session_state.assert_called_once()
         mock_get_services.assert_called_once()
-        mock_render_project_creation_form.assert_called_once_with(
-            mock_project_service, mock_ai_tool_service
-        )
+        mock_render_project_creation_form.assert_called_once_with(mock_project_service)
         mock_render_project_detail_modal.assert_called_once()
         mock_render_project_list.assert_called_once()
 
@@ -149,12 +136,12 @@ class TestMainPage:
             Project(
                 name='プロジェクト1',
                 source='/path1',
-                ai_tool=AIToolID(UUID('11111111-1111-1111-1111-111111111111')),
+                tool=ToolType.OVERVIEW,
             ),
             Project(
                 name='プロジェクト2',
                 source='/path2',
-                ai_tool=AIToolID(UUID('22222222-2222-2222-2222-222222222222')),
+                tool=ToolType.REVIEW,
             ),
         ]
         mock_project_service.get_all_projects.return_value = projects
@@ -174,3 +161,15 @@ class TestMainPage:
         assert len(sorted_projects) == len(projects)
         assert sorted_projects[0].name == 'プロジェクト2'  # より新しい日付
         assert sorted_projects[1].name == 'プロジェクト1'  # より古い日付
+
+    def test_内蔵ツール付きプロジェクトのサンプル作成(self) -> None:
+        # Arrange & Act
+        project = Project(
+            name='内蔵ツールテストプロジェクト',
+            source='/path/to/source',
+            tool=ToolType.OVERVIEW,
+        )
+
+        # Assert
+        assert project.tool == ToolType.OVERVIEW
+        assert project.name == '内蔵ツールテストプロジェクト'

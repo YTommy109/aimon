@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from pytest_mock import MockerFixture
 
-from app.models import AIToolID, ProjectID
+from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.ui import project_detail_modal
 
@@ -54,7 +54,7 @@ class TestProjectDetailModal:
             id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('87654321-4321-8765-4321-876543210987')),
+            tool=ToolType.OVERVIEW,
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
             executed_at=datetime(2024, 1, 1, 12, 30, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
             finished_at=datetime(2024, 1, 1, 13, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo')),
@@ -126,7 +126,7 @@ class TestProjectDetailModal:
         detail_text = detail_call[0][0]
         assert 'UUID' in detail_text
         assert '対象パス' in detail_text
-        assert 'AIツール' in detail_text
+        assert '内蔵ツール' in detail_text
         assert 'ステータス' in detail_text
         assert '作成日時' in detail_text
         assert '実行日時' in detail_text
@@ -169,7 +169,7 @@ class TestProjectDetailModal:
             id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('87654321-4321-8765-4321-876543210987')),
+            tool=ToolType.OVERVIEW,
         )
         mock_session_state['modal_project'] = sample_project
 
@@ -197,7 +197,7 @@ class TestProjectDetailModal:
             id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('87654321-4321-8765-4321-876543210987')),
+            tool=ToolType.OVERVIEW,
         )
         sample_project.executed_at = None
         sample_project.finished_at = None

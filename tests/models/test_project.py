@@ -3,7 +3,7 @@
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from app.models import AIToolID
+from app.models import ToolType
 from app.models.project import Project, ProjectStatus
 
 # 日本標準時のタイムゾーン
@@ -18,16 +18,16 @@ class TestProject:
         # Arrange
         name = 'テストプロジェクト'
         source = '/path/to/source'
-        ai_tool = AIToolID(UUID('87654321-4321-8765-4321-876543210987'))
+        tool = ToolType.OVERVIEW
 
         # Act
-        project = Project(name=name, source=source, ai_tool=ai_tool)
+        project = Project(name=name, source=source, tool=tool)
 
         # Assert
         assert isinstance(project, Project)
         assert project.name == name
         assert project.source == source
-        assert isinstance(project.ai_tool, UUID)  # AIToolID is NewType based on UUID
+        assert project.tool == tool
         assert project.status == ProjectStatus.PENDING
         assert project.result is None
         assert project.created_at is not None
@@ -38,17 +38,17 @@ class TestProject:
         # Arrange
         name = 'テストプロジェクト'
         source = '/path/to/source'
-        ai_tool = AIToolID(UUID('12345678-1234-5678-1234-567812345678'))
+        tool = ToolType.OVERVIEW
 
         # Act
-        project = Project(name=name, source=source, ai_tool=ai_tool)
+        project = Project(name=name, source=source, tool=tool)
 
         # Assert
         assert isinstance(project.id, UUID)  # NewTypeは内部的にはUUID
         assert project.id == project.id  # 値の比較
         assert project.name == name
         assert project.source == source
-        assert project.ai_tool == ai_tool
+        assert project.tool == tool
         assert project.result is None
         assert project.created_at is not None
         assert project.executed_at is None
@@ -59,7 +59,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act & Assert
@@ -70,7 +70,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act
@@ -84,7 +84,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act
@@ -98,7 +98,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act
@@ -113,7 +113,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
         result = {'message': '処理が完了しました'}
 
@@ -130,7 +130,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act
@@ -145,7 +145,7 @@ class TestProject:
         project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act
@@ -156,3 +156,15 @@ class TestProject:
         assert project.executed_at is not None
         assert project.finished_at is not None
         assert project.finished_at > project.executed_at
+
+    def test_内蔵ツールREVIEWが指定できる(self) -> None:
+        # Arrange
+        name = 'テストプロジェクト'
+        source = '/path/to/source'
+        tool = ToolType.REVIEW
+
+        # Act
+        project = Project(name=name, source=source, tool=tool)
+
+        # Assert
+        assert project.tool == ToolType.REVIEW

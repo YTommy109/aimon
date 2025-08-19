@@ -21,11 +21,15 @@ start env='':
     case '{{env}}' in
         '')
             echo "Running in development mode..."
-            streamlit run app.py
+            streamlit run app.py -- --app-env dev
             ;;
         'test')
             echo "Running in test mode (port {{TEST_PORT}})..."
             streamlit run app.py --server.port {{TEST_PORT}} -- --app-env test
+            ;;
+        'prod')
+            echo "Running in production mode..."
+            streamlit run app.py -- --app-env prod
             ;;
         *)
             echo "Unknown run environment: '{{env}}'. Available: 'test'"

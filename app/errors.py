@@ -2,71 +2,11 @@
 
 from abc import ABC, abstractmethod
 
-from app.models import AIToolID, ProjectID
+from app.models import ProjectID
 
 
 class AppError(Exception):
     """すべての例外の基底クラス。"""
-
-
-class CommandExecutionError(AppError):
-    """コマンド実行エラーを表す例外クラス。"""
-
-    def __init__(self, command: str, timeout_seconds: int | None = None, stderr: str | None = None):
-        """
-        例外を初期化します。
-
-        Args:
-            command: 実行に失敗したコマンド。
-            timeout_seconds: タイムアウト時間(秒)。
-            stderr: 標準エラー出力。
-        """
-        self.command = command
-        self.timeout_seconds = timeout_seconds
-        self.stderr = stderr
-        super().__init__(self._generate_message())
-
-    def _generate_message(self) -> str:
-        """
-        エラーメッセージを生成します。
-
-        Returns:
-            生成されたエラーメッセージ。
-        """
-        if self.timeout_seconds:
-            message = f'コマンドが {self.timeout_seconds} 秒でタイムアウトしました: {self.command}'
-        elif self.stderr:
-            message = f'コマンド実行に失敗しました: {self.stderr}'
-        else:
-            message = f'コマンド実行に失敗しました: {self.command}'
-        return message
-
-
-class CommandSecurityError(AppError):
-    """コマンド実行時のセキュリティエラーを表す例外クラス。"""
-
-    def __init__(self, command: str, reason: str | None = None):
-        """
-        例外を初期化します。
-
-        Args:
-            command: セキュリティ違反を起こしたコマンド。
-            reason: セキュリティ違反の理由。
-        """
-        self.command = command
-        self.reason = reason
-        super().__init__(self._generate_message())
-
-    def _generate_message(self) -> str:
-        """
-        エラーメッセージを生成します。
-
-        Returns:
-            生成されたエラーメッセージ。
-        """
-        if self.reason:
-            return f'セキュリティ違反が検出されました({self.reason}): {self.command}'
-        return f'セキュリティ違反が検出されました: {self.command}'
 
 
 class FormValidationError(AppError):
@@ -164,6 +104,27 @@ class FileWritingError(FileProcessingError):
         super().__init__(f'ファイル {file_path} の書き込みに失敗しました')
 
 
+class LLMError(Exception):
+    """LLM呼び出し時のエラーを表す例外クラス。"""
+
+    def __init__(
+        self, message: str, provider: str, model: str, original_error: Exception | None = None
+    ):
+        """LLMエラーを初期化します。
+
+        Args:
+            message: エラーメッセージ。
+            provider: プロバイダ名。
+            model: モデル名。
+            original_error: 元の例外。
+        """
+        self.message = message
+        self.provider = provider
+        self.model = model
+        self.original_error = original_error
+        super().__init__(self.message)
+
+
 class PathIsDirectoryError(FileProcessingError):
     """パスがディレクトリである場合の例外クラス。"""
 
@@ -206,7 +167,7 @@ class DataManagerError(WorkerError):
 class ResourceNotFoundError(WorkerError):
     """リソースが見つからない場合の例外クラス。"""
 
-    def __init__(self, resource_type: str, resource_id: ProjectID | AIToolID) -> None:
+    def __init__(self, resource_type: str, resource_id: ProjectID) -> None:
         """
         例外を初期化します。
 

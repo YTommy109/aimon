@@ -48,7 +48,19 @@ class JsonProjectRepository:
     def find_all(self) -> list[Project]:
         """すべてのプロジェクトを取得します。"""
         projects_data = self._read_json(self.projects_path)
-        return [Project.model_validate(p) for p in projects_data]
+        normalized = [self._normalize_project_data(p) for p in projects_data]
+        return [Project.model_validate(p) for p in normalized]
+
+    def _normalize_project_data(self, project_data: dict[str, Any]) -> dict[str, Any]:
+        """プロジェクトデータを正規化します。"""
+        normalized_project = {}
+
+        # その他のフィールドをコピー
+        for k, v in project_data.items():
+            if k in Project.model_fields:
+                normalized_project[k] = v
+
+        return normalized_project
 
     def save(self, project: Project) -> None:
         """プロジェクトを保存します。"""
@@ -85,6 +97,7 @@ class JsonProjectRepository:
 
     def _save_projects(self, projects: list[Project]) -> None:
         """プロジェクトのリストを保存します。"""
+        # status を除外して tool のみを保存
         projects_data = [p.model_dump(mode='json', exclude={'status'}) for p in projects]
         self._write_json(self.projects_path, projects_data)
 

@@ -19,7 +19,7 @@ def render_project_detail_modal(modal: Modal) -> None:
                     f"""
                     - **UUID**: `{project.id}`
                     - **対象パス**: `{project.source}`
-                    - **AIツール**: `{project.ai_tool}`
+                    - **内蔵ツール**: `{project.tool}`
                     - **ステータス**: `{status_text}`
                     - **作成日時**: `{project.created_at or 'N/A'}`
                     - **実行日時**: `{project.executed_at or 'N/A'}`

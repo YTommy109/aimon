@@ -127,13 +127,9 @@ class TestResponsiveDesign:
 class TestProjectWorkflow:
     """プロジェクトワークフローの統合テスト"""
 
-    def test_プロジェクト作成から実行までの一連の流れ(
-        self, page_with_ai_tool_test_data: Page
-    ) -> None:
+    def test_プロジェクト作成から実行までの一連の流れ(self, page_with_app: Page) -> None:
         # Given
-        page = page_with_ai_tool_test_data
-        # メインページに移動
-        page.goto(page.url.replace('/AI_Tool_Management', ''))
+        page = page_with_app
         try:
             expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
                 timeout=10000
@@ -151,7 +147,7 @@ class TestProjectWorkflow:
         # サイドバーではなくメインカラムの入力欄を取得
         project_name_input = page.get_by_label('プロジェクト名')
         source_dir_input = page.get_by_label('対象ディレクトリのパス')
-        ai_tool_select = page.get_by_label('AIツールを選択')
+        ai_tool_select = page.get_by_label('ツールタイプを選択')
         create_button = page.get_by_role('button', name='プロジェクト作成')
 
         # When
@@ -180,14 +176,10 @@ class TestProjectWorkflow:
 class TestUnixCommandExecution:
     """Unixコマンド実行機能のテスト"""
 
-    def test_Unixコマンド実行のプロジェクトを作成できる(
-        self, page_with_ai_tool_test_data: Page
-    ) -> None:
+    def test_Unixコマンド実行のプロジェクトを作成できる(self, page_with_app: Page) -> None:
         """Unixコマンド実行のプロジェクトを作成できることをテスト。"""
         # Given
-        page = page_with_ai_tool_test_data
-        # メインページに移動
-        page.goto(page.url.replace('/AI_Tool_Management', ''))
+        page = page_with_app
         expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
             timeout=10000
         )
@@ -195,7 +187,7 @@ class TestUnixCommandExecution:
         # When
         project_name_input = page.get_by_label('プロジェクト名')
         source_dir_input = page.get_by_label('対象ディレクトリのパス')
-        ai_tool_select = page.get_by_label('AIツールを選択')
+        ai_tool_select = page.get_by_label('ツールタイプを選択')
         create_button = page.get_by_role('button', name='プロジェクト作成')
 
         project_name_input.fill('Unixコマンドテストプロジェクト')
@@ -212,14 +204,10 @@ class TestUnixCommandExecution:
             print(f'Unixコマンドプロジェクト作成後の確認でエラー: {e}')
             print('Unixコマンドプロジェクト作成の確認に失敗しましたが、テストを続行します。')
 
-    def test_プロジェクト実行でUnixコマンドが呼び出される(
-        self, page_with_ai_tool_test_data: Page
-    ) -> None:
+    def test_プロジェクト実行でUnixコマンドが呼び出される(self, page_with_app: Page) -> None:
         """プロジェクト実行でUnixコマンドが呼び出されることをテスト。"""
         # Given
-        page = page_with_ai_tool_test_data
-        # メインページに移動
-        page.goto(page.url.replace('/AI_Tool_Management', ''))
+        page = page_with_app
         expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
             timeout=10000
         )
@@ -228,7 +216,7 @@ class TestUnixCommandExecution:
         # プロジェクトを作成
         project_name_input = page.get_by_label('プロジェクト名')
         source_dir_input = page.get_by_label('対象ディレクトリのパス')
-        ai_tool_select = page.get_by_label('AIツールを選択')
+        ai_tool_select = page.get_by_label('ツールタイプを選択')
         create_button = page.get_by_role('button', name='プロジェクト作成')
 
         project_name_input.fill('実行テストプロジェクト')
@@ -258,13 +246,11 @@ class TestUnixCommandExecution:
                     print('プロジェクト実行状態の確認に失敗しましたが、テストを続行します。')
 
     def test_複数のプロジェクトでUnixコマンド実行が並行処理される(
-        self, page_with_ai_tool_test_data: Page
+        self, page_with_app: Page
     ) -> None:
         """複数のプロジェクトでUnixコマンド実行が並行処理されることをテスト。"""
         # Given
-        page = page_with_ai_tool_test_data
-        # メインページに移動
-        page.goto(page.url.replace('/AI_Tool_Management', ''))
+        page = page_with_app
         expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
             timeout=10000
         )
@@ -274,7 +260,7 @@ class TestUnixCommandExecution:
         for i in range(2):
             project_name_input = page.get_by_label('プロジェクト名')
             source_dir_input = page.get_by_label('対象ディレクトリのパス')
-            ai_tool_select = page.get_by_label('AIツールを選択')
+            ai_tool_select = page.get_by_label('ツールタイプを選択')
             create_button = page.get_by_role('button', name='プロジェクト作成')
 
             project_name_input.fill(f'並行処理テスト{i + 1}')
@@ -291,13 +277,11 @@ class TestUnixCommandExecution:
         assert exec_btns.count() >= 2, '複数のプロジェクトが作成されていません'
 
     def test_Unixコマンドエラー時に適切なエラーハンドリングが行われる(
-        self, page_with_ai_tool_test_data: Page
+        self, page_with_app: Page
     ) -> None:
         """Unixコマンドエラー時に適切なエラーハンドリングが行われることをテスト。"""
         # Given
-        page = page_with_ai_tool_test_data
-        # メインページに移動
-        page.goto(page.url.replace('/AI_Tool_Management', ''))
+        page = page_with_app
         expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
             timeout=10000
         )
@@ -306,7 +290,7 @@ class TestUnixCommandExecution:
         # エラーが発生する可能性のあるプロジェクトを作成
         project_name_input = page.get_by_label('プロジェクト名')
         source_dir_input = page.get_by_label('対象ディレクトリのパス')
-        ai_tool_select = page.get_by_label('AIツールを選択')
+        ai_tool_select = page.get_by_label('ツールタイプを選択')
         create_button = page.get_by_role('button', name='プロジェクト作成')
 
         project_name_input.fill('エラーハンドリングテスト')

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from pytest_mock import MockerFixture
 
-from app.models import AIToolID
+from app.models import ToolType
 from app.models.project import Project
 from app.ui import project_list
 
@@ -55,7 +55,7 @@ class TestProjectList:
         return Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
     def test_PENDING状態のプロジェクトのアイコンが正しく取得される(
@@ -168,7 +168,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # Act
@@ -187,7 +187,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # カラムのモックを正しく設定
@@ -223,7 +223,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         button_state = {'detail_btn': True, 'exec_btn': False}
@@ -248,7 +248,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         mock_project_service = Mock()
@@ -278,7 +278,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         mock_project_service = Mock()
@@ -306,7 +306,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         button_state = {'detail_btn': False, 'exec_btn': False}
@@ -330,7 +330,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
         sample_project.executed_at = datetime.now(ZoneInfo('Asia/Tokyo'))
 
@@ -366,7 +366,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # カラムのモックを正しく設定
@@ -411,7 +411,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
         # カラムのモックを正しく設定
@@ -443,7 +443,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
         sample_project.executed_at = None
 
@@ -476,7 +476,7 @@ class TestProjectList:
         sample_project = Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
         sample_project.executed_at = datetime(2023, 1, 1, 12, 0, 0, tzinfo=ZoneInfo('Asia/Tokyo'))
 

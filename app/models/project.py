@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
-from . import AIToolID, ProjectID
+from . import ProjectID, ToolType
 
 # 日本標準時のタイムゾーン
 JST = ZoneInfo('Asia/Tokyo')
@@ -29,7 +29,7 @@ class Project(BaseModel):
     id: ProjectID = Field(default_factory=lambda: ProjectID(uuid4()))
     name: str
     source: str
-    ai_tool: AIToolID
+    tool: ToolType
     result: dict[str, Any] | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(JST))
     executed_at: datetime | None = None

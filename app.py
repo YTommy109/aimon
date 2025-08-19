@@ -1,30 +1,35 @@
 import argparse
 import os
+from typing import cast
 
 # Streamlitはスクリプトを再実行する可能性があるため、引数の解釈と
 # グローバルな状態の設定を、他のアプリケーションモジュールをインポートする前に行う。
 # これにより、モジュールレベルでの初期化が正しい環境設定で行われることを保証する。
 
 
-def main() -> None:
-    """アプリケーションのエントリポイント。"""
+def _parse_env() -> str:
+    """起動引数からアプリケーション環境を取得する。"""
     parser = argparse.ArgumentParser(description='Streamlit app with selectable environment.')
     parser.add_argument(
         '--app-env',
         type=str,
-        default='development',
-        choices=['development', 'test'],
-        help='Application environment (development or test)',
+        default='dev',
+        choices=['dev', 'test', 'prod'],
+        help='Application environment (dev, test, or prod)',
     )
     args = parser.parse_args()
+    return cast(str, args.app_env)
 
-    # configインスタンス生成前に環境変数にセット
-    os.environ['APP_ENV'] = args.app_env
 
-    # テスト環境の場合はテスト用データディレクトリも設定
-    if args.app_env == 'test':
-        test_data_dir = os.getenv('DATA_DIR_TEST', '.data_test')
-        os.environ['DATA_DIR_TEST'] = test_data_dir
+def _apply_environment(env: str) -> None:
+    """環境変数へ反映。"""
+    os.environ['ENV'] = env
+
+
+def main() -> None:
+    """アプリケーションのエントリポイント。"""
+    env = _parse_env()
+    _apply_environment(env)
 
     from app.ui.main_page import render_main_page
 

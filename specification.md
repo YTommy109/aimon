@@ -3,7 +3,12 @@
 ## 1. 概要
 
 このドキュメントは、AIツール連携Webアプリケーションの仕様を定義するものです。
-このシステムは、**AIツールをUnixコマンドとして提供**し、ローカルファイルシステム上のファイル群に対する処理を非同期に実行し、その進捗と結果を管理します。
+本仕様では、外部のUnixコマンドとしてのAIツール実行方式を廃止し、
+アプリ内部にAIツール（要約・レビュー）を内包します。
+LLM へのアクセスは provider-agnostic なクライアント
+（lightllm/LiteLLM 想定）を介して OpenAI / Gemini / 社内 LLM を
+切り替え可能とします。処理はローカルファイルシステム上の
+ファイル群に対して非同期に実行し、その進捗と結果を管理します。
 
 ## 2. システム構成
 
@@ -11,7 +16,8 @@
 
 - **フロントエンド**: Streamlitベースのユーザーインターフェース
 - **バックエンド**:
-  - Unixコマンドとして提供されるAIツール群
+  - アプリ内蔵のAIツール群（要約: OVERVIEW、レビュー: REVIEW）
+  - LLM クライアント（lightllm/LiteLLM）により OpenAI / Gemini / 社内 LLM を切替
   - ローカルで動作する非同期処理エンジン
 - **データストア**: ローカルファイルシステム上のJSONファイル
 
@@ -22,43 +28,41 @@ graph TB
     subgraph "View Layer"
         UI[Streamlit UI]
     end
-    
+
     subgraph "UI Layer"
         MP[MainPage]
         DM[DataManager]
         PP[ProjectProcessor]
-        AH[AIToolHandler]
+        TH[ToolHandler]
         PH[ProjectHandler]
         PS[ProjectService]
-        AS[AIToolService]
+        TS[ToolService]
     end
-    
+
     subgraph "Domain Layer"
         E[Entities]
         R[Repositories Interface]
     end
-    
+
     subgraph "Infrastructure Layer"
         JPR[JsonProjectRepository]
-        JAR[JsonAIToolRepository]
         FP[FileProcessor]
-        CME[CommandExecutor]
+        LC[LLMClient (lightllm)]
     end
-    
+
     subgraph "External"
-        UC[Unix Commands]
+        LLM[LLM Providers\n(OpenAI/Gemini/社内LLM)]
         FS[File System]
     end
-    
+
     UI --> MP
     MP --> PS
-    MP --> AS
+    MP --> TS
     PS --> JPR
-    AS --> JAR
+    TS --> LC
     JPR --> E
-    JAR --> E
     FP --> FS
-    CME --> UC
+    LC --> LLM
 ```
 
 ### 2.3. レイヤー別責務
@@ -75,13 +79,12 @@ graph TB
 - **責務**: ビジネスロジックの実装
 - **主要コンポーネント**:
   - `ProjectService`: プロジェクト管理のビジネスロジック
-  - `AIToolService`: AIツール管理のビジネスロジック
 
 #### Domain Layer (ドメイン層)
 
 - **責務**: ビジネスルールとエンティティの定義
 - **主要コンポーネント**:
-  - `models/`: ドメインモデル（AITool, Project）
+  - `models/`: ドメインモデル（Project）
   - `repositories/`: リポジトリインターフェース
 
 #### Infrastructure Layer (インフラストラクチャ層)
@@ -89,9 +92,8 @@ graph TB
 - **責務**: 外部システムとの連携とデータ永続化
 - **主要コンポーネント**:
   - `JsonProjectRepository`: プロジェクトデータのJSON永続化
-  - `JsonAIToolRepository`: AIツールデータのJSON永続化
   - `FileProcessor`: ファイル処理ロジック
-  - `CommandExecutor`: Unixコマンド実行エンジン
+  - `LLMClient`: LLM プロバイダ（OpenAI/Gemini/社内）を lightllm 経由で呼び出すクライアント
 
 ### 2.4. 開発環境
 
@@ -103,13 +105,25 @@ graph TB
 - **静的解析・フォーマット**: ruff
 - **タスクランナー**: just
 
+### 2.6. 環境設定と切り替え
+
+- **環境ファイル**: direnv 依存は廃止し、`.env` 系ファイルを使用します。
+  - 本番環境: `.env`
+  - 開発環境: `.env.dev`
+  - テスト環境: `.env.test`
+- **切り替え方法**: 以下の2通りに対応します。
+  1. 環境変数 `ENV` に `prod` | `dev` | `test` を設定
+  2. Streamlit 起動オプションで `-- --app-env <prod|dev|test>` を指定
+- **優先順位**: 明示的に指定された起動オプションが最優先、その次に `ENV`、いずれも未指定の場合は `dev` を既定とします。
+- **読み込み規約**: 有効な環境に応じて上記の `.env*` を読み込み、API キーやプロバイダ設定（OpenAI/Gemini/社内 LLM のエンドポイント等）を解決します。
+
 ### 2.5. ディレクトリ構成
 
 ```text
 .
 ├── .data/               # プロジェクトデータ保存用（JSONファイル）
 ├── app/                 # アプリケーションのソースコード
-│   ├── models/          # ドメインモデル（AITool, Project）
+│   ├── models/          # ドメインモデル（Project）
 │   ├── repositories/    # リポジトリ実装
 │   ├── services/        # サービス層（ビジネスロジック）
 │   ├── ui/              # UI層（Streamlit用）
@@ -141,7 +155,7 @@ graph TB
   1. プロジェクト名 (テキスト入力)
   2. 対象ディレクトリのパス (テキスト入力)
   3. AIツール (ドロップダウン選択)
-  - **`ai_tools.json`の中から`"disabled_at"`が`null`のツールのみを一覧表示します。**
+  - 内蔵ツールのうち `OVERVIEW`（要約）または `REVIEW`（レビュー）を選択します。
 - 「プロジェクト作成」ボタンを配置します。
 
 **プロジェクト一覧表示**:
@@ -174,83 +188,33 @@ graph TB
 
 ### 3.2. AIツール実行機能
 
-- **実行エンジン**:
-  - AIツールは**Unixコマンド**として提供され、本アプリケーションはsubprocessでそれを呼び出します。
-  - 各AIツールは独自のファイルパース機能を持ち、指定されたディレクトリ内のファイルを処理します。
+- **内蔵ツール**:
+  - `OVERVIEW`: ディレクトリ内のドキュメント群を要約し、全体像・主要論点・アクションを抽出
+  - `REVIEW`: 指定ドキュメントをレビューし、改善提案・指摘事項・整合性チェックを出力
+- **LLM 切替**:
+  - lightllm/LiteLLM を通じて OpenAI / Gemini / 社内 LLM を選択可能（環境変数・.env で設定）
 - **処理フロー**:
-    1. 指定された「対象ディレクトリのパス」をAIツールのUnixコマンドに引数として渡します。
-    2. subprocessでUnixコマンドを実行し、AIツールがディレクトリ内のファイルを処理します。
-    3. AIツールが処理結果を適切なファイル名で対象ディレクトリ内に保存します。
-    4. 処理が完了したら、プロジェクトのステータスを「完了」に更新し、終了日時を記録します。
+  1. ユーザーが `OVERVIEW` または `REVIEW` を選択し、対象ディレクトリを指定
+  2. ファイルを収集・前処理（サイズ/数に応じた分割・要約等を含む）
+  3. プロンプトを生成し、`LLMClient` を介して LLM に問い合わせ
+  4. 出力結果を対象ディレクトリ内の適切なファイル名で保存
+  5. プロジェクトのステータスを更新し、終了日時を記録
 
-### 3.3. AIツール管理機能
+### 3.3. 内蔵AIツール仕様（管理UIなし）
 
-**目的**: ユーザーがシステムで利用可能なAIツールを登録、編集、削除できるUIを提供します。
+本バージョンでは外部定義や管理UIを持たず、内蔵の2ツールのみを提供します。
 
-**UI配置**:
-
-- プロジェクト管理UIとは別のページ、もしくはタブで提供します。「AIツール管理」のようなナビゲーションを設けます。
-
-**機能**:
-
-- **AIツール一覧表示**:
-  - `ai_tools.json` に登録されているAIツールを一覧で表示します。
-  - 表示項目: `ID`, `ツール名`, `説明`, `コマンド`, `登録日時`, `最終更新日時`, `状態`
-  - 各行に「編集」「無効化/有効化」ボタンを配置します。
-- **AIツール登録**:
-  - 「新規ツール登録」ボタンを配置します。
-  - ボタンを押すとモーダルダイアログが開き、以下の項目を入力させます。
-    - ツールID (`id`): 半角英数字とハイフンのみ。
-    - ツール名 (`name_ja`)
-    - 説明 (`description`)
-    - コマンド (`command`): 実行するUnixコマンド（例: `python /path/to/tool.py`）
-- **AIツール編集**:
-  - 「編集」ボタンを押すと、登録時と同様のモーダルが開き、既存の情報を編集できます。
-- **AIツール状態変更**:
-  - ボタンは現在の状態に応じて「無効化」または「有効化」と表示されます。
-  - **物理的な削除は行わず、論理削除のみとします。**
+- 選択肢: `OVERVIEW`（要約）, `REVIEW`（レビュー）
+- 将来の拡張でツール追加・管理UI復活を検討しますが、当面は固定とします。
 
 ## 4. データ構造
 
-### 4.1. AIツール定義
+### 4.1. 内蔵AIツールの識別子
 
-- **目的**: システムで利用可能なAIツールの定義を管理します。
-- **形式**: JSON
-- **ファイル名**: `ai_tools.json`
-- **エンティティ**: AITool (app/models/ai_tool.py)
-- **主要項目**:
-  - `id` (str): ツールの一意識別子（半角英数字とハイフン）
-  - `name_ja` (str): ツールの日本語名
-  - `description` (str): ツールの説明文
-  - `command` (str): 実行するUnixコマンド
-  - `created_at` (datetime): 作成日時（日本時間）
-  - `updated_at` (datetime): 最終更新日時（日本時間）
-  - `disabled_at` (datetime | None): 無効化日時（論理削除用、有効な場合はnull）
-
-- **データ例**:
-
-```json
-[
-  {
-    "id": "meeting-summarizer",
-    "name_ja": "会議議事録要約",
-    "description": "会議の音声や議事録を要約してアクションアイテムを抽出",
-    "command": "python /usr/local/bin/meeting-summarizer.py",
-    "created_at": "2024-01-15T10:30:00+09:00",
-    "updated_at": "2024-01-15T10:30:00+09:00",
-    "disabled_at": null
-  },
-  {
-    "id": "document-analyzer",
-    "name_ja": "文書分析",
-    "description": "複数の文書から重要な情報を抽出・分析",
-    "command": "node /usr/local/bin/document-analyzer.js",
-    "created_at": "2024-01-16T14:20:00+09:00",
-    "updated_at": "2024-01-20T09:15:00+09:00",
-    "disabled_at": "2024-01-25T16:45:00+09:00"
-  }
-]
-```
+- **定義**: `StrEnum` で `ToolType` を定義し、以下の2値を持ちます。
+  - `OVERVIEW`
+  - `REVIEW`
+- **備考**: 将来的な拡張時も `StrEnum` を拡張することで識別子の一貫性を保ちます。
 
 ### 4.2. プロジェクト管理
 
@@ -260,10 +224,25 @@ graph TB
   - プロジェクトID (UUID)
   - プロジェクト名
   - 対象ディレクトリパス
-  - 使用AIツールID
+  - 使用AIツール識別子（`ToolType`: `OVERVIEW` | `REVIEW`）
   - ステータス
   - 処理結果
   - 各種タイムスタンプ
+
+- **例（抜粋）**:
+
+```json
+{
+  "id": "2f6a6c7c-9a5e-4d71-9a8f-55f7d2f5e1a1",
+  "name": "要約-週次報告",
+  "target_path": "/path/to/dir",
+  "tool": "OVERVIEW",
+  "status": "Pending",
+  "created_at": "2025-08-06T12:00:00+09:00",
+  "started_at": null,
+  "finished_at": null
+}
+```
 
 ## 5. テスト戦略
 
@@ -275,8 +254,8 @@ graph TB
    - カバレッジ目標: 80%以上
 
 2. **インテグレーションテスト**:
-   - 対象: モジュール間の連携、Unixコマンドとの通信
-   - 特記: テスト用のモックコマンドを使用
+   - 対象: モジュール間の連携、LLM クライアントとの通信
+   - 特記: LLM 呼び出しはモック（lightllm/LiteLLM のラッパをパッチ）
 
 3. **E2Eテスト**:
    - 対象: ユーザーインターフェースを含むシステム全体

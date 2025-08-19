@@ -11,6 +11,8 @@ globs: *
 - The AI coding assistant must adhere to all instructions provided in this file.
 - The AI coding assistant should always ask for clarification when uncertain.
 - The AI coding assistant should provide multiple options when possible.
+- **ALWAYS** implement the minimum required to address the problem. Avoid adding forward-looking code or features. If code is unused, it should be removed.
+- **Status Updates:** Provide status updates before tool calls and after edits, particularly tests and builds. Fix any failures before marking tasks complete.
 
 ### pyproject.toml Modification Rules
 
@@ -30,7 +32,7 @@ globs: *
 
 - When executing commands using `subprocess.run`, the AI coding assistant must ensure the command includes the target directory path.
 - The `{source_path}` placeholder MUST be used within the command string to represent the project's source directory.
-- The AI coding assistant must validate that the command string contains the `{source_path}` placeholder before execution, if the placeholder is present in the command. If the placeholder is not present, the command will be executed as is.
+- The AI coding assistant must validate that the command string contains the `{source_path}` placeholder before execution, if the placeholder is present in the command. If the placeholder is not present, the placeholder is not present, the command will be executed as is.
 - The working directory for command execution should remain the Streamlit app's launch directory. Do not set `cwd` in `subprocess.run`.
 - AI tool commands should be configured to specify the target directory using the `{source_path}` placeholder (e.g., `ait analyze {source_path}`).
 - The AI coding assistant should ensure that commands like `pushd` and `popd` are included in the list of allowed command prefixes if they are used in the execution of AI tools.
@@ -53,8 +55,235 @@ globs: *
     - **Invalid Project ID:** The project ID must be a valid UUID format.
     - **AI Tool Not Found:** When retrieving an AI tool by ID, the ID must exist in the repository.
 
+### Internal AI Tool Rules
+- The project will use internal AI tools instead of relying solely on external AI tools.
+- The following LLMs should be supported through `lightllm`: OpenAI, Gemini, and internal LLMs.
+- The project will initially provide two internal AI tools: "OVERVIEW" (summarization) and "REVIEW". These should be defined using `StrEnum`.
+- The `ai_tools.json` file is no longer required. The `Project` data model will hold the `OVERVIEW` or `REVIEW` identifier instead of an AI tool ID.
+
+### Environment Configuration Rules
+- The project should use `.env` files for environment configuration instead of `direnv`.
+    - `.env`: Production environment
+    - `.env.dev`: Development environment
+    - `.env.test`: Test environment
+- The environment (prod, dev, test) should be switchable using:
+    - The `ENV` environment variable.
+    - A Streamlit startup option (`-- --app-env dev|test|prod`). The Streamlit startup option takes precedence over the `ENV` environment variable. If neither is specified, the environment defaults to `prod`.
+- **There should only be one `.env.example` file** because the variables are the same across prod, dev, and test environments. This file is named `env_sample`.
+
+### Change Planning Rules
+- Before implementing significant architectural changes, such as transitioning to internal AI tools, a `plan.md` document should be created. This plan should outline:
+    - Phases and tasks for the transition.
+    - Risks and acceptance criteria for each task.
+    - Strategies for migrating from existing implementations (e.g., `ai_tools.json`).
+- The `plan.md` file should be formatted using `markdownlint-cli2` and must pass all linting checks before implementation begins. The `just mdlint plan.md` command should be used for this purpose.
+- The plan should prioritize incremental development and frequent execution of `just test-all` to maintain code quality.
+- The plan should consider the order of environment variable precedence: Streamlit startup options (`--app-env`) take precedence over the `ENV` environment variable, which defaults to `prod` if neither is specified.
+- The plan should address the transition from external AI tool commands (via AITool) to internal `ToolType StrEnum`.
+- The AI coding assistant should add checkboxes to `plan.md` to visualize progress.
+
+### Environment File Handling Rules
+
+- To avoid committing sensitive information, actual `.env` files (`.env`, `.env.dev`, `.env.test`) should remain untracked by Git.
+- Instead of directly modifying `.gitignore`, create `env_sample` file with commented-out placeholders for environment variables. This example file can be committed to the repository as a template.
+- Before modifying `.gitignore` to exclude `.env` files, always seek explicit user confirmation.
+
+### Linting and Formatting Rules
+
+- After editing `.py` files, the AI coding assistant should run `just ruff path='<file_path>'` to format and lint the file.
+- The AI coding assistant should use `just` for all development tasks, avoiding direct calls to `ruff` or other formatters/linters.
+- When fixing type errors, the AI coding assistant should choose the most minimal fix possible (e.g., casting to a string using `str(args.app_env)`).
+
+### Plan.md Rules
+- The AI coding assistant should add checkboxes to `plan.md` to visualize progress.
+- The AI coding assistant should use two spaces for indentation in nested lists.
+- The AI coding assistant should always update `plan.md` to reflect the current project status.
+- The AI coding assistant should use the `plan.md` file to determine the current project status and remaining tasks.
+- The AI coding assistant should use `plan.md` to guide the development process and prioritize tasks based on the plan's current state.
+
+### Vulture Configuration Rules
+
+- When running `vulture`, target application code (e.g., `app` and `pages`) and exclude test directories (e.g., `tests`, `tests_e2e`) to accurately identify unused code in the application.
+- Set the minimum confidence level for `vulture` to ensure that potential unused code is detected, while minimizing false positives.
+- Add any excluded files to the `exclude` list in `pyproject.toml` under the `[tool.vulture]` section.
+- Add any ignored names to the `ignore_names` list in `pyproject.toml` under the `[tool.vulture]` section.
+- **Unused code should be removed** to maintain a minimal implementation. Future-looking code is not allowed. If code is unused, delete it.
+
+### ENVIRONMENT VARIABLE RULES
+
+- The application environment variables should be configured such that:
+    - Streamlit startup options (`--app-env dev|test|prod`) take precedence over the `ENV` environment variable.
+    - The `ENV` environment variable defaults to `prod` if neither the startup option nor the `ENV` variable is specified.
+- When `ENV` is set to 'test', `data_dir_path` returns `DATA_DIR_TEST` if it's defined, overriding `DATA_DIR`. This ensures backward compatibility.
+- When `ENV` is set to 'test', the application should use test-specific configurations or data directories.
+
+### `.cursorrules` SPECIFIC RULES
+
+- The AI coding assistant should respect rules defined in `.cursor/rules` or `.cursorrules` to restrict its actions.
+- Prefer the `.cursor/rules` directory for rule files; `.cursorrules` is considered an older approach.
+- The current preferred way to define rules is to place `{filename}.mdc` files under the `.cursor/rules` directory. These files specify rules in a structured format.
+
+### GIT ATTRIBUTES RULES
+
+- Important configuration files should be treated as read-only within Git.
+- Example: `pyproject.toml -text` in `.gitattributes` marks the file as read-only.
+
+### Mypy Configuration Rules
+- When encountering mypy errors related to the internal AI tool transition (e.g., `AITool`, `AIToolID` references in older code), and following the plan to incrementally transition and eventually remove the old code:
+    - Modify `pyproject.toml` to exclude the relevant files or modules from mypy checks temporarily. This allows focusing on current development without being blocked by legacy code.
+    - Add an override in the `[tool.mypy.overrides]` section of `pyproject.toml` to ignore `ignore_missing_imports` and set `disallow_any_unimported = false` for the affected modules.
+    - If necessary, add `warn_return_any = false` to the override to suppress "Returning Any" warnings if functions are known to return `Any` during the transition.
+    - **IMPORTANT**: Document the reason for the mypy override in `pyproject.toml` with a comment indicating that the override is temporary and related to the internal AI tool transition. The comment should also mention that the affected code will be removed or refactored in a later stage.
+
+### Step 5 (Post-Cleanup) of Internal AI Tool Transition
+- When performing Step 5 (Post-Cleanup) of the internal AI tool transition, which includes removing `ai_tools.json`, `AITool`, `JsonAIToolRepository`, and `AIToolService`:
+    - **Confirm Code Usage:** Before deleting these components, confirm that they are no longer actively used within the project.
+    - **Address Import Errors:** If import errors arise due to the removal of these components, remove the corresponding imports in the affected files.
+    - **Compatibility Code Removal:** Remove any compatibility code related to the old AI tool system, such as code handling the `ai_tool` field in project data.
+    - **Data Migration:** Ensure that project data is migrated to the new format (`ToolType`) before removing compatibility code. This may involve data transformation scripts or manual updates.
+    - **Test Thoroughly:** After removing these components, run comprehensive tests to ensure that all functionalities are working as expected.
+
+### Task Execution Based on Plan
+- When the user asks to execute the rest of the plan, the AI coding assistant should:
+    - Check `plan.md` to determine the current project status and remaining tasks.
+    - Proceed with the tasks outlined in `plan.md` in the order they appear.
+
+### E2E Test Updates
+- When updating E2E tests:
+    - Replace `page_with_ai_tool_test_data` with `page_with_app`.
+    - Remove the lines that navigate to `/AI_Tool_Management` because the AI Tool Management page is no longer needed.
+    - Replace the label `AIツールを選択` with `ツールタイプを選択`.
+
+### Data Migration Rules
+- During the internal AI tool transition, when the `Project` model's `tool` field is mandatory, and existing data only contains the `ai_tool` field:
+    - **Data Transformation:** Implement a data migration process in the repository to convert the existing `ai_tool` field to the new `tool` field.
+    - **Field Mapping:** Ensure a correct mapping between the values of `ai_tool` and the corresponding `ToolType` enum values.
+    - **Data Consistency:** Before removing the `ai_tool` field, ensure all existing data has been migrated to use the `tool` field.
+- After the `ai_tool` to `tool` migration is complete and the `ai_tool` field is no longer needed:
+    - Remove the `ai_tool` field from the `Project` model.
+    - Remove the code related to handling the `ai_tool` field in the repository's data normalization process.
+
+### Streamlit Startup Options Rules
+- When using Streamlit, custom options must be passed after `--` in the `justfile`. For example: `streamlit run app.py -- --app-env dev`
+
+### Post ai_tool Field Removal
+
+- After confirming that `projects.json` has been updated and the `ai_tool` field is no longer needed:
+    - Remove all code related to handling the `ai_tool` field in `project_repository.py`.
+    - Ensure the `Project` model no longer contains the `ai_tool` field.
+    - Verify that all tests pass after removing the code.
+
+### LLM Handling Rules
+
+- The initial implementation of LLM calling is a stub (placeholder).
+- The project should support LLMs via `lightllm`, including OpenAI, Gemini, and internal LLMs.
+- An `LLMClient` (lightllm) is intended to be used to call LLMs. However, the current implementation may be mocked.
+
+### Development Workflow Rules
+
+- For each task in the implementation phases (as defined in `plan.md`):
+    - After completing a task, the AI coding assistant MUST run `just test-all` to ensure code quality.
+    - If `uv sync` has been run, ensure that development dependencies are installed by running `uv sync --extra dev`.
+
+### Dependency Management Rules
+
+- Before adding any new dependencies to `pyproject.toml`, the AI coding assistant MUST:
+    - Consult `plan.md` to understand the project's requirements and planned dependencies.
+    - Propose the addition to the user, explaining the rationale and alternatives (e.g., `lightllm` vs. `litellm`).
+    - Await user approval before making any changes to `pyproject.toml`.
+
+### LLMClient Implementation Rules
+
+- The `LLMClient` class should be placed in the `app/utils` directory.
+- When implementing the `LLMClient`, use the following structure:
+    - Abstract base class `LLMProvider`.
+    - Concrete provider classes (`OpenAIProvider`, `GeminiProvider`, `InternalLLMProvider`).
+    - Unified client `LLMClient`.
+- The `LLMClient` should support switching providers at runtime.
+- The `LLMClient` should support asynchronous text generation.
+- Ensure proper error handling for unsupported providers.
+- When the `LLMClient` or provider classes encounter an exception during API calls, raise a `RuntimeError` with a descriptive message. Include the original exception information using `raise ... from err`.
+- When initializing providers within the `_initialize_provider` method of the `LLMClient`, retrieve API keys and other necessary credentials from environment variables. Raise a `ValueError` with a descriptive message if any required environment variables are not set.
+
+### Testing Rules for LLMClient
+
+- Create tests for the `LLMClient` class and its provider classes.
+- Test the initialization of each provider.
+- Test the text generation functionality of each provider.
+- Test the provider switching functionality of the `LLMClient`.
+- Ensure that tests cover cases where the provider is not initialized or is unsupported.
+- Exclude the newly created `LLMClient` class from Vulture checks until it is fully implemented and used.
+- All tests must pass, and code coverage should remain above 85%.
+- When testing API calls via `LLMClient`, mock the actual API calls to avoid external dependencies and ensure test stability. The tests should focus on validating the structure and logic of the `LLMClient` and its provider classes.
+- When testing the text generation functionality, assert that the result contains the provider name, model name, and a portion of the prompt.
+- When tests involve checking for exceptions related to missing environment variables, use `pytest.raises` to assert that the appropriate `ValueError` is raised and that the exception message is correct.
+- When testing the text generation functionality, ensure that the tests account for the stub (placeholder) implementation of the LLMClient. The tests should validate that the expected string (e.g., "OpenAI", model name, and a portion of the prompt) is present in the result, but should not rely on the actual API being called.
+
+### Docstring Rules for LLMClient
+- Use standard ASCII parentheses in docstrings, not fullwidth parentheses.
+
+### Prompt Management Rules
+- The OVERVIEW and REVIEW tools should use prompt management classes.
+- Prompt templates should be defined for each tool, and the system should generate prompts dynamically.
+
+### ProjectService Rules
+- The `ProjectService` should include AI tool functionality.
+- The `_execute_internal_tool` method of the `ProjectService` should use the `PromptManager` and `LLMClient` to generate prompts and execute LLM calls. The implementation should use a synchronous stub of the LLMClient.
+- The `ProjectService` should handle exceptions during internal tool execution.
+- If the `LLMClient`'s `generate_text` method is asynchronous, the `ProjectService` should be updated to handle asynchronous calls or use a synchronous stub implementation.
+
+### Code Complexity Rules
+- When refactoring code, address code complexity issues identified by linters (e.g., `C901` errors for overly complex functions).
+- Decompose complex functions into smaller, more manageable sub-functions to improve readability and maintainability.
+
+### Type Annotation Rules
+- When defining variables, always provide explicit type annotations to improve code clarity and prevent type-related errors.
+- Ensure that type annotations accurately reflect the expected data types, especially when dealing with function arguments and return values.
+- When passing keyword arguments (`kwargs`) to functions, perform type checks and casts to ensure that the arguments have the expected types.
+- When dealing with `argparse.Namespace` and potential `Any` type inferences, especially when a function requires a specific return type (e.g., `str`), use `typing.cast` to explicitly cast the value to the correct type. This ensures type consistency and satisfies linters. For example:
+    ```python
+    from typing import cast
+
+    def _parse_app_env(...) -> str:
+        ...
+        args = parser.parse_args()
+        return cast(str, args.app_env)
+    ```
+- After applying the `cast`, run `just ruff <file_path>` and `just lint` to confirm the code is formatted correctly, and all type checks pass.
+
+### Unused Code Rules
+- Regularly check for and remove unused code, including attributes, methods, and variables, to maintain a clean and efficient codebase.
+- Use tools like `vulture` to identify potential unused code.
+
+### Test Mocking Rules
+- When tests fail with errors like `'Mock' object is not iterable`, review the test's mock setup. Ensure that mocked objects return iterable values when the code under test expects them.
+
+### Integration Testing Rules
+
+- Create integration tests for:
+    - **LLMClient and PromptManager:** To ensure they work together correctly.
+    - **ProjectService and LLMClient:** To validate the interaction between the service and the LLM client.
+- Consider creating end-to-end workflow tests to verify the overall system functionality.
+
+### Phase 5 (Code Cleanup) Rules
+- When performing Phase 5 of the project, which involves cleaning up old code:
+    - **Remove Old `ait` Command Code:** Remove any code related to the `ait` command, as it's no longer needed.
+    - **Remove External AI Tool Code:** Delete any code related to external AI tools, such as `AITool`, `JsonAIToolRepository`, and `AIToolService`.
+    - **Verify Data Migration:** Ensure that all data has been successfully migrated to the new internal AI tool system before removing any related code.
+
+### Ruff Specific Rules
+- Address code complexity issues identified by linters (e.g., `C901` errors for overly complex functions).
+- Fix `RET504 Unnecessary assignment to response before return` errors.
+- Fix `UP038 Use X | Y in isinstance call instead of (X, Y)` errors.
+- Fix `PLR0911 Too many return statements` errors.
+- Fix `ARG005 Unused lambda argument` errors.
+
+### Plan.md Update Rules
+- The AI coding assistant should update `plan.md` to reflect the accurate status of the project, including checking completed tasks.
+
 ## TECH STACK
 
+- litellm>=1.0.0 # Added based on user decision
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
 
 ## CODING STANDARDS
@@ -63,6 +292,27 @@ globs: *
 
 - **Exception Messages:** When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
 - **Centralized Logging:** Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged.
+- When raising exceptions within `except` blocks, use `raise ... from err` to preserve the original exception's traceback.
+
+### Docstring Formatting
+- Avoid using fullwidth parentheses in docstrings. Use standard ASCII parentheses instead.
+
+### Type Handling
+
+- When dealing with `argparse.Namespace` and potential `Any` type inferences, especially when a function requires a specific return type (e.g., `str`), use `typing.cast` to explicitly cast the value to the correct type. This ensures type consistency and satisfies linters. For example:
+    ```python
+    from typing import cast
+
+    def _parse_app_env(...) -> str:
+        ...
+        args = parser.parse_args()
+        return cast(str, args.app_env)
+    ```
+- After applying the `cast`, run `just ruff <file_path>` and `just lint` to confirm the code is formatted correctly, and all type checks pass.
+
+### Pydantic Configuration
+
+- When using Pydantic, set `model_config = SettingsConfigDict(extra='ignore')` in the `Config` class to allow loading environment variables from `.env` files without causing validation errors due to unknown keys.
 
 ## DEBUGGING
 
@@ -70,21 +320,14 @@ globs: *
 
 - After modifying code, **ALWAYS** run `ruff format` and `ruff check --fix` to ensure code quality and formatting.
 - When function names are changed, **ALWAYS** remember to update the corresponding tests.
-
-## `.cursorrules` SPECIFIC RULES
-
-- The AI coding assistant should respect rules defined in `.cursor/rules` or `.cursorrules` to restrict its actions.
-- Prefer the `.cursor/rules` directory for rule files; `.cursorrules` is considered an older approach.
-- The current preferred way to define rules is to place `{filename}.mdc` files under the `.cursor/rules` directory. These files specify rules in a structured format.
-
-## GIT ATTRIBUTES RULES
-
-- Important configuration files should be treated as read-only within Git.
-- Example: `pyproject.toml -text` in `.gitattributes` marks the file as read-only.
-
-## VULTURE CONFIGURATION RULES
-
-- When running `vulture`, target application code (e.g., `app` and `pages`) and exclude test directories (e.g., `tests`, `tests_e2e`) to accurately identify unused code in the application.
-- Set the minimum confidence level for `vulture` to 60 to ensure that potential unused code is detected, while minimizing false positives.
-- Add any excluded files to the `exclude` list in `pyproject.toml` under the `[tool.vulture]` section.
-- Add any ignored names to the `ignore_names` list in `pyproject.toml` under the `[tool.vulture]` section.
+- Develop in small increments, frequently running `just test-all` to maintain code quality.
+- **Plan.md Updates:** The AI coding assistant should always update `plan.md` to reflect the current project status.
+- **Task Prioritization:** When the user asks to confirm unfinished tasks, the AI should check `plan.md` and use it to determine the current project status and remaining tasks.
+- **Quality Assurance:** After completing a task, the AI coding assistant MUST run `just test-all` to ensure code quality. This includes:
+    - Running `just ruff <file_name>` for formatting and linting.
+    - Running `just test-all` to confirm overall quality.
+    - Creating and running unit tests for new features.
+    - Running `just test-all` after integration to check for impacts on existing features.
+    - Running `just test-all strict` for complete confirmation, including E2E tests.
+    - Verifying code format (ruff format), linter errors (ruff check), unused code (vulture), type checking (mypy), test execution (pytest), and coverage (80% or higher).
+    - If quality checks fail, do not proceed to the next task.

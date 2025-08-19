@@ -17,7 +17,7 @@ def test_デフォルト値が正しく設定される(mocker: MockerFixture) ->
     config = Config()
 
     # Assert
-    assert config.APP_ENV == 'development'
+    assert config.effective_env == 'dev'
     assert Path('log') == config.DEFAULT_LOG_DIR
     assert config.DEFAULT_LOG_FILE == 'app.log'
     assert config.LOG_ROTATION_DAYS == 7
@@ -26,10 +26,8 @@ def test_デフォルト値が正しく設定される(mocker: MockerFixture) ->
 def test_環境変数から設定値を読み込める(mocker: MockerFixture) -> None:
     # Arrange
     env_values = {
-        'APP_ENV': 'test',
+        'ENV': 'test',
         'DATA_DIR': 'custom_data',
-        'DATA_DIR_TEST': 'custom_test_data',
-        'GEMINI_API_KEY': 'test_api_key',
     }
     mocker.patch.dict(os.environ, env_values, clear=True)
 
@@ -37,8 +35,8 @@ def test_環境変数から設定値を読み込める(mocker: MockerFixture) ->
     config = Config()
 
     # Assert
-    assert config.APP_ENV == 'test'
-    assert config.data_dir_path == Path('custom_test_data')
+    assert config.effective_env == 'test'
+    assert config.data_dir_path == Path('custom_data')
 
 
 @pytest.mark.parametrize(
@@ -54,7 +52,7 @@ def test_development環境でのデータディレクトリパス(
     expected_path: Path,
 ) -> None:
     # Arrange
-    mocker.patch.dict(os.environ, {'APP_ENV': 'development', **env_vars}, clear=True)
+    mocker.patch.dict(os.environ, {'ENV': 'dev', **env_vars}, clear=True)
 
     # Act
     config = Config()
@@ -66,8 +64,8 @@ def test_development環境でのデータディレクトリパス(
 @pytest.mark.parametrize(
     ('env_vars', 'expected_path'),
     [
-        ({}, Path('.data_test')),
-        ({'DATA_DIR_TEST': 'custom_test_data'}, Path('custom_test_data')),
+        ({}, Path('.data')),
+        ({'DATA_DIR': 'custom_test_data'}, Path('custom_test_data')),
     ],
 )
 def test_test環境でのデータディレクトリパス(
@@ -76,7 +74,7 @@ def test_test環境でのデータディレクトリパス(
     expected_path: Path,
 ) -> None:
     # Arrange
-    mocker.patch.dict(os.environ, {'APP_ENV': 'test', **env_vars}, clear=True)
+    mocker.patch.dict(os.environ, {'ENV': 'test', **env_vars}, clear=True)
     # Act
     config = Config()
 
@@ -95,36 +93,51 @@ def test_ログファイルパス(mocker: MockerFixture) -> None:
     assert config.log_file_path == Path('log') / 'app.log'
 
 
-def test_Unixコマンド実行設定のデフォルト値(mocker: MockerFixture) -> None:
+def test_ENVが設定される(mocker: MockerFixture) -> None:
     # Arrange
-    mocker.patch.dict(os.environ, {}, clear=True)
+    mocker.patch.dict(os.environ, {'ENV': 'prod'}, clear=True)
 
     # Act
     config = Config()
 
     # Assert
-    assert config.COMMAND_TIMEOUT == 300
-    assert config.MAX_COMMAND_LENGTH == 1000
-    assert 'python' in config.ALLOWED_COMMAND_PREFIXES
-    assert 'node' in config.ALLOWED_COMMAND_PREFIXES
-    assert 'npm' in config.ALLOWED_COMMAND_PREFIXES
-    assert 'git' in config.ALLOWED_COMMAND_PREFIXES
-    assert 'rm -rf' in config.BLOCKED_COMMANDS
-    assert 'sudo' in config.BLOCKED_COMMANDS
-    assert 'passwd' in config.BLOCKED_COMMANDS
+    assert config.effective_env == 'prod'
 
 
-def test_環境変数からUnixコマンド設定を読み込める(mocker: MockerFixture) -> None:
+@pytest.mark.parametrize(
+    ('env_vars', 'expected_env'),
+    [
+        ({'ENV': 'test'}, 'test'),
+        ({'ENV': 'dev'}, 'dev'),
+        ({'ENV': ''}, 'dev'),  # 空文字は dev 扱い
+    ],
+)
+def test_ENVの正規化(mocker: MockerFixture, env_vars: dict[str, str], expected_env: str) -> None:
     # Arrange
-    env_values = {
-        'COMMAND_TIMEOUT': '600',
-        'MAX_COMMAND_LENGTH': '2000',
-    }
-    mocker.patch.dict(os.environ, env_values, clear=True)
+    mocker.patch.dict(os.environ, env_vars, clear=True)
 
     # Act
     config = Config()
 
     # Assert
-    assert config.COMMAND_TIMEOUT == 600
-    assert config.MAX_COMMAND_LENGTH == 2000
+    assert config.effective_env == expected_env
+
+
+@pytest.mark.parametrize(
+    ('env_vars', 'expected_path'),
+    [
+        ({'ENV': 'prod'}, Path('.data')),
+        ({'ENV': 'prod', 'DATA_DIR': 'prod_data'}, Path('prod_data')),
+    ],
+)
+def test_production環境でのデータディレクトリパス(
+    mocker: MockerFixture, env_vars: dict[str, str], expected_path: Path
+) -> None:
+    # Arrange
+    mocker.patch.dict(os.environ, env_vars, clear=True)
+
+    # Act
+    config = Config()
+
+    # Assert
+    assert config.data_dir_path == expected_path

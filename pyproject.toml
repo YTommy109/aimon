@@ -11,6 +11,7 @@ dependencies = [
     "Pillow>=11.3.0",
     "pydantic>=2.0,<3.0",
     "pydantic-settings>=2.0,<3.0",
+    "litellm>=1.75.0",
     "requests>=2.0",
     "streamlit>=1.0",
     "streamlit-autorefresh>=1.0",
@@ -198,12 +199,7 @@ max-statements = 15 # 関数内の文の最大数（可読性保持、LLM品質�
 "app/worker.py" = [
     "PLR0913", # 多い引数許可（ワーカー処理の複雑性）
 ]
-"app/application/handlers/ai_tool_handler.py" = [
-    "PLR0911", # return文の数許可（シンプルなバリデーションロジック）
-]
-"app/view/ai_tool_management.py" = [
-    "C901", # 複雑なUIロジックのため許容
-]
+
 
 # =====================================
 # mypy設定

@@ -1,0 +1,33 @@
+# 環境変数サンプル（prod/dev/test で共通）
+# 使い方:
+#   - 本番:  cp env_sample .env
+#   - 開発:  cp env_sample .env.dev
+#   - テスト: cp env_sample .env.test
+# 必要に応じて各ファイルで値を上書きしてください。
+
+# 注意: ENV は .env 読み込み前に決定されるため、ここには記載しない（起動オプション or 外部環境で設定）
+# 削除済み: APP_ENV は廃止されました。ENV を使用してください。
+
+# ログレベル: DEBUG | INFO | WARNING | ERROR | CRITICAL
+LOG_LEVEL=DEBUG
+
+# データディレクトリ設定（将来的に test も含めてこの値を参照する方針）
+DATA_DIR=.data
+
+# LLM クライアント関連（将来の導入に備えたプレースホルダー）
+LLM_PROVIDER=
+
+# OpenAI
+OPENAI_API_KEY=
+OPENAI_API_BASE=
+OPENAI_MODEL=
+
+# Gemini
+GEMINI_API_KEY=
+GEMINI_API_BASE=
+GEMINI_MODEL=
+
+# 社内LLM
+INTERNAL_LLM_ENDPOINT=
+INTERNAL_LLM_API_KEY=
+INTERNAL_LLM_MODEL=

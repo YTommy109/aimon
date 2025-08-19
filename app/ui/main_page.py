@@ -3,7 +3,6 @@
 import logging
 import os
 from datetime import datetime
-from typing import Any
 from zoneinfo import ZoneInfo
 
 import streamlit as st
@@ -12,9 +11,7 @@ from streamlit_modal import Modal
 from app.config import config
 from app.logger import setup_logger
 from app.models.project import Project
-from app.repositories.ai_tool_repository import JsonAIToolRepository
 from app.repositories.project_repository import JsonProjectRepository
-from app.services.ai_tool_service import AIToolService
 from app.services.project_service import ProjectService
 from app.ui.project_creation_form import render_project_creation_form
 from app.ui.project_detail_modal import render_project_detail_modal
@@ -25,20 +22,15 @@ setup_logger()
 logger = logging.getLogger('aiman')
 
 
-def get_services() -> tuple[Any, Any]:
+def get_services() -> ProjectService:
     """サービス層のインスタンスを取得。"""
     # 環境変数の設定を確認
-    app_env = os.getenv('APP_ENV', 'development')
-    logger.info(f'Creating services for environment: {app_env}')
+    env = os.getenv('ENV', 'dev')
+    logger.info(f'Creating services for environment: {env}')
     logger.info(f'Data directory: {config.data_dir_path}')
 
     project_repo = JsonProjectRepository(config.data_dir_path)
-    ai_tool_repo = JsonAIToolRepository(config.data_dir_path)
-
-    ai_tool_service = AIToolService(ai_tool_repo)
-    project_service = ProjectService(project_repo, ai_tool_service)
-
-    return project_service, ai_tool_service
+    return ProjectService(project_repo)
 
 
 def _get_sort_key(project: Project, jst: ZoneInfo) -> datetime:
@@ -68,10 +60,10 @@ def render_main_page() -> None:
     st.title('AI Meeting Assistant 🤖')
 
     # サービスの取得
-    project_service, ai_tool_service = get_services()
+    project_service = get_services()
 
     # プロジェクト作成フォーム
-    render_project_creation_form(project_service, ai_tool_service)
+    render_project_creation_form(project_service)
 
     # プロジェクト詳細モーダル
     modal = Modal(title='プロジェクト詳細', key='project_detail_modal')

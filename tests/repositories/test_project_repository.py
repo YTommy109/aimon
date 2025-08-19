@@ -10,7 +10,7 @@ from uuid import UUID
 import pytest
 
 from app.errors import PathIsDirectoryError, ResourceNotFoundError
-from app.models import AIToolID, ProjectID
+from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 
@@ -34,7 +34,7 @@ class TestJsonProjectRepository:
         return Project(
             name='テストプロジェクト',
             source='/path/to/source',
-            ai_tool=AIToolID(UUID('12345678-1234-5678-1234-567812345678')),
+            tool=ToolType.OVERVIEW,
         )
 
     def test_プロジェクト一覧を取得できる(
@@ -51,7 +51,7 @@ class TestJsonProjectRepository:
         assert projects[0].id == sample_project.id
         assert projects[0].name == sample_project.name
         assert projects[0].source == sample_project.source
-        assert projects[0].ai_tool == sample_project.ai_tool
+        assert projects[0].tool == sample_project.tool
 
     def test_IDでプロジェクトを取得できる(
         self, repository: JsonProjectRepository, sample_project: Project
@@ -66,7 +66,7 @@ class TestJsonProjectRepository:
         assert found_project.id == sample_project.id
         assert found_project.name == sample_project.name
         assert found_project.source == sample_project.source
-        assert found_project.ai_tool == sample_project.ai_tool
+        assert found_project.tool == sample_project.tool
 
     def test_存在しないIDでプロジェクトを取得するとResourceNotFoundErrorが発生する(
         self, repository: JsonProjectRepository
@@ -91,12 +91,12 @@ class TestJsonProjectRepository:
         project1 = Project(
             name='プロジェクト1',
             source='/path1',
-            ai_tool=AIToolID(UUID('11111111-1111-1111-1111-111111111111')),
+            tool=ToolType.OVERVIEW,
         )
         project2 = Project(
             name='プロジェクト2',
             source='/path2',
-            ai_tool=AIToolID(UUID('22222222-2222-2222-2222-222222222222')),
+            tool=ToolType.REVIEW,
         )
 
         # Act
@@ -195,3 +195,43 @@ class TestJsonProjectRepository:
         # Act & Assert
         with pytest.raises(PathIsDirectoryError):
             JsonProjectRepository(temp_dir)
+
+    def test_内蔵ツール付きプロジェクトを保存できる(
+        self, repository: JsonProjectRepository, temp_dir: Path
+    ) -> None:
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            tool=ToolType.OVERVIEW,
+        )
+
+        # Act
+        repository.save(project)
+
+        # Assert
+        projects = repository.find_all()
+        assert len(projects) == 1
+        assert projects[0].tool == ToolType.OVERVIEW
+
+    def test_内蔵ツール付きプロジェクトのシリアライゼーション(
+        self, repository: JsonProjectRepository, temp_dir: Path
+    ) -> None:
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            tool=ToolType.REVIEW,
+        )
+
+        # Act
+        repository.save(project)
+
+        # Assert - JSONファイルの内容を直接確認
+        projects_file = temp_dir / 'projects.json'
+        with open(projects_file, encoding='utf-8') as f:
+            data = json.load(f)
+
+        assert len(data) == 1
+        assert data[0]['tool'] == 'REVIEW'
+        assert 'status' not in data[0]  # statusは除外されることを確認

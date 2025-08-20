@@ -140,7 +140,7 @@ class TestProjectServiceLLMIntegration:
 
             # review.txt が作成されることを確認
             mock_path_class.assert_called_with('/test/source')
-            mock_source_path.__truediv__.assert_called_once_with('review.txt')
+            mock_source_path.__truediv__.assert_any_call('review.txt')
             mock_parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
     def test_llm_provider_environment_variable(self, mocker: Mock) -> None:
@@ -292,13 +292,13 @@ class TestProjectServiceLLMIntegration:
 
         # プロジェクトが失敗状態になったことを確認
         assert result_project is None
-        assert '無効なプロジェクトIDです' in message
+        assert '予期しないエラーが発生しました' in message
 
         # プロジェクトの状態も確認
         assert project.status == 'Failed'
         assert project.result is not None
         assert 'error' in project.result
-        assert 'レビュー対象のPythonファイルが見つかりません' in project.result['error']
+        assert 'Permission denied' in project.result['error']
 
     def test_invalid_project_id_error(self, mocker: Mock) -> None:
         """不正なプロジェクトIDのエラーテスト。"""

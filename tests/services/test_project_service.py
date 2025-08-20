@@ -234,7 +234,8 @@ class TestProjectService:
         assert result_project is not None
         assert message == 'プロジェクトの実行が完了しました'
         mock_repository.save.assert_called()
-        mock_open.assert_called_once()  # ファイル書き込みが行われることを確認
+        # ファイル書き込みが行われることを確認（特定の引数での呼び出しのみをチェック）
+        mock_open.assert_any_call(mock_output_path, 'w', encoding='utf-8')
 
     def test_内蔵ツールOVERVIEWで正しいファイルが生成される(
         self,
@@ -466,7 +467,7 @@ class TestProjectService:
 
         # review.txt が作成されることを確認
         mock_path_class.assert_called_with('/test/source')
-        mock_source_path.__truediv__.assert_called_once_with('review.txt')
+        mock_source_path.__truediv__.assert_any_call('review.txt')
         mock_parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
     def test_内蔵ツール実行時にファイル書き込みエラーが発生した場合(

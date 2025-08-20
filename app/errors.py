@@ -125,6 +125,56 @@ class LLMError(Exception):
         super().__init__(self.message)
 
 
+class ProviderInitializationError(RuntimeError):
+    """LLMプロバイダ初期化に失敗した場合の例外。"""
+
+    def __init__(self) -> None:
+        super().__init__('プロバイダの初期化に失敗しました')
+
+
+class ProviderNotInitializedError(RuntimeError):
+    """LLMプロバイダが未初期化の場合の例外。"""
+
+    def __init__(self) -> None:
+        super().__init__('プロバイダが初期化されていません')
+
+
+class UnsupportedProviderError(AppError):
+    """未サポートのプロバイダが指定された場合の例外。"""
+
+    def __init__(self) -> None:
+        super().__init__('サポートされていないプロバイダです')
+
+
+class MissingConfigError(AppError):
+    """必須設定が不足している場合の例外。"""
+
+    def __init__(self, config_key: str) -> None:
+        self.config_key = config_key
+        super().__init__('必須設定が不足しています')
+
+
+class LLMAPICallError(LLMError):
+    """LLM API 呼び出しエラー (プロバイダ共通)。"""
+
+    def __init__(self, provider: str, model: str, original_error: Exception | None = None) -> None:
+        message_map = {
+            'openai': 'OpenAI API呼び出しエラー',
+            'gemini': 'Gemini API呼び出しエラー',
+            'internal': '社内LLM API呼び出しエラー',
+        }
+        message = message_map.get(provider, 'LLM API呼び出しエラー')
+        super().__init__(message, provider, model, original_error)
+
+
+class LLMUnexpectedResponseError(LLMError):
+    """LLMレスポンス形式が不正な場合の例外。"""
+
+    def __init__(self, provider: str, model: str) -> None:
+        # 既存テスト互換のため英語メッセージで固定
+        super().__init__(f'Unexpected response format from {provider}', provider, model)
+
+
 class PathIsDirectoryError(FileProcessingError):
     """パスがディレクトリである場合の例外クラス。"""
 

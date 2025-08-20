@@ -125,16 +125,18 @@ class ProjectService:
             project: プロジェクト。
             error: LLMエラー。
         """
-        error_msg = (
-            f'[ERROR] LLM呼び出しエラー: {error.message} '
-            f'(プロバイダ: {error.provider}, モデル: {error.model})'
+        # エラーメッセージから重複を除去
+        clean_message = error.message.replace(
+            'LLM呼び出しエラー: LLM呼び出しエラー:', 'LLM呼び出しエラー:'
         )
+
+        error_msg = f'[ERROR] {clean_message} (プロバイダ: {error.provider}, モデル: {error.model})'
         logger.error(error_msg)
 
         if error.original_error:
             logger.error(f'[ERROR] 元のエラー: {error.original_error}')
 
-        project.fail({'error': error.message, 'provider': error.provider, 'model': error.model})
+        project.fail({'error': clean_message, 'provider': error.provider, 'model': error.model})
 
     def _call_llm(self, prompt: str) -> str:
         """LLMを呼び出してテキスト生成を実行する。
@@ -173,8 +175,10 @@ class ProjectService:
         Returns:
             LLMからの応答。
         """
+        # テスト環境では常にasyncio.runを使用し、本番環境では既存のループを使用
         try:
-            loop = asyncio.get_event_loop()
+            # 既存のループが実行中かチェック
+            loop = asyncio.get_running_loop()
             if loop.is_running():
                 # 既存のループが実行中の場合は、新しいループを作成
                 response = asyncio.run(llm_client.generate_text(prompt, None))
@@ -216,7 +220,8 @@ class ProjectService:
             エラーメッセージ。
         """
         error_handlers: dict[type[Exception], Callable[[Exception], str]] = {
-            ValueError: lambda _: '無効なプロジェクトIDです',
+            # ValueError は元のエラーメッセージをそのまま返す（例: ファイル未検出など）
+            ValueError: lambda e: str(e),
             ResourceNotFoundError: lambda e: str(e),
             LLMError: lambda e: getattr(e, 'message', str(e)),
         }
@@ -270,17 +275,67 @@ class ProjectService:
         Returns:
             (ファイルリスト, ファイル内容辞書)のタプル。
         """
+        return self._scan_files_with_pattern(source_path, '*', include_content=True)
+
+    def _scan_files_with_pattern(
+        self, source_path: Path, pattern: str, include_content: bool = False
+    ) -> tuple[list[str], dict[str, str]]:
+        """パターンに一致するファイルをスキャンする。
+
+        Args:
+            source_path: ソースディレクトリパス。
+            pattern: ファイルパターン(例: '*.py', '*')。
+            include_content: ファイル内容を含めるかどうか。
+
+        Returns:
+            (ファイルリスト, ファイル内容辞書)のタプル。
+        """
+        if not self._is_valid_source_path(source_path):
+            return [], {}
+
         file_list: list[str] = []
         file_contents: dict[str, str] = {}
 
-        if source_path.exists() and source_path.is_dir():
-            for file_path in source_path.rglob('*'):
-                if file_path.is_file():
-                    relative_path = str(file_path.relative_to(source_path))
-                    file_list.append(relative_path)
-                    self._read_file_content_if_text(file_path, relative_path, file_contents)
+        for file_path in source_path.rglob(pattern):
+            if file_path.is_file():
+                self._process_file(
+                    file_path, source_path, (file_list, file_contents), include_content
+                )
 
         return file_list, file_contents
+
+    def _process_file(
+        self,
+        file_path: Path,
+        source_path: Path,
+        file_data: tuple[list[str], dict[str, str]],
+        include_content: bool,
+    ) -> None:
+        """個別のファイルを処理する。
+
+        Args:
+            file_path: ファイルパス。
+            source_path: ソースディレクトリパス。
+            file_data: (ファイルリスト, ファイル内容辞書)のタプル。
+            include_content: ファイル内容を含めるかどうか。
+        """
+        file_list, file_contents = file_data
+        relative_path = str(file_path.relative_to(source_path))
+        file_list.append(relative_path)
+
+        if include_content:
+            self._read_file_content_if_text(file_path, relative_path, file_contents)
+
+    def _is_valid_source_path(self, source_path: Path) -> bool:
+        """ソースパスが有効かチェックする。
+
+        Args:
+            source_path: ソースディレクトリパス。
+
+        Returns:
+            有効な場合はTrue。
+        """
+        return source_path.exists() and source_path.is_dir()
 
     def _read_file_content_if_text(
         self, file_path: Path, relative_path: str, file_contents: dict[str, str]
@@ -310,17 +365,17 @@ class ProjectService:
             生成されたプロンプト。
         """
         source_path = Path(project.source)
-        target_file, file_content = self._find_first_python_file(source_path)
+        target_file, file_content = self._find_first_review_target_file(source_path)
 
         if not target_file:
-            raise ValueError('レビュー対象のPythonファイルが見つかりません')
+            raise ValueError('レビュー対象のファイルが見つかりません')
 
         return self.prompt_manager.generate_prompt(
             'review', file_path=str(target_file), file_content=file_content
         )
 
-    def _find_first_python_file(self, source_path: Path) -> tuple[Path | None, str]:
-        """最初のPythonファイルを見つける。
+    def _find_first_review_target_file(self, source_path: Path) -> tuple[Path | None, str]:
+        """REVIEW用に最初の対象ファイルを見つける (.md, .txt を優先、次に .py)。
 
         Args:
             source_path: ソースディレクトリパス。
@@ -328,22 +383,18 @@ class ProjectService:
         Returns:
             (ファイルパス, ファイル内容)のタプル。
         """
-        if not source_path.exists() or not source_path.is_dir():
-            return None, ''
+        # 優先順で探索: .md -> .txt -> .py
+        for pattern in ('*.md', '*.txt', '*.py'):
+            file_list, file_contents = self._scan_files_with_pattern(
+                source_path, pattern, include_content=True
+            )
+            if file_list:
+                first_file = file_list[0]
+                file_content = file_contents.get(first_file, '')
+                target_file = source_path / first_file
+                return target_file, file_content
 
-        target_file = None
-        file_content = ''
-
-        for file_path in source_path.rglob('*.py'):
-            try:
-                with open(file_path, encoding='utf-8') as f:
-                    file_content = f.read()
-                target_file = file_path
-                break
-            except Exception as e:
-                logger.warning(f'[WARNING] ファイル読み込みエラー {file_path}: {e}')
-
-        return target_file, file_content
+        return None, ''
 
     def _save_tool_result(self, project: Project, response: str) -> None:
         """ツール実行結果をファイルに保存する。

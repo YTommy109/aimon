@@ -213,9 +213,9 @@ class TestProjectList:
 
     def test_詳細ボタンが押された場合にモーダルが開く(self, mocker: MockerFixture) -> None:
         # Arrange
-        mock_session_state = Mock()
-        mock_session_state.running_workers = {}
-        mock_session_state.modal_project = None
+        mock_session_state: dict[str, object] = {}
+        mock_session_state['running_workers'] = {}
+        mock_session_state['modal_project'] = None
         mocker.patch.object(project_list.st, 'session_state', mock_session_state)
         mock_modal = Mock()
         mock_modal.open = Mock()
@@ -232,17 +232,17 @@ class TestProjectList:
         project_list._handle_project_buttons(button_state, sample_project, mock_modal, Mock())
 
         # Assert
-        assert mock_session_state.modal_project == sample_project
+        assert mock_session_state['modal_project'] == sample_project
         mock_modal.open.assert_called_once()
 
     def test_実行ボタンが押された場合にプロジェクトが実行される(
         self, mocker: MockerFixture
     ) -> None:
         # Arrange
-        mock_session_state = Mock()
-        mock_session_state.running_workers = {}
+        mock_session_state: dict[str, object] = {}
+        mock_session_state['running_workers'] = {}
         mocker.patch.object(project_list.st, 'session_state', mock_session_state)
-        mock_info = mocker.patch.object(project_list.st, 'info')
+        mock_success = mocker.patch.object(project_list.st, 'success')
         mock_rerun = mocker.patch.object(project_list.st, 'rerun')
 
         sample_project = Project(
@@ -263,15 +263,15 @@ class TestProjectList:
 
         # Assert
         mock_project_service.execute_project.assert_called_once_with(sample_project.id)
-        mock_info.assert_called_once_with('実行成功')
+        mock_success.assert_called_once_with('実行成功')
         mock_rerun.assert_called_once()
 
     def test_実行ボタンが押された場合にエラーが発生するとエラーメッセージが表示される(
         self, mocker: MockerFixture
     ) -> None:
         # Arrange
-        mock_session_state = Mock()
-        mock_session_state.running_workers = {}
+        mock_session_state: dict[str, object] = {}
+        mock_session_state['running_workers'] = {}
         mocker.patch.object(project_list.st, 'session_state', mock_session_state)
         mock_error = mocker.patch.object(project_list.st, 'error')
 

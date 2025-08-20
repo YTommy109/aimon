@@ -299,17 +299,3 @@ exclude = [".venv"]
 
 [tool.vulture]
 exclude = ["app/errors.py"]
-ignore_names = [
-    "updated_at",
-    "return_value",
-    "text_lines",
-    "total_images",
-    "sheets",
-    "text_content",
-    "side_effect",
-    "__enter__",
-    "__exit__",
-    "cls",
-    "validate_command_not_empty",
-]
-ignore_decorators = ["@pytest.fixture"]

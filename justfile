@@ -12,8 +12,8 @@ BASE_URL := "http://localhost:" + TEST_PORT
     just --list
 
 # アプリケーションの実行
-# just run      -> 開発環境で実行（デフォルトポート）
-# just run test -> テスト環境で実行（ポート{{TEST_PORT}}）
+# just start      -> 開発環境で実行（デフォルトポート）
+# just start test -> テスト環境で実行（ポート{{TEST_PORT}}）
 start env='':
     #!/usr/bin/env zsh
     set -euo pipefail
@@ -32,7 +32,7 @@ start env='':
             streamlit run app.py -- --app-env prod
             ;;
         *)
-            echo "Unknown run environment: '{{env}}'. Available: 'test'"
+            echo "Unknown environment: '{{env}}'. Available: 'test'"
             exit 1
             ;;
     esac

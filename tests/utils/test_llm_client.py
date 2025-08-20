@@ -117,7 +117,7 @@ class TestOpenAIProvider:
         with pytest.raises(LLMError) as exc_info:
             await provider.generate_text(prompt, model)
 
-        assert 'Unexpected response format from OpenAI' in str(exc_info.value)
+        assert 'Unexpected response format from openai' in str(exc_info.value)
         assert exc_info.value.provider == 'openai'
         assert exc_info.value.model == model
 
@@ -224,6 +224,42 @@ class TestInternalLLMProvider:
         assert provider.endpoint == endpoint
         assert provider.api_key is None
 
+    def test_internal_llm_provider_headers_without_api_key(self) -> None:
+        """APIキーなしでのInternalLLMProviderのヘッダー設定をテストする。"""
+        # Arrange
+        provider = InternalLLMProvider('https://internal-llm.example.com')
+
+        # Act
+        headers = provider._get_headers()
+
+        # Assert
+        expected_headers = {
+            'accept': 'application/json',
+            'x-request-type': 'sync',
+            'x-pool-type': 'shared',
+            'Content-Type': 'application/json',
+        }
+        assert headers == expected_headers
+
+    def test_internal_llm_provider_headers_with_api_key(self) -> None:
+        """APIキーありでのInternalLLMProviderのヘッダー設定をテストする。"""
+        # Arrange
+        api_key = 'test_api_key'
+        provider = InternalLLMProvider('https://internal-llm.example.com', api_key)
+
+        # Act
+        headers = provider._get_headers()
+
+        # Assert
+        expected_headers = {
+            'accept': 'application/json',
+            'x-request-type': 'sync',
+            'x-pool-type': 'shared',
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {api_key}',
+        }
+        assert headers == expected_headers
+
     @pytest.mark.asyncio
     @patch('app.utils.llm_client.completion')
     async def test_internal_llm_provider_generate_text_success(
@@ -247,6 +283,14 @@ class TestInternalLLMProvider:
         # Assert
         assert result == '社内LLMからの応答'
         mock_completion.assert_called_once()
+        # ヘッダーが正しく設定されていることを確認
+        call_args = mock_completion.call_args
+        assert call_args[1]['extra_headers'] == {
+            'accept': 'application/json',
+            'x-request-type': 'sync',
+            'x-pool-type': 'shared',
+            'Content-Type': 'application/json',
+        }
 
     @pytest.mark.asyncio
     @patch('app.utils.llm_client.completion')
@@ -385,25 +429,6 @@ class TestLLMClient:
         with pytest.raises(RuntimeError, match='プロバイダが初期化されていません'):
             # 非同期メソッドを同期的にテストするため、イベントループを作成
             asyncio.run(client.generate_text('テストプロンプト'))
-
-    @patch('app.utils.llm_client.config')
-    def test_llm_client_switch_provider(self, mock_config: MagicMock) -> None:
-        """LLMClientのプロバイダ切り替えをテストする。"""
-        # Arrange
-        mock_config.openai_api_key = 'openai_key'
-        mock_config.openai_api_base = None
-        mock_config.gemini_api_key = 'gemini_key'
-        mock_config.gemini_api_base = None
-
-        client = LLMClient('openai')
-        initial_provider = client._provider
-
-        # Act
-        client.switch_provider('gemini')
-
-        # Assert
-        assert client.provider_name == 'gemini'
-        assert client._provider != initial_provider
 
 
 class TestLLMError:

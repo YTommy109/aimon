@@ -1,12 +1,11 @@
 """プロジェクト一覧ページのコンポーネント。"""
 
-import logging
-
 import streamlit as st
 from streamlit_modal import Modal
 
 from app.models.project import Project, ProjectStatus
 from app.services.project_service import ProjectService
+from app.ui.button_handlers import ModalButtonConfig, handle_button_action, handle_modal_button
 
 
 def _get_status_icon(project: Project, is_running: bool) -> str:
@@ -91,18 +90,29 @@ def _handle_project_buttons(
     project_service: ProjectService,
 ) -> None:
     """詳細および実行ボタンのアクションを処理"""
-    if button_state['detail_btn']:
-        st.session_state.modal_project = project
-        modal.open()
-    if button_state['exec_btn']:
-        logger = logging.getLogger('aiman')
-        logger.info(f'[Streamlit] 実行ボタン押下: project_id={project.id}, tool={project.tool}')
+    # 詳細ボタンの処理
+    modal_config = ModalButtonConfig(
+        data=project,
+        session_key='modal_project',
+        open_func=modal.open,
+    )
+    handle_modal_button(
+        button_clicked=button_state['detail_btn'],
+        config=modal_config,
+        log_context=f'project_id={project.id}',
+    )
+
+    # 実行ボタンの処理
+    def execute_project_action() -> tuple[bool, str]:
         updated_project, message = project_service.execute_project(project.id)
-        if updated_project:
-            st.info(message)
-            st.rerun()
-        else:
-            st.error(message)
+        return updated_project is not None, message
+
+    handle_button_action(
+        button_clicked=button_state['exec_btn'],
+        action=execute_project_action,
+        log_context=f'project_id={project.id}, tool={project.tool}',
+        auto_rerun=True,
+    )
 
 
 __all__ = ['render_project_list', 'st']

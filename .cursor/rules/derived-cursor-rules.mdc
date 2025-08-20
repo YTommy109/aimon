@@ -13,6 +13,7 @@ globs: *
 - The AI coding assistant should provide multiple options when possible.
 - **ALWAYS** implement the minimum required to address the problem. Avoid adding forward-looking code or features. If code is unused, it should be removed.
 - **Status Updates:** Provide status updates before tool calls and after edits, particularly tests and builds. Fix any failures before marking tasks complete.
+- **Code Review Focus:** When performing code reviews, prioritize identifying areas for simplification and commonization.
 
 ### pyproject.toml Modification Rules
 
@@ -72,7 +73,7 @@ globs: *
 - **There should only be one `.env.example` file** because the variables are the same across prod, dev, and test environments. This file is named `env_sample`.
 
 ### Change Planning Rules
-- Before implementing significant architectural changes, such as transitioning to internal AI tools, a `plan.md` document should be created. This plan should outline:
+- Before implementing significant architectural changes, a `plan.md` document should be created. This plan should outline:
     - Phases and tasks for the transition.
     - Risks and acceptance criteria for each task.
     - Strategies for migrating from existing implementations (e.g., `ai_tools.json`).
@@ -178,6 +179,15 @@ globs: *
 - The initial implementation of LLM calling is a stub (placeholder).
 - The project should support LLMs via `lightllm`, including OpenAI, Gemini, and internal LLMs.
 - An `LLMClient` (lightllm) is intended to be used to call LLMs. However, the current implementation may be mocked.
+- **LLM Provider Configuration:**
+    - The `LLM_PROVIDER` environment variable specifies the LLM provider to use.
+    - Valid values are `openai`, `gemini`, and `internal` (case-sensitive).
+    - If `LLM_PROVIDER` is not set, the default provider is `openai`.
+    - Invalid values for `LLM_PROVIDER` will result in a `ValueError` during `LLMClient` initialization, wrapped in a `RuntimeError`.
+    - **Required environment variables per provider:**
+        - **openai**: `OPENAI_API_KEY` (required), `OPENAI_API_BASE` (optional), `OPENAI_MODEL` (optional, defaults to `gpt-3.5-turbo`)
+        - **gemini**: `GEMINI_API_KEY` (required), `GEMINI_API_BASE` (optional), `GEMINI_MODEL` (optional, defaults to `gemini-pro`)
+        - **internal**: `INTERNAL_LLM_ENDPOINT` (required), `INTERNAL_LLM_API_KEY` (optional), `INTERNAL_LLM_MODEL` (optional, defaults to `internal-model`)
 
 ### Development Workflow Rules
 
@@ -204,6 +214,10 @@ globs: *
 - Ensure proper error handling for unsupported providers.
 - When the `LLMClient` or provider classes encounter an exception during API calls, raise a `RuntimeError` with a descriptive message. Include the original exception information using `raise ... from err`.
 - When initializing providers within the `_initialize_provider` method of the `LLMClient`, retrieve API keys and other necessary credentials from environment variables. Raise a `ValueError` with a descriptive message if any required environment variables are not set.
+- When defining the `provider_name` for the `LLMClient`, define `provider_name` as a `StrEnum` and replace the `if/elif` statements with a `match` statement.
+- For backward compatibility, the externally accessible `provider_name` should remain a string property, while internally the enum should be used.
+- It is no longer necessary to have `_initialize_specific_provider`. Instead, the `match` statement should be performed directly in `_initialize_provider`.
+- The `assert` and default `raise` statements in the original `_initialize_provider` are no longer needed.
 
 ### Testing Rules for LLMClient
 
@@ -218,6 +232,39 @@ globs: *
 - When testing the text generation functionality, assert that the result contains the provider name, model name, and a portion of the prompt.
 - When tests involve checking for exceptions related to missing environment variables, use `pytest.raises` to assert that the appropriate `ValueError` is raised and that the exception message is correct.
 - When testing the text generation functionality, ensure that the tests account for the stub (placeholder) implementation of the LLMClient. The tests should validate that the expected string (e.g., "OpenAI", model name, and a portion of the prompt) is present in the result, but should not rely on the actual API being called.
+- When using `pytest.raises` to test exceptions, if `ty` (or another type checker) reports unresolved attribute errors on `exc_info.value.*`, it may be necessary to narrow the type of `exc_info.value` using one of the following methods:
+    - **`isinstance` Check:** Add an `isinstance` assertion after the `with` block to narrow the type of `exc_info.value` before accessing its attributes. For example:
+      ```python
+      with pytest.raises(LLMError) as exc_info:
+          await provider.generate_text(prompt, model)
+
+      err = exc_info.value
+      assert isinstance(err, LLMError)
+      assert 'OpenAI API呼び出しエラー' in str(err)
+      assert err.provider == 'openai'
+      assert err.model == model
+      assert err.original_error is not None
+      ```
+    - **`typing.cast`:** Use `typing.cast` to explicitly cast `exc_info.value` to the expected type. For example:
+      ```python
+      from typing import cast
+
+      with pytest.raises(LLMError) as exc_info:
+          await provider.generate_text(prompt, model)
+
+      err = cast(LLMError, exc_info.value)
+      assert err.provider == 'openai'
+      ```
+    - **Type Annotation in Exception Class:** Add type annotations for the attributes in the exception class. For example:
+      ```python
+      class LLMError(Exception):
+          message: str
+          provider: str
+          model: str
+          original_error: Exception | None
+          ...
+      ```
+      This may not fully resolve the type issue but can provide additional clarity.
 
 ### Docstring Rules for LLMClient
 - Use standard ASCII parentheses in docstrings, not fullwidth parentheses.
@@ -281,6 +328,67 @@ globs: *
 ### Plan.md Update Rules
 - The AI coding assistant should update `plan.md` to reflect the accurate status of the project, including checking completed tasks.
 
+### Task Execution Based on Plan Rules
+- When the user instructs the AI to proceed based on `plan.md`, such as "確認し、フェーズ 1 から順に進めてください", the AI coding assistant should:
+    - Check `plan.md` to determine the current project status and remaining tasks.
+    - Proceed with the tasks outlined in `plan.md` in the order they appear, starting from the specified phase or task.
+- When proceeding with tasks from plan.md, if the AI encounters an ambiguous search string due to multiple occurrences of the same string, it should replace the occurrences one by one, confirming each replacement.
+
+### asyncio Replacement Rules
+- Replace `asyncio.get_event_loop()` with `asyncio.get_running_loop()`.
+
+### Environment Variable Loading and Configuration Rules
+
+- When the application is launched in test mode, the `.env.test` file should be loaded to configure the environment variables.
+- The AI coding assistant should verify that the application correctly loads and utilizes the environment variables defined in `.env.test` when running in test mode.
+- **Debugging:** When debugging environment variable issues, the AI coding assistant should:
+    - Examine the code in `app/config.py` and `app.py` to ensure the environment is set before importing necessary modules.
+    - Use parallel searches for keywords like "DATA_DIR," ".env.test," "APP_ENV," and "dotenv."
+    - Search for "load environment variables" to identify where the environment variables are loaded.
+    - Identify where "Data directory: ..." is being outputted to determine the source of the incorrect data directory.
+    - Read through existing tests, particularly `tests/test_config.py`, to verify the configuration.
+
+### Error Handling Rules
+
+- When a `ValueError` occurs due to a missing Python file during the `REVIEW` tool execution, ensure the error message accurately reflects the issue instead of displaying a misleading "Invalid Project ID" message.
+- Revise the error handling in `ProjectService._handle_execution_error` to ensure that `ValueError` messages are appropriately conveyed.
+- Map `ResourceNotFoundError` to 'プロジェクトが見つかりません: {id}' and ensure `ValueError` returns its string representation.
+- Ensure that tests validate that `ResourceNotFoundError` raises the correct message for an invalid project ID, including the ID in the message.
+- Ensure that any exception after a failure is saved in `_execute_internal_tool` or adjust `_handle_execution_error` to save even for `ValueError`.
+- When the `REVIEW` tool is used with a source directory that does not contain Python files:
+    - The AI coding assistant should ensure that a `ValueError` is raised indicating that no Python files were found.
+    - The AI coding assistant should suggest that the user either select a directory containing Python files or use the `OVERVIEW` tool for non-code directories.
+    - The AI coding assistant should consider updating the UI to prevent the use of the `REVIEW` tool unless the directory contains `.py` files.
+
+### REVIEW Tool File Handling Rules
+- The `REVIEW` tool should target files in the specified directory.
+- The `REVIEW` tool should prioritize `.md` and `.txt` files. If neither are found, it should fall back to `.py` files.
+- If no files of any supported type are found, the `REVIEW` tool should raise a `ValueError` with the message "レビュー対象のファイルが見つかりません".
+
+### .env_sample Rules
+- The AI coding assistant should update the comments in the `.env_sample` file to clarify the options for the `LLM_PROVIDER` environment variable. The options are `openai`, `gemini`, and `internal`. If not set, the default is `openai`.
+- The AI coding assistant must add the necessary headers for calling the internal LLM to the `.env_sample` file. The specific headers should be based on user input and confirmed with the user.
+
+### LLMClient Provider Name Configuration
+- The `provider_name` attribute of the `LLMClient` should be defined as a `StrEnum` to ensure type safety and provide a clear set of valid provider options. The valid options are `openai`, `gemini`, and `internal`.
+- The `_initialize_provider` method should use a `match` statement to handle provider-specific initialization based on the `provider_name` enum value.
+- For backward compatibility, the externally accessible `provider_name` should remain a string property, while internally the enum should be used.
+
+### Exception Handling Rules
+
+- When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
+- Centralized Logging: Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged.
+- When raising exceptions within `except` blocks, use `raise ... from err` to preserve the original exception's traceback.
+
+### Internal LLM Header Configuration
+
+- The following fixed headers should be hardcoded into the `InternalLLMProvider` class in `app/utils/llm_client.py`:
+    - `accept: application/json`
+    - `x-request-type: sync`
+    - `x-pool-type: shared`
+    - `Content-Type: application/json`
+- The `extra_headers` parameter of the `litellm.completion` function should be used to pass these headers.
+
 ## TECH STACK
 
 - litellm>=1.0.0 # Added based on user decision
@@ -315,6 +423,14 @@ globs: *
 - When using Pydantic, set `model_config = SettingsConfigDict(extra='ignore')` in the `Config` class to allow loading environment variables from `.env` files without causing validation errors due to unknown keys.
 
 ## DEBUGGING
+
+- When debugging environment variable issues, the AI coding assistant should:
+    - Examine the code in `app/config.py` and `app.py` to ensure the environment is set before importing necessary modules.
+    - Use parallel searches for keywords like "DATA_DIR," ".env.test," "APP_ENV," and "dotenv."
+    - Search for "load environment variables" to identify where the environment variables are loaded.
+    - Identify where "Data directory: ..." is being outputted to determine the source of the incorrect data directory.
+    - Read through existing tests, particularly `tests/test_config.py`, to verify the configuration.
+- When debugging file-related issues, consider using "VERIFY_FILE_PATHS_ON_DEBUG" and commands like 'ls -R' to check directory structure and file paths.
 
 ## WORKFLOW & RELEASE RULES
 

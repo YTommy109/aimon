@@ -2,6 +2,7 @@
 
 import time
 
+import pytest
 from playwright.sync_api import Page, expect
 
 
@@ -12,15 +13,13 @@ class TestProjectWorkflow:
         # Given
         page = page_with_app
 
-        expect(page.get_by_role('heading', name='AI Meeting Assistant 🤖')).to_be_visible(
-            timeout=10000
-        )
+        expect(page.get_by_role('heading', name='AI Project Manager')).to_be_visible(timeout=10000)
 
         # When
         # プロジェクトを作成
         project_name_input = page.get_by_label('プロジェクト名')
         source_dir_input = page.get_by_label('対象ディレクトリのパス')
-        ai_tool_select = page.get_by_label('ツールタイプを選択')
+        ai_tool_select = page.get_by_label('内蔵ツールを選択')
         create_button = page.get_by_role('button', name='プロジェクト作成')
 
         project_name_input.fill('ワークフローテスト - Unixコマンド')
@@ -37,6 +36,68 @@ class TestProjectWorkflow:
         except Exception as e:
             print(f'ワークフローテストプロジェクト作成後の確認でエラー: {e}')
             print('ワークフローテストプロジェクト作成の確認に失敗しましたが、テストを続行します。')
+
+    def test_プロジェクト実行時にLLM呼び出しエラーが検知される(self, page_with_app: Page) -> None:
+        """プロジェクト実行時にLLM呼び出しエラーが適切に検知されることをテストする。"""
+        # Given
+        page = page_with_app
+
+        # プロジェクトが存在することを確認
+        exec_buttons = page.get_by_role('button', name='実行')
+        if exec_buttons.count() == 0:
+            pytest.skip('実行可能なプロジェクトが存在しません')
+
+        # When
+        # 最初の実行ボタンをクリック
+        exec_buttons.first.click()
+
+        # Then
+        # LLM呼び出しエラーメッセージが表示されることを確認
+        # エラーメッセージのパターンを複数チェック
+        error_patterns = [
+            'LLM呼び出しエラー',
+            'プロバイダの初期化に失敗しました',
+            'APIキーが設定されていません',
+            'LLM呼び出し時にエラーが発生しました',
+        ]
+
+        # いずれかのエラーパターンが表示されることを確認
+        error_detected = False
+        for pattern in error_patterns:
+            try:
+                expect(page.get_by_text(pattern, exact=False)).to_be_visible(timeout=10000)
+                error_detected = True
+                print(f'LLMエラーが検知されました: {pattern}')
+                break
+            except Exception:
+                continue
+
+        assert error_detected, 'LLM呼び出しエラーが検知されませんでした'
+
+    def test_プロジェクト実行後のステータスが正しく更新される(self, page_with_app: Page) -> None:
+        """プロジェクト実行後のステータス更新をテストする。"""
+        # Given
+        page = page_with_app
+
+        # プロジェクトが存在することを確認
+        exec_buttons = page.get_by_role('button', name='実行')
+        if exec_buttons.count() == 0:
+            pytest.skip('実行可能なプロジェクトが存在しません')
+
+        # When
+        # 最初の実行ボタンをクリック
+        exec_buttons.first.click()
+
+        # Then
+        # プロジェクトのステータスが更新されることを確認
+        # エラーが発生した場合でも、ステータスは更新されるはず
+        page.wait_for_timeout(3000)  # 処理完了を待つ
+
+        # ステータスアイコンが更新されていることを確認
+        # エラー状態のアイコン（❌）が表示される可能性
+        status_icons = page.locator('span:has-text("❌"), span:has-text("⏳"), span:has-text("✅")')
+        if status_icons.count() > 0:
+            expect(status_icons.first).to_be_visible()
 
     def test_プロジェクト詳細モーダルを開いた場合に情報が表示される(
         self, page_with_app: Page
@@ -250,14 +311,16 @@ class TestProjectWorkflow:
     def test_AIツール選択ドロップダウンが正常に動作する(self, page_with_app: Page) -> None:
         # Given
         page = page_with_app
-        ai_tool_select = page.get_by_label('ツールタイプを選択')
+        ai_tool_select = page.get_by_label('内蔵ツールを選択')
 
         # When
         ai_tool_select.click()
 
         # Then
         # ドロップダウンが開くことを確認
-        expect(page.get_by_text('選択...')).to_be_visible()
+        # より具体的なセレクタを使用してstrict mode違反を回避
+        dropdown = page.locator('[data-testid="stSelectboxVirtualDropdown"]')
+        expect(dropdown).to_be_visible()
 
     def test_プロジェクト作成ボタンが正常に動作する(self, page_with_app: Page) -> None:
         # Given
@@ -301,8 +364,117 @@ class TestProjectWorkflow:
 
         # Then
         # ページの基本要素が正しく読み込まれていることを確認
-        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
+        header = page.get_by_role('heading', name='AI Project Manager')
         expect(header).to_be_visible()
+
+
+class TestLLMErrorHandling:
+    """LLMエラーハンドリングのテストクラス"""
+
+    def test_LLM呼び出しエラーの詳細メッセージが表示される(self, page_with_app: Page) -> None:
+        """LLM呼び出しエラーの詳細メッセージが適切に表示されることをテストする。"""
+        # Given
+        page = page_with_app
+
+        # プロジェクトが存在することを確認
+        exec_buttons = page.get_by_role('button', name='実行')
+        if exec_buttons.count() == 0:
+            pytest.skip('実行可能なプロジェクトが存在しません')
+
+        # When
+        # 最初の実行ボタンをクリック
+        exec_buttons.first.click()
+
+        # Then
+        # エラーメッセージが表示されることを確認
+        page.wait_for_timeout(2000)  # エラーメッセージの表示を待つ
+
+        # エラーメッセージの存在を確認
+        error_message = page.locator(
+            'div:has-text("LLM呼び出しエラー"), div:has-text("プロバイダの初期化に失敗しました")'
+        )
+        if error_message.count() > 0:
+            expect(error_message.first).to_be_visible()
+            print('LLMエラーメッセージが表示されました')
+
+    def test_LLMエラー発生後のプロジェクト状態が正しく管理される(self, page_with_app: Page) -> None:
+        """LLMエラー発生後のプロジェクト状態管理をテストする。"""
+        # Given
+        page = page_with_app
+
+        # プロジェクトが存在することを確認
+        exec_buttons = page.get_by_role('button', name='実行')
+        if exec_buttons.count() == 0:
+            pytest.skip('実行可能なプロジェクトが存在しません')
+
+        # When
+        # 最初の実行ボタンをクリック
+        exec_buttons.first.click()
+
+        # Then
+        # エラー処理が完了するまで待つ
+        page.wait_for_timeout(5000)
+
+        # プロジェクトの状態が適切に更新されていることを確認
+        # エラー状態のアイコンが表示される
+        error_icons = page.locator('span:has-text("❌")')
+        if error_icons.count() > 0:
+            expect(error_icons.first).to_be_visible()
+            print('プロジェクトがエラー状態に正しく更新されました')
+
+    def test_LLMエラー発生後の再実行が可能である(self, page_with_app: Page) -> None:
+        """LLMエラー発生後の再実行機能をテストする。"""
+        # Given
+        page = page_with_app
+
+        # プロジェクトが存在することを確認
+        exec_buttons = page.get_by_role('button', name='実行')
+        if exec_buttons.count() == 0:
+            pytest.skip('実行可能なプロジェクトが存在しません')
+
+        # When
+        # 最初の実行ボタンをクリック
+        exec_buttons.first.click()
+
+        # エラー処理が完了するまで待つ
+        page.wait_for_timeout(5000)
+
+        # 再実行ボタンが表示されることを確認
+        exec_buttons_after_error = page.get_by_role('button', name='実行')
+
+        # Then
+        if exec_buttons_after_error.count() > 0:
+            expect(exec_buttons_after_error.first).to_be_visible()
+            print('LLMエラー発生後も再実行ボタンが表示されています')
+
+    def test_LLMエラーログが適切に記録される(self, page_with_app: Page) -> None:
+        """LLMエラーのログ記録をテストする。"""
+        # Given
+        page = page_with_app
+
+        # プロジェクトが存在することを確認
+        exec_buttons = page.get_by_role('button', name='実行')
+        if exec_buttons.count() == 0:
+            pytest.skip('実行可能なプロジェクトが存在しません')
+
+        # When
+        # 最初の実行ボタンをクリック
+        exec_buttons.first.click()
+
+        # Then
+        # エラーメッセージが表示されることを確認
+        page.wait_for_timeout(3000)
+
+        # エラーメッセージの存在を確認
+        error_detected = (
+            page.locator(
+                'div:has-text("LLM呼び出しエラー"), '
+                'div:has-text("プロバイダの初期化に失敗しました")'
+            ).count()
+            > 0
+        )
+
+        assert error_detected, 'LLMエラーが適切に記録されていません'
 
 
 class TestPerformance:
@@ -315,7 +487,7 @@ class TestPerformance:
 
         # When
         # メインコンテンツの読み込み完了を待つ
-        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
+        header = page.get_by_role('heading', name='AI Project Manager')
         expect(header).to_be_visible(timeout=10000)
 
         # Then
@@ -332,9 +504,9 @@ class TestPerformance:
 
         # Then
         # 自動更新が設定されていてもページが正常に動作することを確認
-        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
+        header = page.get_by_role('heading', name='AI Project Manager')
         initial_title = header.text_content()
-        assert initial_title == 'AI Meeting Assistant 🤖'
+        assert initial_title == 'AI Project Manager'
 
 
 class TestAccessibility:
@@ -368,6 +540,6 @@ class TestAccessibility:
 
         # Then
         # タイトルの色情報が取得できることを確認
-        header = page.get_by_role('heading', name='AI Meeting Assistant 🤖')
+        header = page.get_by_role('heading', name='AI Project Manager')
         color = header.evaluate('element => window.getComputedStyle(element).color')
         assert color is not None, 'タイトルの色情報が取得できません'

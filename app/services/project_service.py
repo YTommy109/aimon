@@ -1,12 +1,15 @@
-"""プロジェクトサービス。"""
+"""プロジェクト管理サービスを提供するモジュール。"""
 
 import asyncio
 import logging
-import os
 from collections.abc import Callable
 from pathlib import Path
 
-from app.errors import LLMError, ResourceNotFoundError
+from app.config import get_config
+from app.errors import (
+    LLMError,
+    ResourceNotFoundError,
+)
 from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
@@ -51,14 +54,6 @@ class ProjectService:
             result = None
 
         return result
-
-    def get_all_projects(self) -> list[Project]:
-        """全プロジェクトを取得する。
-
-        Returns:
-            プロジェクトのリスト。
-        """
-        return self.repository.find_all()
 
     def execute_project(self, project_id: ProjectID) -> tuple[Project | None, str]:
         """プロジェクトを実行する。
@@ -151,16 +146,17 @@ class ProjectService:
             LLMError: LLM呼び出し時にエラーが発生した場合。
         """
         try:
-            # 環境変数からプロバイダを取得
-            provider = os.getenv('LLM_PROVIDER', 'openai')
-            llm_client = LLMClient(provider)
-
-            # 非同期呼び出しを同期的に実行
+            # テストでのモックを反映させるため、呼び出し毎にLLMClientを生成
+            llm_client = LLMClient(get_config().llm_provider)
             return self._execute_async_llm_call(llm_client, prompt)
 
         except Exception as err:
-            # LLMError以外のエラーをLLMErrorに変換
+            # LLMError以外のエラーをLLMErrorに変換（ただし、ファイルI/Oエラーは除く）
             if not isinstance(err, LLMError):
+                # ファイルI/Oエラーの場合は元のエラーをそのまま再送出
+                if isinstance(err, OSError | IOError):
+                    raise
+                # その他のエラーはLLMErrorに変換
                 raise LLMError(f'LLM呼び出しエラー: {err!s}', 'unknown', 'unknown', err) from err
             # LLMErrorの場合はそのまま再送出
             raise

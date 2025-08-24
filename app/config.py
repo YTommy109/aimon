@@ -1,5 +1,6 @@
 """アプリケーション設定を管理するモジュール。"""
 
+import logging
 import os
 from pathlib import Path
 
@@ -35,6 +36,13 @@ def _get_environment_config() -> tuple[str, str]:
     }
     env_file = env_file_map.get(normalized_env, '.env.dev')
 
+    # ログ出力
+    logger = logging.getLogger('aiman')
+    logger.info(
+        f'Environment configuration: ENV={env} -> normalized={normalized_env} -> '
+        f'env_file={env_file}'
+    )
+
     return normalized_env, env_file
 
 
@@ -55,34 +63,33 @@ class Config(BaseSettings):
     # フィールド `data_dir` に自動的にマッピングされる
     data_dir: str = '.data'
 
+    # LLM設定
+    LLM_PROVIDER: str = 'openai'
+    OPENAI_API_KEY: str | None = None
+    OPENAI_API_BASE: str | None = None
+    OPENAI_MODEL: str = 'gpt-3.5-turbo'
+    GEMINI_API_KEY: str | None = None
+    GEMINI_API_BASE: str | None = None
+    GEMINI_MODEL: str = 'gemini-pro'
+    INTERNAL_LLM_ENDPOINT: str | None = None
+    INTERNAL_LLM_API_KEY: str | None = None
+    INTERNAL_LLM_MODEL: str = 'internal-model'
+
     def __init__(self) -> None:
         # 動的に .env* を選択
-        _, chosen_env_file = _get_environment_config()
+        normalized_env, chosen_env_file = _get_environment_config()
+
+        # ログ出力
+        logger = logging.getLogger('aiman')
+        logger.info(
+            f'Loading configuration from {chosen_env_file} for environment {normalized_env}'
+        )
+
         super().__init__(_env_file=chosen_env_file)
 
-    def _get_env_var(self, key: str, default: str | None = None) -> str | None:
-        """環境変数を取得する。
-
-        Args:
-            key: 環境変数名。
-            default: デフォルト値。
-
-        Returns:
-            環境変数の値。
-        """
-        return os.getenv(key, default)
-
-    def _get_env_var_or_default(self, key: str, default: str) -> str:
-        """環境変数を取得する。値がNoneの場合はデフォルト値を返す。
-
-        Args:
-            key: 環境変数名。
-            default: デフォルト値。
-
-        Returns:
-            環境変数の値またはデフォルト値。
-        """
-        return self._get_env_var(key, default) or default
+        # 設定読み込み後のログ出力
+        llm_provider = getattr(self, 'LLM_PROVIDER', 'not set')
+        logger.info(f'Configuration loaded: data_dir={self.data_dir}, LLM_PROVIDER={llm_provider}')
 
     @property
     def data_dir_path(self) -> Path:
@@ -102,56 +109,58 @@ class Config(BaseSettings):
     @property
     def llm_provider(self) -> str:
         """使用するLLMプロバイダを返す。"""
-        return self._get_env_var_or_default('LLM_PROVIDER', 'openai')
+        return self.LLM_PROVIDER
 
     @property
     def openai_api_key(self) -> str | None:
         """OpenAI APIキーを返す。"""
-        return self._get_env_var('OPENAI_API_KEY')
+        return self.OPENAI_API_KEY
 
     @property
     def openai_api_base(self) -> str | None:
         """OpenAI APIベースURLを返す。"""
-        return self._get_env_var('OPENAI_API_BASE')
+        return self.OPENAI_API_BASE
 
     @property
     def openai_model(self) -> str:
         """OpenAIモデル名を返す。"""
-        return self._get_env_var_or_default('OPENAI_MODEL', 'gpt-3.5-turbo')
+        return self.OPENAI_MODEL
 
     @property
     def gemini_api_key(self) -> str | None:
         """Gemini APIキーを返す。"""
-        return self._get_env_var('GEMINI_API_KEY')
+        return self.GEMINI_API_KEY
 
     @property
     def gemini_api_base(self) -> str | None:
         """Gemini APIベースURLを返す。"""
-        return self._get_env_var('GEMINI_API_BASE')
+        return self.GEMINI_API_BASE
 
     @property
     def gemini_model(self) -> str:
         """Geminiモデル名を返す。"""
-        return self._get_env_var_or_default('GEMINI_MODEL', 'gemini-pro')
+        return self.GEMINI_MODEL
 
     @property
     def internal_llm_endpoint(self) -> str | None:
         """社内LLMエンドポイントを返す。"""
-        return self._get_env_var('INTERNAL_LLM_ENDPOINT')
+        return self.INTERNAL_LLM_ENDPOINT
 
     @property
     def internal_llm_api_key(self) -> str | None:
         """社内LLM APIキーを返す。"""
-        return self._get_env_var('INTERNAL_LLM_API_KEY')
+        return self.INTERNAL_LLM_API_KEY
 
     @property
     def internal_llm_model(self) -> str:
         """社内LLMモデル名を返す。"""
-        return self._get_env_var_or_default('INTERNAL_LLM_MODEL', 'internal-model')
+        return self.INTERNAL_LLM_MODEL
 
 
 # vulture の誤検知回避用（Pydantic v2 は `model_config` をメタクラス経由で使用）
 assert Config.model_config is not None
 
-# グローバルなConfigインスタンスを作成
-config = Config()
+
+def get_config() -> Config:
+    """設定インスタンスを取得する。"""
+    return Config()

@@ -38,15 +38,16 @@ class Project(BaseModel):
     @property
     def status(self) -> ProjectStatus:
         """プロジェクトの状態を返します。"""
-        match (self.executed_at, self.finished_at, self.result):
-            case (None, _, _):
-                status = ProjectStatus.PENDING
-            case (_, None, _):
-                status = ProjectStatus.PROCESSING
-            case (_, _, result) if result and 'error' in result:
-                status = ProjectStatus.FAILED
-            case _:
-                status = ProjectStatus.COMPLETED
+        # mypyの型推論を改善するために、明示的な型注釈を使用
+        status: ProjectStatus
+        if self.executed_at is None:
+            status = ProjectStatus.PENDING
+        elif self.finished_at is None:
+            status = ProjectStatus.PROCESSING
+        elif self.result and 'error' in self.result:
+            status = ProjectStatus.FAILED
+        else:
+            status = ProjectStatus.COMPLETED
         return status
 
     def start_processing(self) -> None:

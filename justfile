@@ -17,7 +17,7 @@ BASE_URL := "http://localhost:" + TEST_PORT
 start env='':
     #!/usr/bin/env zsh
     set -euo pipefail
-    
+
     case '{{env}}' in
         '')
             echo "Running in development mode..."
@@ -140,12 +140,12 @@ venv:
 test-all mode='':
     #!/usr/bin/env zsh
     set -euo pipefail
-    
+
     echo "Running lint..."
     just lint
     echo "Running tests..."
     just coverage
-    
+
     case '{{mode}}' in
         '')
             echo "Skipping e2e tests (use 'just test-all strict' to include e2e tests)"
@@ -184,7 +184,7 @@ vulture path='':
 
     if [[ '{{path}}' == '' ]]; then
         # テストを除外してアプリケーションコードのみをチェック
-        vulture app pages
+        vulture app app.py
     else
         vulture {{path}}
     fi

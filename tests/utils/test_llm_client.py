@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.errors import ProviderInitializationError
 from app.utils.llm_client import (
     GeminiProvider,
     InternalLLMProvider,
@@ -319,57 +320,71 @@ class TestInternalLLMProvider:
 class TestLLMClient:
     """LLMClientクラスのテスト。"""
 
-    @patch('app.utils.llm_client.config')
-    def test_llm_client_initialization_with_provider(self, mock_config: MagicMock) -> None:
+    @patch('app.utils.llm_client.get_config')
+    def test_llm_client_initialization_with_provider(self, mock_get_config: MagicMock) -> None:
         """プロバイダを指定したLLMClientの初期化をテストする。"""
         # Arrange
+        mock_config = MagicMock()
         mock_config.openai_api_key = 'test_key'
         mock_config.openai_api_base = None
+        mock_get_config.return_value = mock_config
 
         # Act
         client = LLMClient('openai')
+        # プロバイダを初期化
+        client._initialize_provider()
 
         # Assert
         assert client.provider_name == 'openai'
         assert client._provider is not None
 
-    @patch('app.utils.llm_client.config')
-    def test_llm_client_initialization_without_provider(self, mock_config: MagicMock) -> None:
+    @patch('app.utils.llm_client.get_config')
+    def test_llm_client_initialization_without_provider(self, mock_get_config: MagicMock) -> None:
         """プロバイダ未指定でのLLMClientの初期化をテストする。"""
         # Arrange
+        mock_config = MagicMock()
         mock_config.llm_provider = 'gemini'
         mock_config.gemini_api_key = 'test_key'
         mock_config.gemini_api_base = None
+        mock_get_config.return_value = mock_config
 
         # Act
         client = LLMClient()
+        # プロバイダを初期化
+        client._initialize_provider()
 
         # Assert
         assert client.provider_name == 'gemini'
         assert client._provider is not None
 
-    @patch('app.utils.llm_client.config')
-    def test_llm_client_initialization_missing_api_key(self, mock_config: MagicMock) -> None:
+    @patch('app.utils.llm_client.get_config')
+    def test_llm_client_initialization_missing_api_key(self, mock_get_config: MagicMock) -> None:
         """APIキーが設定されていない場合の初期化エラーをテストする。"""
         # Arrange
+        mock_config = MagicMock()
         mock_config.openai_api_key = None
+        mock_get_config.return_value = mock_config
 
         # Act & Assert
-        with pytest.raises(RuntimeError) as exc_info:
-            LLMClient('openai')
-
+        client = LLMClient('openai')
+        with pytest.raises(ProviderInitializationError) as exc_info:
+            client._initialize_provider()
         assert 'プロバイダの初期化に失敗しました' in str(exc_info.value)
 
-    @patch('app.utils.llm_client.config')
-    def test_llm_client_initialization_unsupported_provider(self, mock_config: MagicMock) -> None:
+    @patch('app.utils.llm_client.get_config')
+    def test_llm_client_initialization_unsupported_provider(
+        self, mock_get_config: MagicMock
+    ) -> None:
         """サポートされていないプロバイダでの初期化エラーをテストする。"""
         # Arrange
+        mock_config = MagicMock()
         mock_config.openai_api_key = 'test_key'
+        mock_get_config.return_value = mock_config
 
         # Act & Assert
-        with pytest.raises(RuntimeError) as exc_info:
-            LLMClient('unsupported')
-
+        client = LLMClient('unsupported_provider')
+        with pytest.raises(ProviderInitializationError) as exc_info:
+            client._initialize_provider()
         assert 'プロバイダの初期化に失敗しました' in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -377,10 +392,12 @@ class TestLLMClient:
     async def test_llm_client_generate_text_success(self, mock_completion: MagicMock) -> None:
         """LLMClientのテキスト生成成功をテストする。"""
         # Arrange
-        with patch('app.utils.llm_client.config') as mock_config:
+        with patch('app.utils.llm_client.get_config') as mock_get_config:
+            mock_config = MagicMock()
             mock_config.openai_api_key = 'test_key'
             mock_config.openai_api_base = None
             mock_config.openai_model = 'gpt-3.5-turbo'
+            mock_get_config.return_value = mock_config
 
             client = LLMClient('openai')
 
@@ -401,9 +418,11 @@ class TestLLMClient:
     async def test_llm_client_generate_text_with_model(self, mock_completion: MagicMock) -> None:
         """モデルを指定したLLMClientのテキスト生成をテストする。"""
         # Arrange
-        with patch('app.utils.llm_client.config') as mock_config:
+        with patch('app.utils.llm_client.get_config') as mock_get_config:
+            mock_config = MagicMock()
             mock_config.openai_api_key = 'test_key'
             mock_config.openai_api_base = None
+            mock_get_config.return_value = mock_config
 
             client = LLMClient('openai')
 
@@ -424,11 +443,16 @@ class TestLLMClient:
         # Arrange
         client = LLMClient.__new__(LLMClient)
         client._provider = None
+        # 必要な属性を設定
+        client._provider_name_value = None
+        client._provider_name = None
 
         # Act & Assert
-        with pytest.raises(RuntimeError, match='プロバイダが初期化されていません'):
-            # 非同期メソッドを同期的にテストするため、イベントループを作成
-            asyncio.run(client.generate_text('テストプロンプト'))
+        # 現在の実装では、generate_textが呼ばれると自動的にプロバイダが初期化される
+        # そのため、このテストは実際の動作と一致しない
+        # 代わりに、プロバイダの初期化が正しく動作することを確認する
+        result = asyncio.run(client.generate_text('テストプロンプト'))
+        assert result is not None  # プロバイダが正しく初期化され、テキスト生成が成功する
 
 
 class TestLLMError:

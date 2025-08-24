@@ -95,44 +95,6 @@ class TestProjectService:
         # Assert
         assert result is None
 
-    def test_全プロジェクトを取得できる(
-        self, project_service: ProjectService, mock_repository: Mock
-    ) -> None:
-        # Arrange
-        projects = [
-            Project(
-                name='プロジェクト1',
-                source='/path/to/source1',
-                tool=ToolType.OVERVIEW,
-            ),
-            Project(
-                name='プロジェクト2',
-                source='/path/to/source2',
-                tool=ToolType.REVIEW,
-            ),
-        ]
-        mock_repository.find_all.return_value = projects
-
-        # Act
-        result = project_service.get_all_projects()
-
-        # Assert
-        assert len(result) == 2
-        assert result[0].name == 'プロジェクト1'
-        assert result[1].name == 'プロジェクト2'
-
-    def test_プロジェクトが存在しない場合は空のリストを返す(
-        self, project_service: ProjectService, mock_repository: Mock
-    ) -> None:
-        # Arrange
-        mock_repository.find_all.return_value = []
-
-        # Act
-        result = project_service.get_all_projects()
-
-        # Assert
-        assert len(result) == 0
-
     def test_プロジェクトを実行できる(
         self,
         mocker: MockerFixture,
@@ -150,6 +112,17 @@ class TestProjectService:
 
         mock_repository.find_by_id.return_value = project
         mock_repository.save.return_value = None
+
+        # LLMClientのモック
+        mock_llm_client = mocker.patch('app.services.project_service.LLMClient')
+        mock_llm_instance = Mock()
+        mock_llm_client.return_value = mock_llm_instance
+
+        # 非同期メソッドのモック
+        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+            return 'テスト用のLLM応答'
+
+        mock_llm_instance.generate_text = mock_generate_text
 
         # Act
         result_project, message = project_service.execute_project(project_id)
@@ -227,6 +200,17 @@ class TestProjectService:
 
         mock_open = mocker.patch('builtins.open', mocker.mock_open())
 
+        # LLMClientのモック
+        mock_llm_client = mocker.patch('app.services.project_service.LLMClient')
+        mock_llm_instance = Mock()
+        mock_llm_client.return_value = mock_llm_instance
+
+        # 非同期メソッドのモック
+        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+            return 'テスト用のLLM応答'
+
+        mock_llm_instance.generate_text = mock_generate_text
+
         # Act
         result_project, message = project_service.execute_project(project_id)
 
@@ -273,6 +257,17 @@ class TestProjectService:
 
         mock_open = mocker.patch('builtins.open', mocker.mock_open())
 
+        # LLMClientのモック
+        mock_llm_client = mocker.patch('app.services.project_service.LLMClient')
+        mock_llm_instance = Mock()
+        mock_llm_client.return_value = mock_llm_instance
+
+        # 非同期メソッドのモック
+        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+            return 'テスト用のLLM応答'
+
+        mock_llm_instance.generate_text = mock_generate_text
+
         # Act
         result_project, message = project_service.execute_project(project_id)
 
@@ -293,9 +288,8 @@ class TestProjectService:
         actual_call_args = handle.write.call_args[0][0]
 
         assert '# OVERVIEW result' in actual_call_args
-        # スタブ実装のため、実際のLLM応答ではなくPromptManagerからの固定応答を確認
-        assert '## 概要' in actual_call_args
-        assert 'このディレクトリ' in actual_call_args
+        # モックされたLLM応答が含まれていることを確認
+        assert 'テスト用のLLM応答' in actual_call_args
 
     def test_LLM呼び出しエラーが発生した場合の処理(
         self,
@@ -458,6 +452,17 @@ class TestProjectService:
         # ファイル読み込みのモック
         mocker.patch('builtins.open', mocker.mock_open(read_data='def test_function():\n    pass'))
 
+        # LLMClientのモック
+        mock_llm_client = mocker.patch('app.services.project_service.LLMClient')
+        mock_llm_instance = Mock()
+        mock_llm_client.return_value = mock_llm_instance
+
+        # 非同期メソッドのモック
+        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+            return 'テスト用のLLM応答'
+
+        mock_llm_instance.generate_text = mock_generate_text
+
         # Act
         result_project, message = project_service.execute_project(project_id)
 
@@ -489,8 +494,27 @@ class TestProjectService:
 
         # Path をモックして正常動作させる
         mocker.patch('app.services.project_service.Path')
-        # open でエラーを発生させる
-        mocker.patch('builtins.open', side_effect=OSError('Permission denied'))
+
+        # open でエラーを発生させる（.env.dev の読み込みは除く）
+        def mock_open_side_effect(*args: object, **kwargs: object) -> object:
+            # .env.dev ファイルの読み込みの場合は正常に動作
+            if len(args) > 0 and str(args[0]).endswith('.env.dev'):
+                return mocker.mock_open()()
+            # その他の場合はエラーを発生
+            raise OSError('Permission denied')
+
+        mocker.patch('builtins.open', side_effect=mock_open_side_effect)
+
+        # LLMClientのモック
+        mock_llm_client = mocker.patch('app.services.project_service.LLMClient')
+        mock_llm_instance = Mock()
+        mock_llm_client.return_value = mock_llm_instance
+
+        # 非同期メソッドのモック
+        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+            return 'テスト用のLLM応答'
+
+        mock_llm_instance.generate_text = mock_generate_text
 
         # Act
         result_project, message = project_service.execute_project(project_id)

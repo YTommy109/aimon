@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.errors import ResourceNotFoundError
 from app.models import ProjectID, ToolType
 from app.models.project import Project
-from app.services.project_service import ProjectService
+from app.services import ProjectService
 
 
 class TestProjectServiceLLMIntegration:
@@ -44,7 +44,11 @@ class TestProjectServiceLLMIntegration:
         mock_source_path.is_dir.return_value = True
         mock_source_path.rglob.return_value = []  # 空のファイルリストを返す
 
+        # open のモックを設定（.env.dev の読み込みと結果ファイルの書き込みの両方に対応）
         mock_open = mocker.patch('builtins.open', mocker.mock_open())
+
+        # .env.dev ファイルの読み込みをモック
+        mock_open.return_value.__enter__.return_value.read.return_value = ''
 
         # LLMClientのモック
         with patch('app.services.project_service.LLMClient') as mock_llm_client_class:
@@ -69,8 +73,8 @@ class TestProjectServiceLLMIntegration:
             mock_source_path.__truediv__.assert_called_once_with('overview.txt')
             mock_parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
-            # ファイル内容の確認
-            mock_open.assert_called_once_with(mock_output_path, 'w', encoding='utf-8')
+            # 結果ファイルの書き込みが呼ばれることを確認（.env.dev の読み込みは除く）
+            mock_open.assert_any_call(mock_output_path, 'w', encoding='utf-8')
             handle = mock_open.return_value.__enter__.return_value
 
             # 実際の出力内容を確認
@@ -284,8 +288,26 @@ class TestProjectServiceLLMIntegration:
         mock_python_file.relative_to.return_value = 'test.py'
         mock_source_path.rglob.return_value = [mock_python_file]
 
-        # ファイル読み込みでエラーを発生させる
-        mocker.patch('builtins.open', side_effect=PermissionError('Permission denied'))
+        # ファイル読み込みでエラーを発生させる（.env.dev の読み込みは除く）
+        def mock_open_side_effect(*args: object, **kwargs: object) -> object:
+            # .env.dev ファイルの読み込みの場合は正常に動作
+            if len(args) > 0 and str(args[0]).endswith('.env.dev'):
+                return mocker.mock_open()()
+            # その他の場合はエラーを発生
+            raise PermissionError('Permission denied')
+
+        mocker.patch('builtins.open', side_effect=mock_open_side_effect)
+
+        # LLMClientのモック
+        mock_llm_client = mocker.patch('app.services.project_service.LLMClient')
+        mock_llm_instance = Mock()
+        mock_llm_client.return_value = mock_llm_instance
+
+        # 非同期メソッドのモック
+        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+            return 'テスト用のLLM応答'
+
+        mock_llm_instance.generate_text = mock_generate_text
 
         # Act & Assert
         result_project, message = project_service.execute_project(project.id)

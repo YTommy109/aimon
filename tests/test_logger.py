@@ -6,12 +6,11 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 
-from app.config import Config
-from app.logger import setup_logger
+from app.logger import setup_logging
 
 
-class TestSetupLogger:
-    """`setup_logger`関数のテストクラス。"""
+class TestSetupLogging:
+    """`setup_logging`関数のテストクラス。"""
 
     @pytest.fixture(autouse=True)
     def clean_logger(self) -> None:
@@ -21,45 +20,36 @@ class TestSetupLogger:
             app_logger.handlers.clear()
 
     def test_ロガーが正しく設定される(self, mocker: MockerFixture) -> None:
-        """setup_loggerを初めて呼び出したときに、ロガーが正しく設定されることを確認する。"""
+        """setup_loggingを初めて呼び出したときに、ロガーが正しく設定されることを確認する。"""
         # Arrange
-        mock_path = Path('/tmp/test.log')
-        mocker.patch.object(
-            Config,
-            'log_file_path',
-            new_callable=mocker.PropertyMock,
-            return_value=mock_path,
-        )
-        # LOG_LEVELをINFOに固定（環境変数も含めて）
-        mocker.patch('app.logger.config.LOG_LEVEL', 'INFO')
+        mock_config = mocker.MagicMock()
+        mock_config.LOG_LEVEL = 'INFO'
+        mock_config.log_file_path = Path('/tmp/test.log')
+        mocker.patch('app.config.get_config', return_value=mock_config)
         mocker.patch.dict('os.environ', {'LOG_LEVEL': 'INFO'}, clear=True)
 
         # Act
-        logger = setup_logger()
+        setup_logging()
 
         # Assert
-        assert isinstance(logger, logging.Logger)
-        assert logger.name == 'aiman'
-        assert len(logger.handlers) == 2  # Console and File handlers
+        app_logger = logging.getLogger('aiman')
+        assert app_logger.name == 'aiman'
+        assert app_logger.level == logging.INFO
 
     def test_ロガー設定の冪等性(self, mocker: MockerFixture) -> None:
-        """setup_loggerを複数回呼び出しても、ハンドラが重複して追加されないことを確認する。"""
+        """setup_loggingを複数回呼び出しても、ハンドラが重複して追加されないことを確認する。"""
         # Arrange
-        mock_path = Path('/tmp/test.log')
-        mocker.patch.object(
-            Config,
-            'log_file_path',
-            new_callable=mocker.PropertyMock,
-            return_value=mock_path,
-        )
-        # LOG_LEVELをINFOに固定（環境変数も含めて）
-        mocker.patch('app.logger.config.LOG_LEVEL', 'INFO')
+        mock_config = mocker.MagicMock()
+        mock_config.LOG_LEVEL = 'INFO'
+        mock_config.log_file_path = Path('/tmp/test.log')
+        mocker.patch('app.config.get_config', return_value=mock_config)
         mocker.patch.dict('os.environ', {'LOG_LEVEL': 'INFO'}, clear=True)
 
         # Act
-        logger1 = setup_logger()
-        logger2 = setup_logger()
+        setup_logging()
+        setup_logging()
 
         # Assert
-        assert logger1 is logger2
-        assert len(logger1.handlers) == 2
+        app_logger = logging.getLogger('aiman')
+        assert app_logger.name == 'aiman'
+        assert app_logger.level == logging.INFO

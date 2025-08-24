@@ -9,14 +9,13 @@ from litellm import completion
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
 
-from app.config import config
+from app.config import get_config
 from app.errors import (
     LLMAPICallError,
     LLMError,
     LLMUnexpectedResponseError,
     MissingConfigError,
     ProviderInitializationError,
-    ProviderNotInitializedError,
 )
 
 __all__ = [
@@ -152,7 +151,17 @@ class GeminiProvider(BaseLLMProvider):
         """
         try:
             self._setup_environment()
-            response = await self._call_api(prompt, model)
+            # Gemini APIを直接呼び出すために、明示的にgeminiプロバイダーを指定
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: completion(
+                    model=f'gemini/{model}',
+                    messages=[{'role': 'user', 'content': prompt}],
+                    max_tokens=1000,
+                    temperature=0.7,
+                ),
+            )
             return self._extract_content(response, 'gemini', model)
         except LLMError:
             raise
@@ -234,21 +243,31 @@ class LLMClient:
                      未指定の場合は環境変数から取得。
         """
         # 内部的には StrEnum で保持し、外部公開は文字列プロパティで互換性維持
-        self._provider_name_value: str = provider or config.llm_provider
+        self._provider_name_value: str | None = provider
         self._provider_name: LLMProviderName | None = None
         self._provider: LLMProvider | None = None
-        self._initialize_provider()
+        # プロバイダの初期化は遅延させる
 
     @property
     def provider_name(self) -> str:
         """現在のプロバイダ名を文字列で返す。"""
+        result = None
         if self._provider_name is not None:
-            return self._provider_name.value
-        return self._provider_name_value
+            result = self._provider_name.value
+        elif self._provider_name_value is not None:
+            result = self._provider_name_value
+        else:
+            # プロバイダが初期化されてない場合は、設定から取得
+            result = get_config().llm_provider
+        return result
 
     def _initialize_provider(self) -> None:
         """プロバイダを初期化する。"""
         try:
+            # プロバイダ名が指定されてない場合は設定から取得
+            if self._provider_name_value is None:
+                self._provider_name_value = get_config().llm_provider
+
             # ここで列挙体へ変換し、例外を固定メッセージの例外で包む
             self._provider_name = LLMProviderName(self._provider_name_value.strip().lower())
             self._initialize_by_match()
@@ -267,27 +286,29 @@ class LLMClient:
 
     def _initialize_openai_provider(self) -> None:
         """OpenAIプロバイダを初期化する。"""
-        api_key = config.openai_api_key
+        api_key = get_config().openai_api_key
         if not api_key:
             raise MissingConfigError('OPENAI_API_KEY')
 
-        self._provider = OpenAIProvider(api_key=api_key, api_base=config.openai_api_base)
+        self._provider = OpenAIProvider(api_key=api_key, api_base=get_config().openai_api_base)
 
     def _initialize_gemini_provider(self) -> None:
         """Geminiプロバイダを初期化する。"""
-        api_key = config.gemini_api_key
+        api_key = get_config().gemini_api_key
         if not api_key:
             raise MissingConfigError('GEMINI_API_KEY')
 
-        self._provider = GeminiProvider(api_key=api_key, api_base=config.gemini_api_base)
+        self._provider = GeminiProvider(api_key=api_key, api_base=get_config().gemini_api_base)
 
     def _initialize_internal_provider(self) -> None:
         """社内LLMプロバイダを初期化する。"""
-        endpoint = config.internal_llm_endpoint
+        endpoint = get_config().internal_llm_endpoint
         if not endpoint:
             raise MissingConfigError('INTERNAL_LLM_ENDPOINT')
 
-        self._provider = InternalLLMProvider(endpoint=endpoint, api_key=config.internal_llm_api_key)
+        self._provider = InternalLLMProvider(
+            endpoint=endpoint, api_key=get_config().internal_llm_api_key
+        )
 
     async def generate_text(self, prompt: str, model: str | None = None) -> str:
         """テキスト生成を実行する。
@@ -304,7 +325,11 @@ class LLMClient:
             LLMError: LLM呼び出し時にエラーが発生した場合。
         """
         if self._provider is None:
-            raise ProviderNotInitializedError()
+            self._initialize_provider()
+
+        # 初期化後もプロバイダがNoneの場合はエラー
+        if self._provider is None:
+            raise RuntimeError('プロバイダの初期化に失敗しました')
 
         # モデル名が未指定の場合は環境変数から取得
         model_name = self._get_model_name(model)
@@ -327,19 +352,20 @@ class LLMClient:
     def _get_default_model_name(self) -> str:
         """デフォルトのモデル名を取得する。"""
         default_models: dict[LLMProviderName, str] = {
-            LLMProviderName.OPENAI: config.openai_model,
-            LLMProviderName.GEMINI: config.gemini_model,
-            LLMProviderName.INTERNAL: config.internal_llm_model,
+            LLMProviderName.OPENAI: get_config().openai_model,
+            LLMProviderName.GEMINI: get_config().gemini_model,
+            LLMProviderName.INTERNAL: get_config().internal_llm_model,
         }
 
         if self._provider_name is None:
             # 初期化前のフォールバック（通常到達しない）
             fallback_map: dict[str, str] = {
-                'openai': config.openai_model,
-                'gemini': config.gemini_model,
-                'internal': config.internal_llm_model,
+                'openai': get_config().openai_model,
+                'gemini': get_config().gemini_model,
+                'internal': get_config().internal_llm_model,
             }
-            return fallback_map.get(self._provider_name_value, 'default')
+            provider_name_value = self._provider_name_value or 'openai'
+            return fallback_map.get(provider_name_value, 'default')
 
         return default_models.get(self._provider_name, 'default')
 

@@ -26,10 +26,21 @@ def _apply_environment(env: str) -> None:
     os.environ['ENV'] = env
 
 
+def _initialize_config() -> None:
+    """設定を初期化する。"""
+    # 設定を初期化して、環境変数が正しく読み込まれることを確認
+    from app.config import get_config
+
+    get_config()
+
+
 def main() -> None:
     """アプリケーションのエントリポイント。"""
     env = _parse_env()
     _apply_environment(env)
+
+    # 設定を初期化
+    _initialize_config()
 
     from app.ui.main_page import render_main_page
 

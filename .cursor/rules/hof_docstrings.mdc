@@ -1,0 +1,74 @@
+---
+title: 高階関数のDocstringルール（Googleスタイル）
+status: active
+scope: python
+---
+
+## 目的
+
+高階関数（関数を引数に取る、または関数を返す関数）について、明確で一貫したドキュメントを保つため、Google スタイルの docstring を必須とする。
+
+## 対象
+
+- 関数が `Callable`/関数/ラムダを引数に取る場合
+- 関数が関数（クロージャなど）を返す場合
+- メソッドにおける同様のパターン
+
+## 必須要件（Google スタイル）
+
+- 概要（1行）と必要なら追加説明
+- Args セクション
+  - 受け取る関数/Callable の用途、引数、戻り値を文章で簡潔に説明
+  - 可能なら `Callable[[ArgTypes], ReturnType]` の型ヒントに対応する説明
+- Returns セクション
+  - 返す関数の用途・引数・戻り値を説明
+- Raises セクション（発生し得る例外がある場合）
+- 例（任意だが推奨）
+
+## 記述ガイド
+
+- 日本語で簡潔に。要点を最初に書く。
+- 関数を返す場合は、返される関数の引数・副作用・戻り値を明記。
+- 実装の詳細ではなく、契約（入出力・前提・副作用）を重視。
+
+## 良い例
+
+```python
+from collections.abc import Callable
+
+def with_retry(max_retries: int) -> Callable[[Callable[[], T]], T]:
+    """リトライ制御を付与する高階関数。
+
+    Args:
+        max_retries: 失敗時に再試行する最大回数。
+
+    Returns:
+        wrapper: 引数なしの関数 `fn` を実行し、失敗時に最大 `max_retries` 回まで再試行する関数。
+        - 引数: なし（`fn` は引数なしを想定）
+        - 戻り値: `fn` の戻り値と同じ型
+
+    Raises:
+        RuntimeError: すべての試行が失敗した場合。
+    """
+    def wrapper(fn: Callable[[], T]) -> T:
+        for attempt in range(max_retries + 1):
+            try:
+                return fn()
+            except Exception as err:  # noqa: BLE001 - 例示のため簡略化
+                if attempt >= max_retries:
+                    raise RuntimeError("最大リトライ回数を超えました") from err
+        raise RuntimeError("到達不能")
+    return wrapper
+```
+
+## 悪い例（避ける）
+
+```python
+# 説明なし／Args/Returns なし／返す関数の仕様が不明
+```
+
+## 運用
+
+- 本ルールはプロダクトコードの高階関数に適用する（テストコードは任意）。
+- PR レビュー時に docstring の有無・内容を確認する。
+- 既存コードを修正する際は、可能な範囲で順次適用する。

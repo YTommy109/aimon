@@ -1,12 +1,12 @@
-"""プロジェクト作成フォームのUIモジュール。"""
+"""プロジェクト作成フォームのUIコンポーネント。"""
 
 from dataclasses import dataclass
 
 import streamlit as st
 
-from app.models import ToolType
 from app.models.project import Project
 from app.services.project_service import ProjectService
+from app.types import ToolType
 
 
 @dataclass

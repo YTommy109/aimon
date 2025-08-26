@@ -389,6 +389,26 @@ globs: *
     - `Content-Type: application/json`
 - The `extra_headers` parameter of the `litellm.completion` function should be used to pass these headers.
 
+### Type Definition File Rules
+- `ToolType`, `ProjectStatus`, and `LLMProviderName` enums should be defined in `app/types/enums.py`.
+- `ProjectID` type should be defined in `app/types/models.py`.
+- A type definition package `app/types/` should be created to group all type definitions.
+- The `app/types/__init__.py` file should export all StrEnum and custom types.
+
+### Higher-Order Function Docstring Rules
+- Higher-order functions (functions that take functions as arguments or return functions) must have Google-style docstrings. See `.cursor/rules/hof_docstrings.mdc` for details.
+
+### Repository Commenting Rules
+- The `_normalize_project_data` function in `app/repositories/project_repository.py` must contain comments explaining the intent of data normalization:
+    - To exclude unknown keys and calculated properties when reading persistent data back into the model.
+    - To adopt only keys existing in `Project.model_fields` to filter out schema-external values.
+    - To illustrate that past compatibility fields and calculated properties (e.g., `status`) are filtered out here.
+
+### Public Function Docstring Rules
+- Public functions and methods (those not starting with an underscore) must have Google-style docstrings, including summary, Args, Returns, and Raises (if applicable).
+- Higher-order functions must also conform to the rules in `.cursor/rules/hof_docstrings.mdc`.
+- Private functions and methods (those starting with an underscore) may have docstrings, but they are not required. See `.cursor/rules/public_docstrings.mdc` for details.
+
 ## TECH STACK
 
 - litellm>=1.0.0 # Added based on user decision
@@ -404,6 +424,10 @@ globs: *
 
 ### Docstring Formatting
 - Avoid using fullwidth parentheses in docstrings. Use standard ASCII parentheses instead.
+- Higher-order functions (functions that take functions as arguments or return functions) must have Google-style docstrings. See `.cursor/rules/hof_docstrings.mdc` for details.
+- Public functions and methods (those not starting with an underscore) must have Google-style docstrings, including summary, Args, Returns, and Raises (if applicable).
+- Higher-order functions must also conform to the rules in `.cursor/rules/hof_docstrings.mdc`.
+- Private functions and methods (those starting with an underscore) may have docstrings, but they are not required. See `.cursor/rules/public_docstrings.mdc` for details.
 
 ### Type Handling
 
@@ -445,5 +469,4 @@ globs: *
     - Creating and running unit tests for new features.
     - Running `just test-all` after integration to check for impacts on existing features.
     - Running `just test-all strict` for complete confirmation, including E2E tests.
-    - Verifying code format (ruff format), linter errors (ruff check), unused code (vulture), type checking (mypy), test execution (pytest), and coverage (80% or higher).
-    - If quality checks fail, do not proceed to the next task.
+    - Verifying

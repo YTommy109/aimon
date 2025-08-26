@@ -1,4 +1,4 @@
-"""プロジェクトサービスのテストモジュール。"""
+"""プロジェクトサービスのテスト。"""
 
 from pathlib import Path
 from unittest.mock import Mock
@@ -7,10 +7,10 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from app.errors import ResourceNotFoundError
-from app.models import ProjectID, ToolType
+from app.errors import ProjectNotFoundError
 from app.models.project import Project
 from app.services.project_service import ProjectService
+from app.types import ProjectID, ToolType
 from app.utils.llm_client import LLMError
 
 
@@ -137,7 +137,7 @@ class TestProjectService:
     ) -> None:
         # Arrange
         project_id = ProjectID(UUID('12345678-1234-5678-1234-567812345678'))
-        mock_repository.find_by_id.side_effect = ResourceNotFoundError('プロジェクト', project_id)
+        mock_repository.find_by_id.side_effect = ProjectNotFoundError(project_id)
 
         # Act
         result_project, message = project_service.execute_project(project_id)

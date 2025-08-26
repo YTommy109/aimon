@@ -1,0 +1,48 @@
+---
+title: パブリック関数のDocstring基準（Googleスタイル）
+status: active
+scope: python
+---
+
+## 目的
+
+プロダクトコードの関数・メソッドに対して、可視性（公開/非公開）に応じたDocstring運用を統一する。
+
+## 可視性の定義
+
+- パブリック関数/メソッド: 名前がアンダースコアで始まらない（例: `process_data`）
+- プライベート関数/メソッド: 名前がアンダースコアで始まる（例: `_load_config`）
+
+## ルール
+
+- パブリック関数/メソッド: Googleスタイルのdocstringを必須とする
+  - 概要、Args、Returns、Raises（必要時）を含める
+  - 高階関数（Callableを受け取る/返す）は、`.cursor/rules/hof_docstrings.mdc`の要件にも準拠
+- プライベート関数/メソッド（先頭`_`）: docstringは任意
+  - 必要に応じて簡潔な説明を付与可
+
+## 例（パブリック）
+
+```python
+def process_data(items: list[str]) -> list[str]:
+    """入力データを正規化して返す。
+
+    Args:
+        items: 入力文字列のリスト。
+
+    Returns:
+        前後空白を除去し、空要素を除いた新しいリスト。
+
+    Raises:
+        ValueError: items が None の場合。
+    """
+    if items is None:
+        raise ValueError("items must not be None")
+    return [s.strip() for s in items if s and s.strip()]
+```
+
+## 運用
+
+- 対象はプロダクトコードのみ（テストコードは対象外）。
+- 既存コードの変更時に順次適用する。
+- PRレビューでdocstringの有無と内容を確認する。

@@ -1,26 +1,16 @@
 """プロジェクトのエンティティを定義するモジュール。"""
 
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
-from . import ProjectID, ToolType
+from app.types import ProjectID, ProjectStatus, ToolType
 
 # 日本標準時のタイムゾーン
 JST = ZoneInfo('Asia/Tokyo')
-
-
-class ProjectStatus(StrEnum):
-    """プロジェクトの状態を表す列挙型。"""
-
-    PENDING = 'Pending'  # 作成済みで実行待ち
-    PROCESSING = 'Processing'  # 実行中
-    FAILED = 'Failed'  # エラーで終了
-    COMPLETED = 'Completed'  # 正常終了
 
 
 class Project(BaseModel):

@@ -1,12 +1,12 @@
-"""ProjectServiceとLLMClientの統合テスト。"""
+"""プロジェクトサービスの統合テスト。"""
 
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from app.errors import ResourceNotFoundError
-from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.services import ProjectService
+from app.types import ProjectID, ToolType
 
 
 class TestProjectServiceLLMIntegration:

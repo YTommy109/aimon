@@ -4,9 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.models import ToolType
 from app.models.project import Project
 from app.services.project_service import ProjectService
+from app.types import ToolType
 from app.ui import project_creation_form
 
 

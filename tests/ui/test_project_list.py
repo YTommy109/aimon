@@ -1,15 +1,15 @@
-"""プロジェクトリストのテストモジュール。"""
+"""プロジェクト一覧のテスト。"""
 
 from datetime import datetime
 from unittest.mock import Mock
-from uuid import UUID
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 from pytest_mock import MockerFixture
 
-from app.models import ToolType
 from app.models.project import Project
+from app.types import ToolType
 from app.ui import project_list
 
 
@@ -357,9 +357,7 @@ class TestProjectList:
     def test_実行中のプロジェクトの行が正しく描画される(self, mocker: MockerFixture) -> None:
         # Arrange
         mock_columns = mocker.patch.object(project_list.st, 'columns')
-        mock_session_state = MockSessionState(
-            {'running_workers': {UUID('12345678-1234-5678-1234-567812345678')}}
-        )
+        mock_session_state = MockSessionState({'running_workers': {uuid4()}})
         mocker.patch.object(project_list.st, 'session_state', mock_session_state)
         mocker.patch.object(project_list, '_handle_project_buttons')
 

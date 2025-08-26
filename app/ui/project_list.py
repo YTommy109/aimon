@@ -1,10 +1,11 @@
-"""プロジェクト一覧ページのコンポーネント。"""
+"""プロジェクト一覧のUIコンポーネント。"""
 
 import streamlit as st
 from streamlit_modal import Modal
 
-from app.models.project import Project, ProjectStatus
+from app.models.project import Project
 from app.services.project_service import ProjectService
+from app.types import ProjectStatus
 from app.ui.button_handlers import ModalButtonConfig, handle_button_action, handle_modal_button
 
 

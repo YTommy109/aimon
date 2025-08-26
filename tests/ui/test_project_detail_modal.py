@@ -1,15 +1,15 @@
-"""プロジェクト詳細モーダルのテストモジュール。"""
+"""プロジェクト詳細モーダルのテスト。"""
 
 from datetime import datetime
 from unittest.mock import Mock
-from uuid import UUID
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 from pytest_mock import MockerFixture
 
-from app.models import ProjectID, ToolType
 from app.models.project import Project
+from app.types import ProjectID, ToolType
 from app.ui import project_detail_modal
 
 
@@ -51,7 +51,7 @@ class TestProjectDetailModal:
     def sample_project(self) -> Project:
         """サンプルのプロジェクトを作成する。"""
         return Project(
-            id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
+            id=ProjectID(uuid4()),
             name='テストプロジェクト',
             source='/path/to/source',
             tool=ToolType.OVERVIEW,
@@ -166,7 +166,7 @@ class TestProjectDetailModal:
         mock_modal.is_open.return_value = True
 
         sample_project = Project(
-            id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
+            id=ProjectID(uuid4()),
             name='テストプロジェクト',
             source='/path/to/source',
             tool=ToolType.OVERVIEW,
@@ -194,7 +194,7 @@ class TestProjectDetailModal:
         mock_modal.is_open.return_value = True
 
         sample_project = Project(
-            id=ProjectID(UUID('12345678-1234-5678-1234-567812345678')),
+            id=ProjectID(uuid4()),
             name='テストプロジェクト',
             source='/path/to/source',
             tool=ToolType.OVERVIEW,

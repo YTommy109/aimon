@@ -2,7 +2,33 @@
 
 from abc import ABC, abstractmethod
 
-from app.models import ProjectID
+from app.types import ProjectID
+
+__all__ = [
+    'APIConfigurationError',
+    'AppError',
+    'DataManagerError',
+    'FileDeletingError',
+    'FileProcessingError',
+    'FileReadingError',
+    'FileWritingError',
+    'FormValidationError',
+    'LLMAPICallError',
+    'LLMError',
+    'LLMUnexpectedResponseError',
+    'MissingConfigError',
+    'PathIsDirectoryError',
+    'ProjectAlreadyRunningError',
+    'ProjectNotFoundError',
+    'ProjectProcessingError',
+    'ProviderInitializationError',
+    'ProviderNotInitializedError',
+    'RequiredFieldsEmptyError',
+    'ResourceNotFoundError',
+    'UnsupportedProviderError',
+    'ValidationError',
+    'WorkerError',
+]
 
 
 class AppError(Exception):
@@ -226,3 +252,29 @@ class ResourceNotFoundError(WorkerError):
             resource_id: リソースID。
         """
         super().__init__(f'{resource_type} {resource_id} が見つかりません')
+
+
+class ProjectNotFoundError(ResourceNotFoundError):
+    """プロジェクトが見つからない場合の例外クラス。"""
+
+    def __init__(self, project_id: ProjectID) -> None:
+        """
+        例外を初期化します。
+
+        Args:
+            project_id: プロジェクトID。
+        """
+        super().__init__('Project', project_id)
+
+
+class ValidationError(AppError):
+    """バリデーションエラーを表す例外クラス。"""
+
+    def __init__(self, message: str) -> None:
+        """
+        例外を初期化します。
+
+        Args:
+            message: エラーメッセージ。
+        """
+        super().__init__(message)

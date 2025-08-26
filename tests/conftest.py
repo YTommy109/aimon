@@ -1,3 +1,5 @@
+"""テスト用の共通設定とフィクスチャ。"""
+
 import tempfile
 from collections.abc import Generator
 from datetime import datetime
@@ -7,10 +9,10 @@ from uuid import UUID
 
 import pytest
 
-from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 from app.services.project_service import ProjectService
+from app.types import ProjectID, ToolType
 
 
 @pytest.fixture

@@ -10,9 +10,9 @@ from uuid import UUID
 import pytest
 
 from app.errors import PathIsDirectoryError, ResourceNotFoundError
-from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
+from app.types import ProjectID, ToolType
 
 
 class TestJsonProjectRepository:

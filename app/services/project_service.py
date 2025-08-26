@@ -1,4 +1,4 @@
-"""プロジェクト管理サービスを提供するモジュール。"""
+"""プロジェクトのビジネスロジックを管理するサービス。"""
 
 import asyncio
 import logging
@@ -10,9 +10,9 @@ from app.errors import (
     LLMError,
     ResourceNotFoundError,
 )
-from app.models import ProjectID, ToolType
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
+from app.types import ProjectID, ToolType
 from app.utils.llm_client import LLMClient
 from app.utils.prompt_manager import PromptManager
 

@@ -2,7 +2,6 @@
 
 import asyncio
 from abc import ABC, abstractmethod
-from enum import StrEnum
 
 import litellm
 from litellm import completion
@@ -17,6 +16,7 @@ from app.errors import (
     MissingConfigError,
     ProviderInitializationError,
 )
+from app.types import LLMProviderName
 
 __all__ = [
     'GeminiProvider',
@@ -368,11 +368,3 @@ class LLMClient:
             return fallback_map.get(provider_name_value, 'default')
 
         return default_models.get(self._provider_name, 'default')
-
-
-class LLMProviderName(StrEnum):
-    """LLMプロバイダ名。"""
-
-    OPENAI = 'openai'
-    GEMINI = 'gemini'
-    INTERNAL = 'internal'

@@ -1,4 +1,4 @@
-"""JSONファイルベースのプロジェクトリポジトリ実装。"""
+"""プロジェクトのデータアクセスを管理するリポジトリ。"""
 
 import json
 import logging
@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from app.errors import PathIsDirectoryError, ResourceNotFoundError
-from app.models import ProjectID
 from app.models.project import Project
+from app.types import ProjectID
 
 logger = logging.getLogger('aiman')
 
@@ -55,7 +55,9 @@ class JsonProjectRepository:
         """プロジェクトデータを正規化します。"""
         normalized_project = {}
 
-        # その他のフィールドをコピー
+        # 永続化フォーマットからモデルへ読み戻す際に、未知のキーや計算プロパティを除外する。
+        # - `Project.model_fields` に存在するキーのみを採用することで、スキーマ外の値を排除する。
+        # - 例: 過去の互換フィールドや計算プロパティ（`status` など）はここで弾かれる。
         for k, v in project_data.items():
             if k in Project.model_fields:
                 normalized_project[k] = v
@@ -63,7 +65,12 @@ class JsonProjectRepository:
         return normalized_project
 
     def save(self, project: Project) -> None:
-        """プロジェクトを保存します。"""
+        """プロジェクトを保存します。
+
+        Args:
+            project: 保存対象の`Project`インスタンス。
+                既存のIDと一致する場合は更新、存在しない場合は追加します。
+        """
         projects = self.find_all()
         for i, p in enumerate(projects):
             if p.id == project.id:

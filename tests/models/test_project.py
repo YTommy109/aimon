@@ -1,14 +1,13 @@
-"""Projectモデルのテスト。"""
+"""プロジェクトモデルのテスト。"""
 
 from typing import cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
-from pydantic import ValidationError
 
-from app.models import ToolType
-from app.models.project import Project, ProjectStatus
+from app.models.project import Project
+from app.types import ProjectStatus, ToolType
 
 # 日本標準時のタイムゾーン
 JST = ZoneInfo('Asia/Tokyo')
@@ -211,7 +210,7 @@ class TestProject:
         tool = cast(ToolType, None)
 
         # Act & Assert
-        with pytest.raises(ValidationError, match="Input should be 'OVERVIEW' or 'REVIEW'"):
+        with pytest.raises(ValueError, match="Input should be 'OVERVIEW' or 'REVIEW'"):
             Project(name=name, source=source, tool=tool)
 
     def test_プロジェクトの状態遷移_正常フロー(self) -> None:

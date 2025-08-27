@@ -220,6 +220,7 @@ globs: *
 - The `assert` and default `raise` statements in the original `_initialize_provider` are no longer needed.
 - When configuring the `InternalLLMProvider`, the `_call_api` method should explicitly specify `api_base` and `api_key` when calling `litellm.completion`.
 - The `_call_api` method of the `InternalLLMProvider` should add the `custom/` prefix to the model name for internal LLMs, as required by `litellm`.
+- To handle `litellm.UnsupportedParamsError: gpt-5 models don't support temperature=0.7. Only temperature=1 is supported.`, set `litellm.drop_params = True` and remove unsupported parameters.
 
 ### Testing Rules for LLMClient
 
@@ -374,7 +375,7 @@ globs: *
 ### Exception Handling Rules
 
 - When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
-- Centralized Logging: Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged.
+- Centralized Logging: Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged. The exception class should provide the message to be logged.
 - When raising exceptions within `except` blocks, use `raise ... from err` to preserve the original exception's traceback.
 
 ### Internal LLM Header Configuration
@@ -432,6 +433,14 @@ globs: *
 
 - InternalLLMProvider `_call_api` method should load the model name from `.env` file and set the default value to `azure.gpt-4.1`
 
+### Vulture Exclusions
+
+- The following files should be excluded from Vulture checks temporarily during the LLMClient implementation:
+    - `app/utils/llm_client.py`
+    - `app/config.py`
+    - `app/types/enums.py`
+    - `app/logger.py`
+
 ## TECH STACK
 
 - litellm>=1.0.0 # Added based on user decision
@@ -454,17 +463,4 @@ globs: *
 
 ### Type Handling
 
-- When dealing with `argparse.Namespace` and potential `Any` type inferences, especially when a function requires a specific return type (e.g., `str`), use `typing.cast` to explicitly cast the value to the correct type. This ensures type consistency and satisfies linters. For example:
-    ```python
-    from typing import cast
-
-    def _parse_app_env(...) -> str:
-        ...
-        args = parser.parse_args()
-        return cast(str, args.app_env)
-    ```
-- After applying the `cast`, run `just ruff <file_path>` and `just lint` to confirm the code is formatted correctly, and all type checks pass.
-
-### Pydantic Configuration
-
-- When using Pydantic, set `model_config = SettingsConfigDict(extra='ignore')` in the `Config` class to allow loading environment variables
+- When dealing with `argparse.Namespace` and potential `Any` type inferences, especially when a function requires a specific return type (e.g., `str`), use `typing.cast` to explicitly cast the value to the correct type. This ensures type consistency

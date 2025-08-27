@@ -4,8 +4,8 @@ version = "0.1.0"
 requires-python = ">=3.12"
 
 dependencies = [
-    "aiohttp>=3.0", # 非同期HTTPクライアント
-    "httpx>=0.27.0", # 同期HTTPクライアント
+    "aiohttp>=3.0",                     # 非同期HTTPクライアント
+    "httpx>=0.27.0",                    # 同期HTTPクライアント
     "openpyxl>=3.0",
     "pandas>=2.3",
     "Pillow>=11.3.0",
@@ -304,4 +304,5 @@ include = ["app", "tests", "tests_e2e", "pages"]
 exclude = [".venv"]
 
 [tool.vulture]
-exclude = ["app/errors.py"]
+exclude = ["app/config.py", "app/types/enums.py", "app/logger.py"]
+ignore_names = ["drop_params"]

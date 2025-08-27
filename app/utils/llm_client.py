@@ -18,6 +18,9 @@ from app.errors import (
 )
 from app.types import LLMProviderName
 
+# litellmの設定：サポートされていないパラメータを自動的に削除
+litellm.drop_params = True
+
 __all__ = [
     'GeminiProvider',
     'InternalLLMProvider',
@@ -73,7 +76,6 @@ class BaseLLMProvider(LLMProvider):
                 model=model,
                 messages=[{'role': 'user', 'content': prompt}],
                 max_tokens=1000,
-                temperature=0.7,
             ),
         )
 
@@ -159,7 +161,6 @@ class GeminiProvider(BaseLLMProvider):
                     model=f'gemini/{model}',
                     messages=[{'role': 'user', 'content': prompt}],
                     max_tokens=1000,
-                    temperature=0.7,
                 ),
             )
             return self._extract_content(response, 'gemini', model)
@@ -205,7 +206,6 @@ class InternalLLMProvider(BaseLLMProvider):
                 model=model,  # .envで指定したモデル名を使用
                 messages=[{'role': 'user', 'content': prompt}],
                 max_tokens=1000,
-                temperature=0.7,
                 api_base=self.endpoint,
                 api_key=self.api_key,
                 extra_headers=self._get_headers(),

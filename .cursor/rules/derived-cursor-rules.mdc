@@ -409,6 +409,13 @@ globs: *
 - Higher-order functions must also conform to the rules in `.cursor/rules/hof_docstrings.mdc`.
 - Private functions and methods (those starting with an underscore) may have docstrings, but they are not required. See `.cursor/rules/public_docstrings.mdc` for details.
 
+### Logging Rules
+
+- In `app/logger.py`, the root logger level should be set according to the `config.LOG_LEVEL`.
+- The logging level of `watchdog` should be set to `WARNING` to suppress `DEBUG` logs from `inotify_buffer` and other components.
+- In `app.py`, ensure that the logging configuration is initialized by calling `setup_logging()` within the `_initialize_config()` function.
+- After initializing the logging configuration, log the initialized log level using `logger.info(f'Logging initialized with level: {config.LOG_LEVEL}')`.
+
 ## TECH STACK
 
 - litellm>=1.0.0 # Added based on user decision
@@ -455,18 +462,11 @@ globs: *
     - Identify where "Data directory: ..." is being outputted to determine the source of the incorrect data directory.
     - Read through existing tests, particularly `tests/test_config.py`, to verify the configuration.
 - When debugging file-related issues, consider using "VERIFY_FILE_PATHS_ON_DEBUG" and commands like 'ls -R' to check directory structure and file paths.
+- **Debugging Logging Levels:** If debug logs are appearing despite the log level being set to INFO, ensure that:
+    - The root logger's level is set according to `config.LOG_LEVEL` in `app/logger.py`.
+    - The logging level of `watchdog` is set to `WARNING` in `app/logger.py`.
+    - The logging configuration is initialized by calling `setup_logging()` within the `_initialize_config()` function in `app.py`.
 
 ## WORKFLOW & RELEASE RULES
 
-- After modifying code, **ALWAYS** run `ruff format` and `ruff check --fix` to ensure code quality and formatting.
-- When function names are changed, **ALWAYS** remember to update the corresponding tests.
-- Develop in small increments, frequently running `just test-all` to maintain code quality.
-- **Plan.md Updates:** The AI coding assistant should always update `plan.md` to reflect the current project status.
-- **Task Prioritization:** When the user asks to confirm unfinished tasks, the AI should check `plan.md` and use it to determine the current project status and remaining tasks.
-- **Quality Assurance:** After completing a task, the AI coding assistant MUST run `just test-all` to ensure code quality. This includes:
-    - Running `just ruff <file_name>` for formatting and linting.
-    - Running `just test-all` to confirm overall quality.
-    - Creating and running unit tests for new features.
-    - Running `just test-all` after integration to check for impacts on existing features.
-    - Running `just test-all strict` for complete confirmation, including E2E tests.
-    - Verifying
+- After modifying code, **ALWAYS** run `ruff format` and `

@@ -44,7 +44,7 @@ def setup_logging() -> None:
 
     # ルートロガーの設定
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(getattr(logging, config.LOG_LEVEL))
 
     # ハンドラーの設定
     root_logger.addHandler(_setup_console_handler(config))
@@ -57,6 +57,9 @@ def setup_logging() -> None:
     # 外部ライブラリのログレベルを制御
     # fseventsの大量のDEBUGログを抑制
     logging.getLogger('fsevents').setLevel(logging.WARNING)
+
+    # watchdogのログレベルを制御（inotify_buffer等のDEBUGログを抑制）
+    logging.getLogger('watchdog').setLevel(logging.WARNING)
 
     # その他の外部ライブラリも必要に応じて制御
     logging.getLogger('urllib3').setLevel(logging.WARNING)

@@ -364,6 +364,7 @@ globs: *
 ### .env_sample Rules
 - The AI coding assistant should update the comments in the `.env_sample` file to clarify the options for the `LLM_PROVIDER` environment variable. The options are `openai`, `gemini`, and `internal`. If not set, the default is `openai`.
 - The AI coding assistant must add the necessary headers for calling the internal LLM to the `.env_sample` file. The specific headers should be based on user input and confirmed with the user.
+- The AI coding assistant must add `INTERNAL_LLM_MODEL=azure.gpt-4.1` with a comment to the `.env_sample` file.
 
 ### LLMClient Provider Name Configuration
 - The `provider_name` attribute of the `LLMClient` should be defined as a `StrEnum` to ensure type safety and provide a clear set of valid provider options. The valid options are `openai`, `gemini`, and `internal`.
@@ -427,6 +428,10 @@ globs: *
 
 - In `InternalLLMProvider`'s `_call_api` method, specify a dummy model name `"custom/internal-model"` to satisfy `litellm`'s requirement for a model parameter.
 
+### InternalLLMProvider Load Model from ENV
+
+- InternalLLMProvider `_call_api` method should load the model name from `.env` file and set the default value to `azure.gpt-4.1`
+
 ## TECH STACK
 
 - litellm>=1.0.0 # Added based on user decision
@@ -462,10 +467,4 @@ globs: *
 
 ### Pydantic Configuration
 
-- When using Pydantic, set `model_config = SettingsConfigDict(extra='ignore')` in the `Config` class to allow loading environment variables from `.env` files without causing validation errors due to unknown keys.
-
-## DEBUGGING
-
-- When debugging environment variable issues, the AI coding assistant should:
-    - Examine the code in `app/config.py` and `app.py` to ensure the environment is set before importing necessary modules.
-    - Use parallel searches for keywords like "DATA_DIR," ".env.test," "APP
+- When using Pydantic, set `model_config = SettingsConfigDict(extra='ignore')` in the `Config` class to allow loading environment variables

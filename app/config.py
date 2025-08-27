@@ -73,7 +73,7 @@ class Config(BaseSettings):
     GEMINI_MODEL: str = 'gemini-pro'
     INTERNAL_LLM_ENDPOINT: str | None = None
     INTERNAL_LLM_API_KEY: str | None = None
-    INTERNAL_LLM_MODEL: str = 'internal-model'
+    INTERNAL_LLM_MODEL: str = 'azure.gpt-4.1'
 
     def __init__(self) -> None:
         # 動的に .env* を選択

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.errors import ProviderInitializationError
+from app.types import LLMProviderName
 from app.utils.llm_client import (
     GeminiProvider,
     InternalLLMProvider,
@@ -60,7 +61,6 @@ class TestOpenAIProvider:
         # Arrange
         provider = OpenAIProvider('test_key')
         prompt = 'テストプロンプト'
-        model = 'gpt-3.5-turbo'
 
         # モックレスポンスを設定
         mock_response = MagicMock()
@@ -69,7 +69,7 @@ class TestOpenAIProvider:
         mock_completion.return_value = mock_response
 
         # Act
-        result = await provider.generate_text(prompt, model)
+        result = await provider.generate_text(prompt)
 
         # Assert
         assert result == 'OpenAIからの応答'
@@ -84,18 +84,17 @@ class TestOpenAIProvider:
         # Arrange
         provider = OpenAIProvider('test_key')
         prompt = 'テストプロンプト'
-        model = 'gpt-3.5-turbo'
 
         # API呼び出しエラーをシミュレート
         mock_completion.side_effect = Exception('API呼び出しエラー')
 
         # Act & Assert
         with pytest.raises(LLMError) as exc_info:
-            await provider.generate_text(prompt, model)
+            await provider.generate_text(prompt)
 
         assert 'OpenAI API呼び出しエラー' in str(exc_info.value)
         assert exc_info.value.provider == 'openai'
-        assert exc_info.value.model == model
+        assert exc_info.value.model == 'gpt-4o-mini'
         assert exc_info.value.original_error is not None
 
     @pytest.mark.asyncio
@@ -107,7 +106,6 @@ class TestOpenAIProvider:
         # Arrange
         provider = OpenAIProvider('test_key')
         prompt = 'テストプロンプト'
-        model = 'gpt-3.5-turbo'
 
         # 無効なレスポンス形式をシミュレート
         mock_response = MagicMock()
@@ -116,11 +114,11 @@ class TestOpenAIProvider:
 
         # Act & Assert
         with pytest.raises(LLMError) as exc_info:
-            await provider.generate_text(prompt, model)
+            await provider.generate_text(prompt)
 
         assert 'Unexpected response format from openai' in str(exc_info.value)
         assert exc_info.value.provider == 'openai'
-        assert exc_info.value.model == model
+        assert exc_info.value.model == 'gpt-4o-mini'
 
 
 class TestGeminiProvider:
@@ -158,7 +156,6 @@ class TestGeminiProvider:
         # Arrange
         provider = GeminiProvider('test_key')
         prompt = 'テストプロンプト'
-        model = 'gemini-pro'
 
         # モックレスポンスを設定
         mock_response = MagicMock()
@@ -167,7 +164,7 @@ class TestGeminiProvider:
         mock_completion.return_value = mock_response
 
         # Act
-        result = await provider.generate_text(prompt, model)
+        result = await provider.generate_text(prompt)
 
         # Assert
         assert result == 'Geminiからの応答'
@@ -182,18 +179,17 @@ class TestGeminiProvider:
         # Arrange
         provider = GeminiProvider('test_key')
         prompt = 'テストプロンプト'
-        model = 'gemini-pro'
 
         # API呼び出しエラーをシミュレート
         mock_completion.side_effect = Exception('API呼び出しエラー')
 
         # Act & Assert
         with pytest.raises(LLMError) as exc_info:
-            await provider.generate_text(prompt, model)
+            await provider.generate_text(prompt)
 
         assert 'Gemini API呼び出しエラー' in str(exc_info.value)
         assert exc_info.value.provider == 'gemini'
-        assert exc_info.value.model == model
+        assert exc_info.value.model == 'gemini-2.0-flash'
         assert exc_info.value.original_error is not None
 
 
@@ -270,7 +266,6 @@ class TestInternalLLMProvider:
         # Arrange
         provider = InternalLLMProvider('https://internal-llm.example.com')
         prompt = 'テストプロンプト'
-        model = 'internal-model'
 
         # モックレスポンスを設定
         mock_response = MagicMock()
@@ -279,7 +274,7 @@ class TestInternalLLMProvider:
         mock_completion.return_value = mock_response
 
         # Act
-        result = await provider.generate_text(prompt, model)
+        result = await provider.generate_text(prompt)
 
         # Assert
         assert result == '社内LLMからの応答'
@@ -302,18 +297,17 @@ class TestInternalLLMProvider:
         # Arrange
         provider = InternalLLMProvider('https://internal-llm.example.com')
         prompt = 'テストプロンプト'
-        model = 'internal-model'
 
         # API呼び出しエラーをシミュレート
         mock_completion.side_effect = Exception('API呼び出しエラー')
 
         # Act & Assert
         with pytest.raises(LLMError) as exc_info:
-            await provider.generate_text(prompt, model)
+            await provider.generate_text(prompt)
 
         assert '社内LLM API呼び出しエラー' in str(exc_info.value)
         assert exc_info.value.provider == 'internal'
-        assert exc_info.value.model == model
+        assert exc_info.value.model == ''
         assert exc_info.value.original_error is not None
 
 
@@ -330,7 +324,7 @@ class TestLLMClient:
         mock_get_config.return_value = mock_config
 
         # Act
-        client = LLMClient('openai')
+        client = LLMClient(LLMProviderName.OPENAI)
         # プロバイダを初期化
         client._initialize_provider()
 
@@ -339,8 +333,8 @@ class TestLLMClient:
         assert client._provider is not None
 
     @patch('app.utils.llm_client.get_config')
-    def test_llm_client_initialization_without_provider(self, mock_get_config: MagicMock) -> None:
-        """プロバイダ未指定でのLLMClientの初期化をテストする。"""
+    def test_llm_client_initialization_from_config(self, mock_get_config: MagicMock) -> None:
+        """設定からプロバイダ名を取得するLLMClientの初期化をテストする。"""
         # Arrange
         mock_config = MagicMock()
         mock_config.llm_provider = 'gemini'
@@ -349,7 +343,7 @@ class TestLLMClient:
         mock_get_config.return_value = mock_config
 
         # Act
-        client = LLMClient()
+        client = LLMClient(LLMProviderName('gemini'))
         # プロバイダを初期化
         client._initialize_provider()
 
@@ -366,25 +360,24 @@ class TestLLMClient:
         mock_get_config.return_value = mock_config
 
         # Act & Assert
-        client = LLMClient('openai')
+        client = LLMClient(LLMProviderName.OPENAI)
         with pytest.raises(ProviderInitializationError) as exc_info:
             client._initialize_provider()
         assert 'プロバイダの初期化に失敗しました' in str(exc_info.value)
 
     @patch('app.utils.llm_client.get_config')
-    def test_llm_client_initialization_unsupported_provider(
-        self, mock_get_config: MagicMock
-    ) -> None:
-        """サポートされていないプロバイダでの初期化エラーをテストする。"""
+    def test_llm_client_initialization_missing_config(self, mock_get_config: MagicMock) -> None:
+        """設定が不足している場合の初期化エラーをテストする。"""
         # Arrange
         mock_config = MagicMock()
-        mock_config.openai_api_key = 'test_key'
+        mock_config.internal_llm_endpoint = None  # 必須設定が不足
         mock_get_config.return_value = mock_config
 
         # Act & Assert
-        client = LLMClient('unsupported_provider')
+        client = LLMClient(LLMProviderName.INTERNAL)
         with pytest.raises(ProviderInitializationError) as exc_info:
             client._initialize_provider()
+        # MissingConfigErrorがProviderInitializationErrorに包まれていることを確認
         assert 'プロバイダの初期化に失敗しました' in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -396,10 +389,9 @@ class TestLLMClient:
             mock_config = MagicMock()
             mock_config.openai_api_key = 'test_key'
             mock_config.openai_api_base = None
-            mock_config.openai_model = 'gpt-3.5-turbo'
             mock_get_config.return_value = mock_config
 
-            client = LLMClient('openai')
+            client = LLMClient(LLMProviderName.OPENAI)
 
             # モックレスポンスを設定
             mock_response = MagicMock()
@@ -424,7 +416,7 @@ class TestLLMClient:
             mock_config.openai_api_base = None
             mock_get_config.return_value = mock_config
 
-            client = LLMClient('openai')
+            client = LLMClient(LLMProviderName.OPENAI)
 
             # モックレスポンスを設定
             mock_response = MagicMock()
@@ -433,7 +425,7 @@ class TestLLMClient:
             mock_completion.return_value = mock_response
 
             # Act
-            result = await client.generate_text('テストプロンプト', 'custom-model')
+            result = await client.generate_text('テストプロンプト')
 
             # Assert
             assert result == 'OpenAIからの応答'
@@ -444,8 +436,7 @@ class TestLLMClient:
         client = LLMClient.__new__(LLMClient)
         client._provider = None
         # 必要な属性を設定
-        client._provider_name_value = None
-        client._provider_name = None
+        client._provider_name = LLMProviderName.OPENAI
 
         # Act & Assert
         # 現在の実装では、generate_textが呼ばれると自動的にプロバイダが初期化される

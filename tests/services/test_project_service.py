@@ -119,7 +119,7 @@ class TestProjectService:
         mock_llm_client.return_value = mock_llm_instance
 
         # 非同期メソッドのモック
-        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+        async def mock_generate_text(prompt: str) -> str:
             return 'テスト用のLLM応答'
 
         mock_llm_instance.generate_text = mock_generate_text
@@ -206,7 +206,7 @@ class TestProjectService:
         mock_llm_client.return_value = mock_llm_instance
 
         # 非同期メソッドのモック
-        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+        async def mock_generate_text(prompt: str) -> str:
             return 'テスト用のLLM応答'
 
         mock_llm_instance.generate_text = mock_generate_text
@@ -263,7 +263,7 @@ class TestProjectService:
         mock_llm_client.return_value = mock_llm_instance
 
         # 非同期メソッドのモック
-        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+        async def mock_generate_text(prompt: str) -> str:
             return 'テスト用のLLM応答'
 
         mock_llm_instance.generate_text = mock_generate_text

@@ -221,6 +221,7 @@ globs: *
 - When configuring the `InternalLLMProvider`, the `_call_api` method should explicitly specify `api_base` and `api_key` when calling `litellm.completion`.
 - The `_call_api` method of the `InternalLLMProvider` should add the `custom/` prefix to the model name for internal LLMs, as required by `litellm`.
 - To handle `litellm.UnsupportedParamsError: gpt-5 models don't support temperature=0.7. Only temperature=1 is supported.`, set `litellm.drop_params = True` and remove unsupported parameters.
+- **LLMClient Constructor Provider Argument**: The LLMClient constructor should accept a non-optional `LLMProviderName` type: `LLMClient(provider: LLMProviderName)`. Construct LLMClient instances as `LLMClient(LLMProviderName(get_config().llm_provider))` to allow the constructor to accept a non-optional `LLMProviderName` type.
 
 ### Testing Rules for LLMClient
 
@@ -371,6 +372,7 @@ globs: *
 - The `provider_name` attribute of the `LLMClient` should be defined as a `StrEnum` to ensure type safety and provide a clear set of valid provider options. The valid options are `openai`, `gemini`, and `internal`.
 - The `_initialize_provider` method should use a `match` statement to handle provider-specific initialization based on the `provider_name` enum value.
 - For backward compatibility, the externally accessible `provider_name` should remain a string property, while internally the enum should be used.
+- LLMClient instances should be constructed as `LLMClient(LLMProviderName(get_config().llm_provider))` to allow the `LLMClient` constructor to accept a non-optional `LLMProviderName` type.
 
 ### Exception Handling Rules
 
@@ -415,6 +417,7 @@ globs: *
 - The logging level of `watchdog` should be set to `WARNING` to suppress `DEBUG` logs from `inotify_buffer` and other components.
 - In `app.py`, ensure that the logging configuration is initialized by calling `setup_logging()` within the `_initialize_config()` function.
 - After initializing the logging configuration, log the initialized log level using `logger.info(f'Logging initialized with level: {config.LOG_LEVEL}')`.
+- When `LOG_LEVEL` is set to `DEBUG`, `litellm`'s debug mode should be enabled by calling `litellm._turn_on_debug()`. This requires adding `# type: ignore[attr-defined]` to suppress mypy errors, as `_turn_on_debug()` is an internal `litellm` function.
 
 ### Internal LLM Configuration Rules
 - When using an internal LLM:
@@ -441,26 +444,13 @@ globs: *
     - `app/types/enums.py`
     - `app/logger.py`
 
-## TECH STACK
+### Azure API Error Troubleshooting
 
-- litellm>=1.0.0 # Added based on user decision
-## PROJECT DOCUMENTATION & CONTEXT SYSTEM
-
-## CODING STANDARDS
-
-### Exception Handling and Logging
-
-- **Exception Messages:** When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
-- **Centralized Logging:** Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged. The exception class should provide the message to be logged.
-- When raising exceptions within `except` blocks, use `raise ... from err` to preserve the original exception's traceback.
-
-### Docstring Formatting
-- Avoid using fullwidth parentheses in docstrings. Use standard ASCII parentheses instead.
-- Higher-order functions (functions that take functions as arguments or return functions) must have Google-style docstrings. See `.cursor/rules/hof_docstrings.mdc` for details.
-- Public functions and methods (those not starting with an underscore) must have Google-style docstrings, including summary, Args, Returns, and Raises (if applicable).
-- Higher-order functions must also conform to the rules in `.cursor/rules/hof_docstrings.mdc`.
-- Private functions and methods (those starting with an underscore) may have docstrings, but they are not required. See `.cursor/rules/public_docstrings.mdc` for details.
-
-### Type Handling
-
-- When dealing with `argparse.Namespace` and potential `Any` type inferences, especially when a function requires a specific return type (e.g., `str`), use `typing.cast` to explicitly cast the value to the correct type. This ensures type consistency
+- An Azure API error with the message `litellm.APIError: AzureException APIError - Error code: 404 - {'detail": 'Not Found'}` typically indicates a configuration issue, not a code error.
+- This error usually means the `INTERNAL_LLM_ENDPOINT` is not correctly configured, or the Azure Functions endpoint is not running correctly.
+- To resolve, ensure:
+    - `LLM_PROVIDER` is set to `internal` when intending to use the Internal LLM.
+    - `INTERNAL_LLM_ENDPOINT` is set to the correct endpoint for the Azure Function.
+    - `INTERNAL_LLM_API_KEY` is correctly configured, if required.
+    - `INTERNAL_LLM_MODEL` is set to the appropriate model name.
+- Verify the

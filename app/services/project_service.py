@@ -12,7 +12,7 @@ from app.errors import (
 )
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
-from app.types import ProjectID, ToolType
+from app.types import LLMProviderName, ProjectID, ToolType
 from app.utils.llm_client import LLMClient
 from app.utils.prompt_manager import PromptManager
 
@@ -147,7 +147,7 @@ class ProjectService:
         """
         try:
             # テストでのモックを反映させるため、呼び出し毎にLLMClientを生成
-            llm_client = LLMClient(get_config().llm_provider)
+            llm_client = LLMClient(LLMProviderName(get_config().llm_provider))
             return self._execute_async_llm_call(llm_client, prompt)
 
         except Exception as err:
@@ -177,13 +177,13 @@ class ProjectService:
             loop = asyncio.get_running_loop()
             if loop.is_running():
                 # 既存のループが実行中の場合は、新しいループを作成
-                response = asyncio.run(llm_client.generate_text(prompt, None))
+                response = asyncio.run(llm_client.generate_text(prompt))
             else:
-                response = loop.run_until_complete(llm_client.generate_text(prompt, None))
+                response = loop.run_until_complete(llm_client.generate_text(prompt))
             return response
         except RuntimeError:
             # ループが存在しない場合は新しく作成
-            return asyncio.run(llm_client.generate_text(prompt, None))
+            return asyncio.run(llm_client.generate_text(prompt))
 
     def _handle_execution_error(
         self, project: Project | None, error: Exception

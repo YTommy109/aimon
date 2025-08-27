@@ -37,6 +37,19 @@ def _setup_file_handler(config: 'Config') -> logging.handlers.TimedRotatingFileH
     return file_handler
 
 
+def _setup_litellm_debug(config: 'Config') -> None:
+    """litellm の debug 設定を行う。"""
+    if config.LOG_LEVEL == 'DEBUG':
+        try:
+            import litellm
+
+            litellm._turn_on_debug()  # type: ignore[attr-defined]
+            logging.getLogger('aiman').info('litellm debug mode enabled')
+        except ImportError:
+            # litellm がインストールされていない場合は無視
+            pass
+
+
 # ログレベルの設定
 def setup_logging() -> None:
     """ログ設定を初期化する。"""
@@ -64,3 +77,6 @@ def setup_logging() -> None:
     # その他の外部ライブラリも必要に応じて制御
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('requests').setLevel(logging.WARNING)
+
+    # litellm の debug 設定
+    _setup_litellm_debug(config)

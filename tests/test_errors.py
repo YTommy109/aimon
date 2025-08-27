@@ -148,7 +148,7 @@ class TestErrorClasses:
         # Arrange
         message = 'LLMエラー'
         provider = 'openai'
-        model = 'gpt-3.5-turbo'
+        model = 'gpt-4o-mini'
 
         # Act
         error = LLMError(message, provider, model)
@@ -165,7 +165,7 @@ class TestErrorClasses:
         """LLMAPICallErrorのメッセージが正しいことをテスト。"""
         # Arrange
         provider = 'openai'
-        model = 'gpt-3.5-turbo'
+        model = 'gpt-4o-mini'
 
         # Act
         error = LLMAPICallError(provider, model)
@@ -182,7 +182,7 @@ class TestErrorClasses:
         """LLMUnexpectedResponseErrorのメッセージが正しいことをテスト。"""
         # Arrange
         provider = 'openai'
-        model = 'gpt-3.5-turbo'
+        model = 'gpt-4o-mini'
 
         # Act
         error = LLMUnexpectedResponseError(provider, model)

@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.errors import ResourceNotFoundError
 from app.models.project import Project
 from app.services import ProjectService
-from app.types import ProjectID, ToolType
+from app.types import LLMProviderName, ProjectID, ToolType
 
 
 class TestProjectServiceLLMIntegration:
@@ -56,7 +56,7 @@ class TestProjectServiceLLMIntegration:
             mock_llm_client_class.return_value = mock_llm_client
 
             # 非同期メソッドのモック
-            async def mock_generate_text(prompt: str, model: str) -> str:
+            async def mock_generate_text(prompt: str) -> str:
                 return 'OpenAI default-model response: テスト応答'
 
             mock_llm_client.generate_text = mock_generate_text
@@ -130,7 +130,7 @@ class TestProjectServiceLLMIntegration:
             mock_llm_client_class.return_value = mock_llm_client
 
             # 非同期メソッドのモック
-            async def mock_generate_text(prompt: str, model: str) -> str:
+            async def mock_generate_text(prompt: str) -> str:
                 return 'Gemini default-model response: レビュー結果'
 
             mock_llm_client.generate_text = mock_generate_text
@@ -186,7 +186,7 @@ class TestProjectServiceLLMIntegration:
             mock_llm_client_class.return_value = mock_llm_client
 
             # 非同期メソッドのモック
-            async def mock_generate_text(prompt: str, model: str) -> str:
+            async def mock_generate_text(prompt: str) -> str:
                 return 'Gemini default-model response: 環境変数テスト'
 
             mock_llm_client.generate_text = mock_generate_text
@@ -199,7 +199,7 @@ class TestProjectServiceLLMIntegration:
             assert message == 'プロジェクトの実行が完了しました'
 
             # LLMClientが正しいプロバイダで初期化されたことを確認
-            mock_llm_client_class.assert_called_with('gemini')
+            mock_llm_client_class.assert_called_with(LLMProviderName('gemini'))
 
     def test_error_handling_integration(self, mocker: Mock) -> None:
         """エラーハンドリングの統合テスト。"""
@@ -237,7 +237,7 @@ class TestProjectServiceLLMIntegration:
             mock_llm_client_class.return_value = mock_llm_client
 
             # エラーを発生させる
-            async def mock_generate_text(prompt: str, model: str) -> None:
+            async def mock_generate_text(prompt: str) -> None:
                 raise RuntimeError('LLM API エラー')
 
             mock_llm_client.generate_text = mock_generate_text
@@ -304,7 +304,7 @@ class TestProjectServiceLLMIntegration:
         mock_llm_client.return_value = mock_llm_instance
 
         # 非同期メソッドのモック
-        async def mock_generate_text(prompt: str, model: str | None = None) -> str:
+        async def mock_generate_text(prompt: str) -> str:
             return 'テスト用のLLM応答'
 
         mock_llm_instance.generate_text = mock_generate_text

@@ -202,6 +202,7 @@ class InternalLLMProvider(BaseLLMProvider):
         return await loop.run_in_executor(
             None,
             lambda: completion(
+                model='custom/internal-model',  # litellmの要件を満たすためのダミーモデル名
                 messages=[{'role': 'user', 'content': prompt}],
                 max_tokens=1000,
                 temperature=0.7,

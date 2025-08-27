@@ -423,6 +423,10 @@ globs: *
 
 - The `_call_api` method in the `InternalLLMProvider` should accept a `prompt` and a `_model` parameter (unused). The `_model` parameter is required to match the signature of the abstract method in the base class, but it should not be used within the method.
 
+### InternalLLMProvider `_call_api` Method Dummy Model Name
+
+- In `InternalLLMProvider`'s `_call_api` method, specify a dummy model name `"custom/internal-model"` to satisfy `litellm`'s requirement for a model parameter.
+
 ## TECH STACK
 
 - litellm>=1.0.0 # Added based on user decision
@@ -433,7 +437,7 @@ globs: *
 ### Exception Handling and Logging
 
 - **Exception Messages:** When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
-- **Centralized Logging:** Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged.
+- **Centralized Logging:** Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged. The exception class should provide the message to be logged.
 - When raising exceptions within `except` blocks, use `raise ... from err` to preserve the original exception's traceback.
 
 ### Docstring Formatting
@@ -464,7 +468,4 @@ globs: *
 
 - When debugging environment variable issues, the AI coding assistant should:
     - Examine the code in `app/config.py` and `app.py` to ensure the environment is set before importing necessary modules.
-    - Use parallel searches for keywords like "DATA_DIR," ".env.test," "APP_ENV," and "dotenv."
-    - Search for "load environment variables" to identify where the environment variables are loaded.
-    - Identify where "Data directory: ..." is being outputted to determine the source of the incorrect data directory.
-    - Read through existing tests, particularly `tests/test_config.py`, to verify the configuration.
+    - Use parallel searches for keywords like "DATA_DIR," ".env.test," "APP

@@ -196,16 +196,17 @@ class InternalLLMProvider(BaseLLMProvider):
             headers['Authorization'] = f'Bearer {self.api_key}'
         return headers
 
-    async def _call_api(self, prompt: str, model: str) -> LLMResponse:
+    async def _call_api(self, prompt: str, _model: str) -> LLMResponse:
         """API呼び出しを実行する。"""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: completion(
-                model=model,
                 messages=[{'role': 'user', 'content': prompt}],
                 max_tokens=1000,
                 temperature=0.7,
+                api_base=self.endpoint,
+                api_key=self.api_key,
                 extra_headers=self._get_headers(),
             ),
         )

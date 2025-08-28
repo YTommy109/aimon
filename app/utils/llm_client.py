@@ -2,6 +2,7 @@
 
 import asyncio
 from abc import ABC, abstractmethod
+from typing import Any
 
 import litellm
 from litellm import completion
@@ -66,17 +67,56 @@ class BaseLLMProvider(LLMProvider):
         self.api_key = api_key
         self.api_base = api_base
 
+    async def generate_text(self, prompt: str) -> str:
+        """共通のテキスト生成処理を実行する。
+
+        Args:
+            prompt: プロンプト。
+
+        Returns:
+            生成されたテキスト。
+
+        Raises:
+            LLMError: LLM呼び出し時にエラーが発生した場合。
+        """
+        model = self._get_model()
+        try:
+            self._setup_environment()
+            response = await self._call_api(prompt, model)
+            return self._extract_content(response, self._get_provider_name(), model)
+        except LLMError:
+            raise
+        except Exception as err:
+            raise LLMAPICallError(self._get_provider_name(), model, err) from err
+
+    @abstractmethod
+    def _get_model(self) -> str:
+        """使用するモデル名を返す。"""
+
+    @abstractmethod
+    def _get_provider_name(self) -> str:
+        """プロバイダ名を返す。"""
+
     async def _call_api(self, prompt: str, model: str) -> LLMResponse:
         """API呼び出しを実行する。"""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: completion(
-                model=model,
+                model=self._format_model_name(model),
                 messages=[{'role': 'user', 'content': prompt}],
                 max_tokens=1000,
+                **self._get_api_kwargs(),
             ),
         )
+
+    def _format_model_name(self, model: str) -> str:
+        """モデル名をプロバイダ固有の形式に変換する。"""
+        return model
+
+    def _get_api_kwargs(self) -> dict[str, Any]:
+        """API呼び出しに必要な追加パラメータを返す。"""
+        return {}
 
     def _extract_content(self, response: LLMResponse, provider_name: str, model: str) -> str:
         """レスポンスからテキストを抽出する。
@@ -111,62 +151,33 @@ class BaseLLMProvider(LLMProvider):
 class OpenAIProvider(BaseLLMProvider):
     """OpenAI APIプロバイダ。"""
 
-    async def generate_text(self, prompt: str) -> str:
-        """OpenAI APIを使用してテキスト生成を実行する。
+    def _get_model(self) -> str:
+        """使用するモデル名を返す。"""
+        return get_config().openai_model
 
-        Args:
-            prompt: プロンプト。
-
-        Returns:
-            生成されたテキスト。
-
-        Raises:
-            LLMError: LLM呼び出し時にエラーが発生した場合。
-        """
-        model = get_config().openai_model
-        try:
-            self._setup_environment()
-            response = await self._call_api(prompt, model)
-            return self._extract_content(response, 'openai', model)
-        except LLMError:
-            raise
-        except Exception as err:
-            raise LLMAPICallError('openai', model, err) from err
+    def _get_provider_name(self) -> str:
+        """プロバイダ名を返す。"""
+        return 'openai'
 
 
 class GeminiProvider(BaseLLMProvider):
     """Gemini APIプロバイダ。"""
 
-    async def generate_text(self, prompt: str) -> str:
-        """Gemini APIを使用してテキスト生成を実行する。
+    def _get_model(self) -> str:
+        """使用するモデル名を返す。"""
+        return get_config().gemini_model
 
-        Args:
-            prompt: プロンプト。
+    def _get_provider_name(self) -> str:
+        """プロバイダ名を返す。"""
+        return 'gemini'
 
-        Returns:
-            生成されたテキスト。
+    def _format_model_name(self, model: str) -> str:
+        """Geminiモデル名にプレフィックスを付ける。"""
+        return f'gemini/{model}'
 
-        Raises:
-            LLMError: LLM呼び出し時にエラーが発生した場合。
-        """
-        model = get_config().gemini_model
-        try:
-            self._setup_environment()
-            # Gemini APIを直接呼び出すために、明示的にgeminiプロバイダーを指定
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: completion(
-                    model=f'gemini/{model}',
-                    messages=[{'role': 'user', 'content': prompt}],
-                    max_tokens=1000,
-                ),
-            )
-            return self._extract_content(response, 'gemini', model)
-        except LLMError:
-            raise
-        except Exception as err:
-            raise LLMAPICallError('gemini', model, err) from err
+    def _get_api_kwargs(self) -> dict[str, Any]:
+        """API呼び出しに必要な追加パラメータを返す。"""
+        return {}
 
 
 class InternalLLMProvider(BaseLLMProvider):
@@ -196,42 +207,21 @@ class InternalLLMProvider(BaseLLMProvider):
             headers['Authorization'] = f'Bearer {self.api_key}'
         return headers
 
-    async def _call_api(self, prompt: str, model: str) -> LLMResponse:
-        """API呼び出しを実行する。"""
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: completion(
-                model=model,  # .envで指定したモデル名を使用
-                messages=[{'role': 'user', 'content': prompt}],
-                max_tokens=1000,
-                api_base=self.endpoint,
-                api_key=self.api_key,
-                extra_headers=self._get_headers(),
-            ),
-        )
+    def _get_model(self) -> str:
+        """使用するモデル名を返す。"""
+        return get_config().internal_llm_model
 
-    async def generate_text(self, prompt: str) -> str:
-        """社内LLM APIを使用してテキスト生成を実行する。
+    def _get_provider_name(self) -> str:
+        """プロバイダ名を返す。"""
+        return 'internal'
 
-        Args:
-            prompt: プロンプト。
-
-        Returns:
-            生成されたテキスト。
-
-        Raises:
-            LLMError: LLM呼び出し時にエラーが発生した場合。
-        """
-        model = get_config().internal_llm_model
-        try:
-            self._setup_environment()
-            response = await self._call_api(prompt, model)
-            return self._extract_content(response, 'internal', model)
-        except LLMError:
-            raise
-        except Exception as err:
-            raise LLMAPICallError('internal', model, err) from err
+    def _get_api_kwargs(self) -> dict[str, Any]:
+        """API呼び出しに必要な追加パラメータを返す。"""
+        return {
+            'api_base': self.endpoint,
+            'api_key': self.api_key,
+            'extra_headers': self._get_headers(),
+        }
 
 
 class LLMClient:

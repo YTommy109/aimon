@@ -222,6 +222,9 @@ globs: *
 - The `_call_api` method of the `InternalLLMProvider` should add the `custom/` prefix to the model name for internal LLMs, as required by `litellm`.
 - To handle `litellm.UnsupportedParamsError: gpt-5 models don't support temperature=0.7. Only temperature=1 is supported.`, set `litellm.drop_params = True` and remove unsupported parameters.
 - **LLMClient Constructor Provider Argument**: The LLMClient constructor should accept a non-optional `LLMProviderName` type: `LLMClient(provider: LLMProviderName)`. Construct LLMClient instances as `LLMClient(LLMProviderName(get_config().llm_provider))` to allow the constructor to accept a non-optional `LLMProviderName` type.
+- The `BaseLLMProvider` should have a common implementation of `generate_text`, and the concrete classes should only provide configuration.
+- The `BaseLLMProvider` should have a `_format_model_name` method to allow providers to format the model name as needed.
+- The `BaseLLMProvider` should have a `_get_api_kwargs` method to allow providers to add extra arguments to the API call.
 
 ### Testing Rules for LLMClient
 
@@ -448,9 +451,4 @@ globs: *
 
 - An Azure API error with the message `litellm.APIError: AzureException APIError - Error code: 404 - {'detail": 'Not Found'}` typically indicates a configuration issue, not a code error.
 - This error usually means the `INTERNAL_LLM_ENDPOINT` is not correctly configured, or the Azure Functions endpoint is not running correctly.
-- To resolve, ensure:
-    - `LLM_PROVIDER` is set to `internal` when intending to use the Internal LLM.
-    - `INTERNAL_LLM_ENDPOINT` is set to the correct endpoint for the Azure Function.
-    - `INTERNAL_LLM_API_KEY` is correctly configured, if required.
-    - `INTERNAL_LLM_MODEL` is set to the appropriate model name.
-- Verify the
+-

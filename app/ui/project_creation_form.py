@@ -1,6 +1,7 @@
 """プロジェクト作成フォームのUIコンポーネント。"""
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import streamlit as st
 
@@ -105,16 +106,28 @@ def _handle_form_submission(
     _display_result_message(success=success, message=message)
 
 
-def _render_form_inputs() -> tuple[str | None, str | None, ToolType | None]:
+def _render_form_inputs(
+    projects_root: Path | None,
+) -> tuple[str | None, str | None, ToolType | None]:
     """フォームの入力フィールドを描画する。
 
     Returns:
         (プロジェクト名, ソースディレクトリ, 選択された内蔵ツールタイプ)
     """
     project_name: str | None = st.text_input('プロジェクト名')
-    source_dir: str | None = st.text_input('対象ディレクトリのパス')
-    # 入力値の前後空白を除去
-    source_dir = source_dir.strip() if source_dir else None
+
+    # projects 配下のサブディレクトリ一覧を取得し、選択式にする
+    subdirs: list[str] = []
+    if projects_root is not None and projects_root.exists():
+        subdirs = [p.name for p in projects_root.iterdir() if p.is_dir()]
+    source_choice_options: list[str | None] = [None, *subdirs]
+    selected_subdir: str | None = st.selectbox(
+        '対象ディレクトリ',
+        options=source_choice_options,
+        format_func=lambda s: '選択...' if s is None else s,
+        index=0,
+    )
+    source_dir: str | None = selected_subdir
     # 内蔵ツール（固定2択）
     internal_tool_options: list[ToolType | None] = [None, ToolType.OVERVIEW, ToolType.REVIEW]
     selected_tool_type: ToolType | None = st.selectbox(
@@ -130,6 +143,7 @@ def _render_form_inputs() -> tuple[str | None, str | None, ToolType | None]:
 def _handle_form_submission_logic(
     inputs: ProjectFormInputs,
     project_service: ProjectService,
+    projects_root: Path | None = None,
 ) -> None:
     """フォーム送信ロジックの処理。
 
@@ -150,9 +164,14 @@ def _handle_form_submission_logic(
     assert inputs.project_name is not None
     assert inputs.source_dir is not None
     assert inputs.selected_tool_type is not None
+    # プロジェクトのソースは $DATA_DIR/projects/{選択ディレクトリ} を保持
+    if projects_root is not None:
+        project_source: str = str((projects_root / inputs.source_dir).as_posix())
+    else:
+        project_source = f'projects/{inputs.source_dir}'
     project = Project(
         name=inputs.project_name,
-        source=inputs.source_dir,
+        source=project_source,
         tool=inputs.selected_tool_type,
     )
 
@@ -160,7 +179,10 @@ def _handle_form_submission_logic(
     _handle_project_creation_button(project, project_service)
 
 
-def render_project_creation_form(project_service: ProjectService) -> None:
+def render_project_creation_form(
+    project_service: ProjectService,
+    projects_root: Path | None = None,
+) -> None:
     """プロジェクト作成フォームを描画する。
 
     Args:
@@ -169,7 +191,7 @@ def render_project_creation_form(project_service: ProjectService) -> None:
     st.header('プロジェクト作成')
 
     # フォーム入力の取得
-    project_name, source_dir, selected_tool_type = _render_form_inputs()
+    project_name, source_dir, selected_tool_type = _render_form_inputs(projects_root)
 
     # フォーム入力オブジェクトの作成
     inputs = ProjectFormInputs(
@@ -180,7 +202,7 @@ def render_project_creation_form(project_service: ProjectService) -> None:
 
     # 作成ボタンの処理
     if st.button('プロジェクト作成'):
-        _handle_form_submission_logic(inputs, project_service)
+        _handle_form_submission_logic(inputs, project_service, projects_root)
 
 
 __all__ = ['render_project_creation_form', 'st']

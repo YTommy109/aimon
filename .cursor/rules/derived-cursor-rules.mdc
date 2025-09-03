@@ -451,4 +451,5 @@ globs: *
 
 - An Azure API error with the message `litellm.APIError: AzureException APIError - Error code: 404 - {'detail": 'Not Found'}` typically indicates a configuration issue, not a code error.
 - This error usually means the `INTERNAL_LLM_ENDPOINT` is not correctly configured, or the Azure Functions endpoint is not running correctly.
--
+
+###

@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from app.config import get_config
+from app.config import config
 from app.errors import (
     LLMError,
     ResourceNotFoundError,
@@ -147,7 +147,7 @@ class ProjectService:
         """
         try:
             # テストでのモックを反映させるため、呼び出し毎にLLMClientを生成
-            llm_client = LLMClient(LLMProviderName(get_config().llm_provider))
+            llm_client = LLMClient(LLMProviderName(config.llm_provider))
             return self._execute_async_llm_call(llm_client, prompt)
 
         except Exception as err:
@@ -157,7 +157,11 @@ class ProjectService:
                 if isinstance(err, OSError | IOError):
                     raise
                 # その他のエラーはLLMErrorに変換
-                raise LLMError(f'LLM呼び出しエラー: {err!s}', 'unknown', 'unknown', err) from err
+                # 現在の設定からプロバイダ名を取得して付与
+                current_provider = LLMProviderName(config.llm_provider)
+                raise LLMError(
+                    f'LLM呼び出しエラー: {err!s}', current_provider, 'unknown', err
+                ) from err
             # LLMErrorの場合はそのまま再送出
             raise
 

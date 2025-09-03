@@ -14,6 +14,7 @@ globs: *
 - **ALWAYS** implement the minimum required to address the problem. Avoid adding forward-looking code or features. If code is unused, it should be removed.
 - **Status Updates:** Provide status updates before tool calls and after edits, particularly tests and builds. Fix any failures before marking tasks complete.
 - **Code Review Focus:** When performing code reviews, prioritize identifying areas for simplification and commonization.
+- **Task Progress Indication:** The AI coding assistant should indicate task progress using checkboxes in responses in responses.
 
 ### pyproject.toml Modification Rules
 
@@ -188,6 +189,14 @@ globs: *
         - **openai**: `OPENAI_API_KEY` (required), `OPENAI_API_BASE` (optional), `OPENAI_MODEL` (optional, defaults to `gpt-3.5-turbo`)
         - **gemini**: `GEMINI_API_KEY` (required), `GEMINI_API_BASE` (optional), `GEMINI_MODEL` (optional, defaults to `gemini-pro`)
         - **internal**: `INTERNAL_LLM_ENDPOINT` (required), `INTERNAL_LLM_API_KEY` (optional), `INTERNAL_LLM_MODEL` (optional, defaults to `internal-model`)
+- **LangChain Transition:**
+    - The project is transitioning from LiteLLM to LangChain for LLM handling.
+    - Internal LLM support is being dropped; only OpenAI and Gemini will be supported.
+    - During the transition, the AI assistant should propose dependency updates (adding LangChain and related libraries, removing LiteLLM) for user approval.
+    - The AI assistant should implement a LangChain-based `app/utils/llm_client.py` supporting OpenAI and Gemini.
+    - The AI assistant should remove `InternalLLMProvider` and related configurations and tests.
+    - The AI assistant should update `logger.py` to remove LiteLLM dependencies.
+    - The AI assistant should update specifications and README to reflect the LangChain transition and the removal of internal LLM support.
 
 ### Development Workflow Rules
 
@@ -201,6 +210,10 @@ globs: *
     - Consult `plan.md` to understand the project's requirements and planned dependencies.
     - Propose the addition to the user, explaining the rationale and alternatives (e.g., `lightllm` vs. `litellm`).
     - Await user approval before making any changes to `pyproject.toml`.
+- **LangChain Dependencies:**
+    - When transitioning to LangChain, propose adding `langchain>=0.3,<0.4`, `langchain-openai>=0.2,<0.3`, and `langchain-google-genai>=2.0,<3.0`.
+    - Propose removing `litellm` from the dependencies.
+    - After modifying `pyproject.toml`, run `just sync` to update dependencies.
 
 ### LLMClient Implementation Rules
 
@@ -225,6 +238,9 @@ globs: *
 - The `BaseLLMProvider` should have a common implementation of `generate_text`, and the concrete classes should only provide configuration.
 - The `BaseLLMProvider` should have a `_format_model_name` method to allow providers to format the model name as needed.
 - The `BaseLLMProvider` should have a `_get_api_kwargs` method to allow providers to add extra arguments to the API call.
+- **LangChain Implementation Details:**
+    - When implementing the LangChain-based `LLMClient`, use `ainvoke` for asynchronous calls to OpenAI and Gemini.
+    - Use `SecretStr` for stricter type handling of API keys.
 
 ### Testing Rules for LLMClient
 
@@ -272,6 +288,11 @@ globs: *
           ...
       ```
       This may not fully resolve the type issue but can provide additional clarity.
+- **LangChain Testing:**
+    - When updating tests for LangChain, ensure that mocks use `AsyncMock` for asynchronous calls.
+    - Mock model names as strings to avoid Pydantic validation errors.
+- When asserting the provider name in tests, use the `LLMProviderName` enum instead of string literals. For example, use `LLMProviderName.GEMINI` instead of `'gemini'`.
+- If tests rely on patching `get_config`, and `get_config` is removed, update the tests to patch `app.config.config` instead.
 
 ### Docstring Rules for LLMClient
 - Use standard ASCII parentheses in docstrings, not fullwidth parentheses.
@@ -308,6 +329,7 @@ globs: *
 ### Unused Code Rules
 - Regularly check for and remove unused code, including attributes, methods, and variables, to maintain a clean and efficient codebase.
 - Use tools like `vulture` to identify potential unused code.
+- If `vulture` identifies `provider_name` as unused, add a no-op reference in the `LLMClient._initialize_provider` method. If this is insufficient, consider adding it to the `ignore_names` list in the `vulture` config in `pyproject.toml` after user approval.
 
 ### Test Mocking Rules
 - When tests fail with errors like `'Mock' object is not iterable`, review the test's mock setup. Ensure that mocked objects return iterable values when the code under test expects them.
@@ -382,6 +404,7 @@ globs: *
 - When raising exceptions, avoid including specific messages directly in the `raise` statement. Instead, pass necessary parameters and store the message within the exception class itself.
 - Centralized Logging: Log exception messages at a higher level (e.g., in a central `try...except` block) rather than at the point where the exception is raised. The exception class should provide the message to be logged. The exception class should provide the message to be logged.
 - When raising exceptions within `except` blocks, use `raise ... from err` to preserve the original exception's traceback.
+- When an `LLMAPICallError` is raised, the `provider` argument should be of type `LLMProviderName`. The value of the `LLMProviderName` enum should be used when stringifying the error message.
 
 ### Internal LLM Header Configuration
 
@@ -417,39 +440,4 @@ globs: *
 ### Logging Rules
 
 - In `app/logger.py`, the root logger level should be set according to the `config.LOG_LEVEL`.
-- The logging level of `watchdog` should be set to `WARNING` to suppress `DEBUG` logs from `inotify_buffer` and other components.
-- In `app.py`, ensure that the logging configuration is initialized by calling `setup_logging()` within the `_initialize_config()` function.
-- After initializing the logging configuration, log the initialized log level using `logger.info(f'Logging initialized with level: {config.LOG_LEVEL}')`.
-- When `LOG_LEVEL` is set to `DEBUG`, `litellm`'s debug mode should be enabled by calling `litellm._turn_on_debug()`. This requires adding `# type: ignore[attr-defined]` to suppress mypy errors, as `_turn_on_debug()` is an internal `litellm` function.
-
-### Internal LLM Configuration Rules
-- When using an internal LLM:
-    - The `model` parameter should not be passed to `litellm.completion`.
-    - The `api_base` and `api_key` parameters must be passed to `litellm.completion`.
-
-### InternalLLMProvider `_call_api` Method Signature Rules
-
-- The `_call_api` method in the `InternalLLMProvider` should accept a `prompt` and a `_model` parameter (unused). The `_model` parameter is required to match the signature of the abstract method in the base class, but it should not be used within the method.
-
-### InternalLLMProvider `_call_api` Method Dummy Model Name
-
-- In `InternalLLMProvider`'s `_call_api` method, specify a dummy model name `"custom/internal-model"` to satisfy `litellm`'s requirement for a model parameter.
-
-### InternalLLMProvider Load Model from ENV
-
-- InternalLLMProvider `_call_api` method should load the model name from `.env` file and set the default value to `azure.gpt-4.1`
-
-### Vulture Exclusions
-
-- The following files should be excluded from Vulture checks temporarily during the LLMClient implementation:
-    - `app/utils/llm_client.py`
-    - `app/config.py`
-    - `app/types/enums.py`
-    - `app/logger.py`
-
-### Azure API Error Troubleshooting
-
-- An Azure API error with the message `litellm.APIError: AzureException APIError - Error code: 404 - {'detail": 'Not Found'}` typically indicates a configuration issue, not a code error.
-- This error usually means the `INTERNAL_LLM_ENDPOINT` is not correctly configured, or the Azure Functions endpoint is not running correctly.
-
-###
+</

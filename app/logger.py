@@ -4,7 +4,10 @@ import logging
 import logging.handlers
 from typing import TYPE_CHECKING, TextIO
 
-from app.config import get_config
+from app.config import config as app_config
+
+# テストのモック互換用に公開
+config = app_config
 
 if TYPE_CHECKING:
     from app.config import Config
@@ -37,23 +40,10 @@ def _setup_file_handler(config: 'Config') -> logging.handlers.TimedRotatingFileH
     return file_handler
 
 
-def _setup_litellm_debug(config: 'Config') -> None:
-    """litellm の debug 設定を行う。"""
-    if config.LOG_LEVEL == 'DEBUG':
-        try:
-            import litellm
-
-            litellm._turn_on_debug()  # type: ignore[attr-defined]
-            logging.getLogger('aiman').info('litellm debug mode enabled')
-        except ImportError:
-            # litellm がインストールされていない場合は無視
-            pass
-
-
 # ログレベルの設定
 def setup_logging() -> None:
     """ログ設定を初期化する。"""
-    config = get_config()
+    # 設定取得（モジュール変数 `config` を使用。テストでモック可能）
 
     # ルートロガーの設定
     root_logger = logging.getLogger()
@@ -77,6 +67,3 @@ def setup_logging() -> None:
     # その他の外部ライブラリも必要に応じて制御
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('requests').setLevel(logging.WARNING)
-
-    # litellm の debug 設定
-    _setup_litellm_debug(config)

@@ -7,11 +7,10 @@ from uuid import UUID
 import pytest
 from pytest_mock import MockerFixture
 
-from app.errors import ProjectNotFoundError
+from app.errors import LLMError, ProjectNotFoundError
 from app.models.project import Project
 from app.services.project_service import ProjectService
-from app.types import ProjectID, ToolType
-from app.utils.llm_client import LLMError
+from app.types import LLMProviderName, ProjectID, ToolType
 
 
 class TestProjectService:
@@ -334,7 +333,7 @@ class TestProjectService:
         # LLMErrorを発生させる
         llm_error = LLMError(
             message='OpenAI API呼び出しエラー: API制限に達しました',
-            provider='openai',
+            provider=LLMProviderName.OPENAI,
             model='gpt-3.5-turbo',
         )
         mock_llm_instance.generate_text.side_effect = llm_error

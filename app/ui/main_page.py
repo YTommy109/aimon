@@ -6,7 +6,8 @@ from pathlib import Path
 import streamlit as st
 from streamlit_modal import Modal
 
-from app.config import get_config
+from app.config import Config as _ConfigType
+from app.config import config
 from app.logger import setup_logging
 from app.repositories.project_repository import JsonProjectRepository
 from app.services.project_service import ProjectService
@@ -15,6 +16,10 @@ from app.ui.project_detail_modal import render_project_detail_modal
 from app.ui.project_list import render_project_list
 
 # ログ設定の初期化（ここでは二重初期化を避けるため呼ばない）
+
+
+def get_config() -> _ConfigType:
+    return config
 
 
 def _ensure_projects_root(base_path: Path) -> None:
@@ -30,26 +35,23 @@ def _ensure_projects_root(base_path: Path) -> None:
 
 def render_main_page() -> None:
     """メインページをレンダリングする。"""
-    # get_config実行時の詳細ログがテストの期待を乱すのを防ぐ
-    logging.disable(logging.CRITICAL)
-    config = get_config()
-    logging.disable(logging.NOTSET)
-
+    # 設定取得
+    cfg = get_config()
     st.title('AI Project Manager')
 
     # データディレクトリの表示とログ初期化
     setup_logging()
-    logging.getLogger('aiman.ui').info(f'Data directory: {config.data_dir_path}')
+    logging.getLogger('aiman.ui').info(f'Data directory: {cfg.data_dir_path}')
 
     # プロジェクト用ディレクトリの作成（存在しなければ作成）
-    _ensure_projects_root(config.data_dir_path)
+    _ensure_projects_root(cfg.data_dir_path)
 
     # リポジトリとサービスの初期化
-    project_repo = JsonProjectRepository(config.data_dir_path)
+    project_repo = JsonProjectRepository(cfg.data_dir_path)
     project_service = ProjectService(project_repo)
 
     # プロジェクト作成フォームを表示（projects ルートを渡す）
-    render_project_creation_form(project_service, config.data_dir_path / 'projects')
+    render_project_creation_form(project_service, cfg.data_dir_path / 'projects')
 
     # プロジェクト一覧を表示
     modal = Modal('プロジェクト詳細', key='project_detail_modal')

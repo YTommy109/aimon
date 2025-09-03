@@ -5,9 +5,8 @@
 このドキュメントは、AIツール連携Webアプリケーションの仕様を定義するものです。
 本仕様では、外部のUnixコマンドとしてのAIツール実行方式を廃止し、
 アプリ内部にAIツール（要約・レビュー）を内包します。
-LLM へのアクセスは provider-agnostic なクライアント
-（lightllm/LiteLLM 想定）を介して OpenAI / Gemini / 社内 LLM を
-切り替え可能とします。処理はローカルファイルシステム上の
+LLM へのアクセスは LangChain ベースのクライアントを介して OpenAI / Gemini を
+切り替え可能とします（社内 LLM は非対応）。処理はローカルファイルシステム上の
 ファイル群に対して非同期に実行し、その進捗と結果を管理します。
 
 ## 2. システム構成
@@ -17,7 +16,7 @@ LLM へのアクセスは provider-agnostic なクライアント
 - **フロントエンド**: Streamlitベースのユーザーインターフェース
 - **バックエンド**:
   - アプリ内蔵のAIツール群（要約: OVERVIEW、レビュー: REVIEW）
-  - LLM クライアント（lightllm/LiteLLM）により OpenAI / Gemini / 社内 LLM を切替
+  - LLM クライアント（LangChain）により OpenAI / Gemini を切替
   - ローカルで動作する非同期処理エンジン
 - **データストア**: ローカルファイルシステム上のJSONファイル
 
@@ -47,11 +46,11 @@ graph TB
     subgraph "Infrastructure Layer"
         JPR[JsonProjectRepository]
         FP[FileProcessor]
-        LC[LLMClient (lightllm)]
+        LC[LLMClient (LangChain)]
     end
 
     subgraph "External"
-        LLM[LLM Providers\n(OpenAI/Gemini/社内LLM)]
+        LLM[LLM Providers\n(OpenAI/Gemini)]
         FS[File System]
     end
 
@@ -93,7 +92,7 @@ graph TB
 - **主要コンポーネント**:
   - `JsonProjectRepository`: プロジェクトデータのJSON永続化
   - `FileProcessor`: ファイル処理ロジック
-  - `LLMClient`: LLM プロバイダ（OpenAI/Gemini/社内）を lightllm 経由で呼び出すクライアント
+  - `LLMClient`: LLM プロバイダ（OpenAI/Gemini）を LangChain で呼び出すクライアント
 
 ### 2.4. 開発環境
 
@@ -115,7 +114,7 @@ graph TB
   1. 環境変数 `ENV` に `prod` | `dev` | `test` を設定
   2. Streamlit 起動オプションで `-- --app-env <prod|dev|test>` を指定
 - **優先順位**: 明示的に指定された起動オプションが最優先、その次に `ENV`、いずれも未指定の場合は `dev` を既定とします。
-- **読み込み規約**: 有効な環境に応じて上記の `.env*` を読み込み、API キーやプロバイダ設定（OpenAI/Gemini/社内 LLM のエンドポイント等）を解決します。
+- **読み込み規約**: 有効な環境に応じて上記の `.env*` を読み込み、API キーやプロバイダ設定（OpenAI/Gemini）を解決します。
 
 ### 2.5. ディレクトリ構成
 
@@ -192,7 +191,7 @@ graph TB
   - `OVERVIEW`: ディレクトリ内のドキュメント群を要約し、全体像・主要論点・アクションを抽出
   - `REVIEW`: 指定ドキュメントをレビューし、改善提案・指摘事項・整合性チェックを出力
 - **LLM 切替**:
-  - lightllm/LiteLLM を通じて OpenAI / Gemini / 社内 LLM を選択可能（環境変数・.env で設定）
+  - LangChain を通じて OpenAI / Gemini を選択可能（環境変数・.env で設定）
 - **処理フロー**:
   1. ユーザーが `OVERVIEW` または `REVIEW` を選択し、対象ディレクトリを指定
   2. ファイルを収集・前処理（サイズ/数に応じた分割・要約等を含む）

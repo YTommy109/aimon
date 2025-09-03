@@ -71,9 +71,6 @@ class Config(BaseSettings):
     GEMINI_API_KEY: str | None = None
     GEMINI_API_BASE: str | None = None
     GEMINI_MODEL: str = 'gemini-pro'
-    INTERNAL_LLM_ENDPOINT: str | None = None
-    INTERNAL_LLM_API_KEY: str | None = None
-    INTERNAL_LLM_MODEL: str = 'azure.gpt-4.1'
 
     def __init__(self) -> None:
         # 動的に .env* を選択
@@ -141,26 +138,12 @@ class Config(BaseSettings):
         """Geminiモデル名を返す。"""
         return self.GEMINI_MODEL
 
-    @property
-    def internal_llm_endpoint(self) -> str | None:
-        """社内LLMエンドポイントを返す。"""
-        return self.INTERNAL_LLM_ENDPOINT
-
-    @property
-    def internal_llm_api_key(self) -> str | None:
-        """社内LLM APIキーを返す。"""
-        return self.INTERNAL_LLM_API_KEY
-
-    @property
-    def internal_llm_model(self) -> str:
-        """社内LLMモデル名を返す。"""
-        return self.INTERNAL_LLM_MODEL
-
 
 # vulture の誤検知回避用（Pydantic v2 は `model_config` をメタクラス経由で使用）
 assert Config.model_config is not None
 
 
-def get_config() -> Config:
-    """設定インスタンスを取得する。"""
-    return Config()
+config = Config()
+
+
+__all__ = ['config']

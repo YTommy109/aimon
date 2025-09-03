@@ -25,7 +25,7 @@ class TestSetupLogging:
         mock_config = mocker.MagicMock()
         mock_config.LOG_LEVEL = 'INFO'
         mock_config.log_file_path = Path('/tmp/test.log')
-        mocker.patch('app.config.get_config', return_value=mock_config)
+        mocker.patch('app.logger.config', mock_config)
         mocker.patch.dict('os.environ', {'LOG_LEVEL': 'INFO'}, clear=True)
 
         # Act
@@ -42,7 +42,7 @@ class TestSetupLogging:
         mock_config = mocker.MagicMock()
         mock_config.LOG_LEVEL = 'INFO'
         mock_config.log_file_path = Path('/tmp/test.log')
-        mocker.patch('app.config.get_config', return_value=mock_config)
+        mocker.patch('app.logger.config', mock_config)
         mocker.patch.dict('os.environ', {'LOG_LEVEL': 'INFO'}, clear=True)
 
         # Act

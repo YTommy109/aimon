@@ -30,11 +30,8 @@ def _apply_environment(env: str) -> None:
 def _initialize_config() -> None:
     """設定を初期化する。"""
     # 設定を初期化して、環境変数が正しく読み込まれることを確認
-    from app.config import get_config
+    from app.config import config
     from app.logger import setup_logging
-
-    # 設定を読み込み
-    config = get_config()
 
     # ログ設定を初期化
     setup_logging()

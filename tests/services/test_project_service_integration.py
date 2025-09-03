@@ -199,7 +199,7 @@ class TestProjectServiceLLMIntegration:
             assert message == 'プロジェクトの実行が完了しました'
 
             # LLMClientが正しいプロバイダで初期化されたことを確認
-            mock_llm_client_class.assert_called_with(LLMProviderName('gemini'))
+            mock_llm_client_class.assert_called_with(LLMProviderName.GEMINI)
 
     def test_error_handling_integration(self, mocker: Mock) -> None:
         """エラーハンドリングの統合テスト。"""

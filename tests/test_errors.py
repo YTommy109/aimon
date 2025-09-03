@@ -14,7 +14,7 @@ from app.errors import (
     ResourceNotFoundError,
     ValidationError,
 )
-from app.types import ProjectID
+from app.types import LLMProviderName, ProjectID
 
 
 class TestErrorClasses:
@@ -147,7 +147,7 @@ class TestErrorClasses:
         """LLMErrorのメッセージが正しいことをテスト。"""
         # Arrange
         message = 'LLMエラー'
-        provider = 'openai'
+        provider = LLMProviderName.OPENAI
         model = 'gpt-4o-mini'
 
         # Act
@@ -164,14 +164,14 @@ class TestErrorClasses:
     def test_LLMAPICallErrorのメッセージが正しい(self) -> None:
         """LLMAPICallErrorのメッセージが正しいことをテスト。"""
         # Arrange
-        provider = 'openai'
+        provider = LLMProviderName.OPENAI
         model = 'gpt-4o-mini'
 
         # Act
         error = LLMAPICallError(provider, model)
 
         # Assert
-        assert 'OpenAI API呼び出しエラー' in str(error)
+        assert 'openai API呼び出しエラー' in str(error)
 
     def test_LLMUnexpectedResponseErrorがLLMErrorを継承している(self) -> None:
         """LLMUnexpectedResponseErrorがLLMErrorを継承していることをテスト。"""
@@ -181,7 +181,7 @@ class TestErrorClasses:
     def test_LLMUnexpectedResponseErrorのメッセージが正しい(self) -> None:
         """LLMUnexpectedResponseErrorのメッセージが正しいことをテスト。"""
         # Arrange
-        provider = 'openai'
+        provider = LLMProviderName.OPENAI
         model = 'gpt-4o-mini'
 
         # Act

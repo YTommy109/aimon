@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from app.types import ProjectID
+from app.types import LLMProviderName, ProjectID
 
 __all__ = [
     'APIConfigurationError',
@@ -134,8 +134,12 @@ class LLMError(Exception):
     """LLM呼び出し時のエラーを表す例外クラス。"""
 
     def __init__(
-        self, message: str, provider: str, model: str, original_error: Exception | None = None
-    ):
+        self,
+        message: str,
+        provider: LLMProviderName,
+        model: str,
+        original_error: Exception | None = None,
+    ) -> None:
         """LLMエラーを初期化します。
 
         Args:
@@ -145,7 +149,7 @@ class LLMError(Exception):
             original_error: 元の例外。
         """
         self.message = message
-        self.provider = provider
+        self.provider: LLMProviderName = provider
         self.model = model
         self.original_error = original_error
         super().__init__(self.message)
@@ -183,22 +187,19 @@ class MissingConfigError(AppError):
 class LLMAPICallError(LLMError):
     """LLM API 呼び出しエラー (プロバイダ共通)。"""
 
-    def __init__(self, provider: str, model: str, original_error: Exception | None = None) -> None:
-        message_map = {
-            'openai': 'OpenAI API呼び出しエラー',
-            'gemini': 'Gemini API呼び出しエラー',
-            'internal': '社内LLM API呼び出しエラー',
-        }
-        message = message_map.get(provider, 'LLM API呼び出しエラー')
+    def __init__(
+        self, provider: LLMProviderName, model: str, original_error: Exception | None = None
+    ) -> None:
+        message = f'{provider} API呼び出しエラー'
         super().__init__(message, provider, model, original_error)
 
 
 class LLMUnexpectedResponseError(LLMError):
     """LLMレスポンス形式が不正な場合の例外。"""
 
-    def __init__(self, provider: str, model: str) -> None:
+    def __init__(self, provider: LLMProviderName, model: str) -> None:
         # 既存テスト互換のため英語メッセージで固定
-        super().__init__(f'Unexpected response format from {provider}', provider, model)
+        super().__init__(f'Unexpected response format from {provider.value}', provider, model)
 
 
 class PathIsDirectoryError(FileProcessingError):

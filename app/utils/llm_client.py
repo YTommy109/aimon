@@ -1,304 +1,99 @@
-"""LLM呼び出し処理を管理するクライアントクラス。"""
+"""LangChain ベースの LLM クライアント。OpenAI / Gemini に対応。"""
 
-import asyncio
 from abc import ABC, abstractmethod
 from typing import Any
 
-import litellm
-from litellm import completion
-from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
-from litellm.types.utils import ModelResponse
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
-from app.config import get_config
-from app.errors import (
-    LLMAPICallError,
-    LLMError,
-    LLMUnexpectedResponseError,
-    MissingConfigError,
-    ProviderInitializationError,
-)
+from app.config import config
+from app.errors import LLMAPICallError, MissingConfigError, ProviderInitializationError
 from app.types import LLMProviderName
 
-# litellmの設定：サポートされていないパラメータを自動的に削除
-litellm.drop_params = True
-
-__all__ = [
-    'GeminiProvider',
-    'InternalLLMProvider',
-    'LLMClient',
-    'LLMError',
-    'LLMProvider',
-    'LLMProviderName',
-    'OpenAIProvider',
-]
-
-# 型エイリアス
-LLMResponse = ModelResponse | CustomStreamWrapper
+__all__ = ['GeminiProvider', 'LLMClient', 'LLMProvider', 'LLMProviderName', 'OpenAIProvider']
 
 
 class LLMProvider(ABC):
-    """LLMプロバイダの抽象基底クラス。"""
+    """LLMプロバイダの抽象クラス。"""
+
+    PROVIDER_NAME: LLMProviderName
+    _client: Any
+    _model: str
 
     @abstractmethod
-    async def generate_text(self, prompt: str) -> str:
-        """テキスト生成を実行する。
-
-        Args:
-            prompt: プロンプト。
-
-        Returns:
-            生成されたテキスト。
-
-        Raises:
-            LLMError: LLM呼び出し時にエラーが発生した場合。
-        """
-
-
-class BaseLLMProvider(LLMProvider):
-    """LLMプロバイダの共通基底クラス。"""
-
-    def __init__(self, api_key: str | None = None, api_base: str | None = None):
-        """共通基底クラスを初期化する。
-
-        Args:
-            api_key: APIキー。
-            api_base: APIベースURL(オプション)。
-        """
-        self.api_key = api_key
-        self.api_base = api_base
+    def __init__(self) -> None:
+        """サブクラスでクライアントとモデルを初期化する。"""
+        raise NotImplementedError
 
     async def generate_text(self, prompt: str) -> str:
-        """共通のテキスト生成処理を実行する。
-
-        Args:
-            prompt: プロンプト。
-
-        Returns:
-            生成されたテキスト。
-
-        Raises:
-            LLMError: LLM呼び出し時にエラーが発生した場合。
-        """
-        model = self._get_model()
+        """プロンプトからテキストを生成する。"""
         try:
-            self._setup_environment()
-            response = await self._call_api(prompt, model)
-            return self._extract_content(response, self._get_provider_name(), model)
-        except LLMError:
-            raise
+            message = await self._client.ainvoke(prompt)
+            return str(message.content)
         except Exception as err:
-            raise LLMAPICallError(self._get_provider_name(), model, err) from err
+            raise LLMAPICallError(self.PROVIDER_NAME, self._model, err) from err
 
-    @abstractmethod
-    def _get_model(self) -> str:
-        """使用するモデル名を返す。"""
 
-    @abstractmethod
-    def _get_provider_name(self) -> str:
-        """プロバイダ名を返す。"""
+class OpenAIProvider(LLMProvider):
+    """OpenAI 用プロバイダ。"""
 
-    async def _call_api(self, prompt: str, model: str) -> LLMResponse:
-        """API呼び出しを実行する。"""
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: completion(
-                model=self._format_model_name(model),
-                messages=[{'role': 'user', 'content': prompt}],
-                max_tokens=1000,
-                **self._get_api_kwargs(),
-            ),
+    PROVIDER_NAME = LLMProviderName.OPENAI
+
+    def __init__(self, api_key: str, base_url: str | None) -> None:
+        self._model = config.openai_model
+        self._client = ChatOpenAI(
+            model=self._model,
+            api_key=SecretStr(api_key),
+            base_url=base_url,
         )
 
-    def _format_model_name(self, model: str) -> str:
-        """モデル名をプロバイダ固有の形式に変換する。"""
-        return model
 
-    def _get_api_kwargs(self) -> dict[str, Any]:
-        """API呼び出しに必要な追加パラメータを返す。"""
-        return {}
+class GeminiProvider(LLMProvider):
+    """Gemini 用プロバイダ。"""
 
-    def _extract_content(self, response: LLMResponse, provider_name: str, model: str) -> str:
-        """レスポンスからテキストを抽出する。
+    PROVIDER_NAME = LLMProviderName.GEMINI
 
-        Args:
-            response: LLMレスポンス。
-            provider_name: プロバイダ名。
-
-        Returns:
-            抽出されたテキスト。
-
-        Raises:
-            LLMError: レスポンス形式が予期しない場合。
-        """
-        if hasattr(response, 'choices') and response.choices:
-            choice = response.choices[0]
-            if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
-                content = choice.message.content
-                if isinstance(content, str):
-                    return content
-                return str(content)
-        raise LLMUnexpectedResponseError(provider_name, model)
-
-    def _setup_environment(self) -> None:
-        """環境変数を設定する。"""
-        if self.api_key:
-            litellm.api_key = self.api_key
-        if self.api_base:
-            litellm.api_base = self.api_base
-
-
-class OpenAIProvider(BaseLLMProvider):
-    """OpenAI APIプロバイダ。"""
-
-    def _get_model(self) -> str:
-        """使用するモデル名を返す。"""
-        return get_config().openai_model
-
-    def _get_provider_name(self) -> str:
-        """プロバイダ名を返す。"""
-        return 'openai'
-
-
-class GeminiProvider(BaseLLMProvider):
-    """Gemini APIプロバイダ。"""
-
-    def _get_model(self) -> str:
-        """使用するモデル名を返す。"""
-        return get_config().gemini_model
-
-    def _get_provider_name(self) -> str:
-        """プロバイダ名を返す。"""
-        return 'gemini'
-
-    def _format_model_name(self, model: str) -> str:
-        """Geminiモデル名にプレフィックスを付ける。"""
-        return f'gemini/{model}'
-
-    def _get_api_kwargs(self) -> dict[str, Any]:
-        """API呼び出しに必要な追加パラメータを返す。"""
-        return {}
-
-
-class InternalLLMProvider(BaseLLMProvider):
-    """社内LLM APIプロバイダ。"""
-
-    def __init__(self, endpoint: str, api_key: str | None = None):
-        """社内LLMプロバイダを初期化する。
-
-        Args:
-            endpoint: 社内LLM APIエンドポイント。
-            api_key: APIキー(オプション)。
-        """
-        super().__init__(api_key)
-        self.endpoint = endpoint
-        # 固定ヘッダーを設定
-        self._headers = {
-            'accept': 'application/json',
-            'x-request-type': 'sync',
-            'x-pool-type': 'shared',
-            'Content-Type': 'application/json',
-        }
-
-    def _get_headers(self) -> dict[str, str]:
-        """ヘッダーを取得する。"""
-        headers = self._headers.copy()
-        if self.api_key:
-            headers['Authorization'] = f'Bearer {self.api_key}'
-        return headers
-
-    def _get_model(self) -> str:
-        """使用するモデル名を返す。"""
-        return get_config().internal_llm_model
-
-    def _get_provider_name(self) -> str:
-        """プロバイダ名を返す。"""
-        return 'internal'
-
-    def _get_api_kwargs(self) -> dict[str, Any]:
-        """API呼び出しに必要な追加パラメータを返す。"""
-        return {
-            'api_base': self.endpoint,
-            'api_key': self.api_key,
-            'extra_headers': self._get_headers(),
-        }
+    def __init__(self, api_key: str) -> None:
+        self._model = config.gemini_model
+        self._client = ChatGoogleGenerativeAI(model=self._model, api_key=SecretStr(api_key))
 
 
 class LLMClient:
-    """LLM呼び出し処理を管理するクライアント。"""
+    """LLM呼び出しを管理するクライアント。"""
 
     def __init__(self, provider: LLMProviderName):
-        """LLMクライアントを初期化する。
-
-        Args:
-            provider: 使用するプロバイダ(openai, gemini, internal)。
-        """
-        self._provider_name: LLMProviderName = provider
+        self._provider_name = provider
         self._provider: LLMProvider | None = None
-        # プロバイダの初期化は遅延させる
-
-    @property
-    def provider_name(self) -> str:
-        """現在のプロバイダ名を文字列で返す。"""
-        return self._provider_name.value
 
     def _initialize_provider(self) -> None:
-        """プロバイダを初期化する。"""
         try:
-            # 辞書ベースで初期化メソッドを呼び出し
-            init_methods = {
-                LLMProviderName.OPENAI: self._initialize_openai_provider,
-                LLMProviderName.GEMINI: self._initialize_gemini_provider,
-                LLMProviderName.INTERNAL: self._initialize_internal_provider,
+            factory_map = {
+                LLMProviderName.OPENAI: self._create_openai_provider,
+                LLMProviderName.GEMINI: self._create_gemini_provider,
             }
-            init_methods[self._provider_name]()
+            create = factory_map.get(self._provider_name)
+            if create is None:
+                raise ProviderInitializationError()
+            self._provider = create()
         except Exception as err:
             raise ProviderInitializationError() from err
 
-    def _initialize_openai_provider(self) -> None:
-        """OpenAIプロバイダを初期化する。"""
-        api_key = get_config().openai_api_key
+    def _create_openai_provider(self) -> LLMProvider:
+        api_key = config.openai_api_key
         if not api_key:
             raise MissingConfigError('OPENAI_API_KEY')
+        return OpenAIProvider(api_key, config.openai_api_base)
 
-        self._provider = OpenAIProvider(api_key=api_key, api_base=get_config().openai_api_base)
-
-    def _initialize_gemini_provider(self) -> None:
-        """Geminiプロバイダを初期化する。"""
-        api_key = get_config().gemini_api_key
+    def _create_gemini_provider(self) -> LLMProvider:
+        api_key = config.gemini_api_key
         if not api_key:
             raise MissingConfigError('GEMINI_API_KEY')
-
-        self._provider = GeminiProvider(api_key=api_key, api_base=get_config().gemini_api_base)
-
-    def _initialize_internal_provider(self) -> None:
-        """社内LLMプロバイダを初期化する。"""
-        endpoint = get_config().internal_llm_endpoint
-        if not endpoint:
-            raise MissingConfigError('INTERNAL_LLM_ENDPOINT')
-
-        self._provider = InternalLLMProvider(
-            endpoint=endpoint, api_key=get_config().internal_llm_api_key
-        )
+        return GeminiProvider(api_key)
 
     async def generate_text(self, prompt: str) -> str:
-        """テキスト生成を実行する。
-
-        Args:
-            prompt: プロンプト。
-
-        Returns:
-            生成されたテキスト。
-
-        Raises:
-            RuntimeError: プロバイダが初期化されていない場合。
-            LLMError: LLM呼び出し時にエラーが発生した場合。
-        """
         if self._provider is None:
             self._initialize_provider()
-
-        # 初期化後もプロバイダがNoneの場合はエラー
         if self._provider is None:
-            raise RuntimeError('プロバイダの初期化に失敗しました')
-
+            raise ProviderInitializationError()
         return await self._provider.generate_text(prompt)

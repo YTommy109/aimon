@@ -24,4 +24,4 @@ class LLMProviderName(StrEnum):
 
     OPENAI = 'openai'
     GEMINI = 'gemini'
-    INTERNAL = 'internal'
+    # INTERNAL は廃止

@@ -13,6 +13,7 @@ from app.errors import (
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 from app.types import LLMProviderName, ProjectID, ToolType
+from app.utils.keyword_index import build_keyword_index
 from app.utils.llm_client import LLMClient
 from app.utils.prompt_manager import PromptManager
 from app.utils.semantic_index import build_faiss_index
@@ -49,8 +50,9 @@ class ProjectService:
         try:
             project = Project(name=name, source=source, tool=tool)
             self.repository.save(project)
-            # 作成直後にベクタDBを構築（失敗しても作成は成功扱い）
+            # 作成直後にインデックスを構築（失敗しても作成は成功扱い）
             self._build_project_vector_index(project)
+            self._build_project_keyword_index(project)
             result = project
         except Exception as e:
             logger.error(f'[ERROR] プロジェクト作成エラー: {e}')
@@ -71,6 +73,19 @@ class ProjectService:
             build_faiss_index(source_dir, index_dir, provider)
         except Exception as ie:
             logger.error(f'[ERROR] ベクタDB作成エラー: {ie}')
+
+    def _build_project_keyword_index(self, project: Project) -> None:
+        """プロジェクト用のBM25キーワードインデックスを構築する。
+
+        Args:
+            project: 対象プロジェクト。
+        """
+        try:
+            source_dir = Path(project.source)
+            index_dir = source_dir / 'keyword_db'
+            build_keyword_index(source_dir, index_dir)
+        except Exception as ie:
+            logger.error(f'[ERROR] キーワードインデックス作成エラー: {ie}')
 
     def execute_project(self, project_id: ProjectID) -> tuple[Project | None, str]:
         """プロジェクトを実行する。

@@ -68,9 +68,11 @@ class Config(BaseSettings):
     OPENAI_API_KEY: str | None = None
     OPENAI_API_BASE: str | None = None
     OPENAI_MODEL: str = 'gpt-3.5-turbo'
+    OPENAI_EMBEDDING_MODEL: str = 'text-embedding-3-small'
     GEMINI_API_KEY: str | None = None
     GEMINI_API_BASE: str | None = None
     GEMINI_MODEL: str = 'gemini-pro'
+    GEMINI_EMBEDDING_MODEL: str = 'text-embedding-004'
 
     def __init__(self) -> None:
         # 動的に .env* を選択
@@ -137,6 +139,16 @@ class Config(BaseSettings):
     def gemini_model(self) -> str:
         """Geminiモデル名を返す。"""
         return self.GEMINI_MODEL
+
+    @property
+    def openai_embedding_model(self) -> str:
+        """OpenAI埋め込みモデル名を返す。"""
+        return self.OPENAI_EMBEDDING_MODEL
+
+    @property
+    def gemini_embedding_model(self) -> str:
+        """Gemini埋め込みモデル名を返す。"""
+        return self.GEMINI_EMBEDDING_MODEL
 
 
 # vulture の誤検知回避用（Pydantic v2 は `model_config` をメタクラス経由で使用）

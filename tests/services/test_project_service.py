@@ -163,6 +163,33 @@ class TestProjectService:
         assert result.tool == ToolType.OVERVIEW
         mock_repository.save.assert_called_once()
 
+    def test_プロジェクト作成時にベクタDBが構築される(
+        self, mocker: MockerFixture, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        # Arrange
+        name = 'RAGテスト'
+        source = '/path/to/source'
+        tool = ToolType.OVERVIEW
+
+        # build_faiss_index をモックして外部依存を避ける
+        mock_build = mocker.patch('app.services.project_service.build_faiss_index')
+        mock_path = mocker.patch('app.services.project_service.Path')
+        mock_path_instance = mock_path.return_value
+        mock_path_instance.__truediv__ = mocker.Mock(return_value=mock_path_instance)
+
+        # Act
+        result = project_service.create_project(name, source, tool)
+
+        # Assert
+        assert result is not None
+        # build_faiss_index が呼ばれたことを確認
+        mock_build.assert_called_once()
+        args, _ = mock_build.call_args
+        # 引数: source_dir, index_dir, provider
+        assert args[0] == mock_path_instance  # Path(project.source)
+        assert args[1] == mock_path_instance  # Path(project.source) / 'vector_db'
+        assert isinstance(args[2], LLMProviderName)
+
     def test_内蔵ツールでプロジェクトを実行できる(
         self,
         mocker: MockerFixture,

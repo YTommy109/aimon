@@ -13,15 +13,22 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rank_bm25 import BM25Okapi
 
+from app.utils.file_processor import read_text
+
 logger = logging.getLogger('aiman')
 
 
 class KeywordIndexBuilder:
     """BM25キーワードインデックスの構築を管理するクラス。"""
 
+    # 日本語トークンの最大長（これ以上は分割）
+    MAX_JAPANESE_TOKEN_LENGTH = 10
+    # 日本語トークンの分割ステップ
+    JAPANESE_TOKEN_SPLIT_STEP = 2
+
     def __init__(self) -> None:
         """ビルダーを初期化する。"""
-        self.target_exts = {'.md', '.txt', '.py'}
+        self.target_exts = {'.md', '.txt', '.py', '.pdf', '.docx', '.xlsx'}
         self.keyword_db_name = 'keyword_db'
 
     def build_index(self, source_dir: Path, index_dir: Path) -> None:
@@ -45,13 +52,8 @@ class KeywordIndexBuilder:
         self._save_bm25_index(chunks, index_dir)
 
     def _read_text(self, path: Path) -> str:
-        """テキストファイルを読み込む。"""
-        try:
-            with open(path, encoding='utf-8') as f:
-                return f.read()
-        except Exception as e:
-            logger.warning(f'テキスト読込失敗: {path} ({e})')
-            return ''
+        """ファイルからテキストを抽出する(拡張子に応じて委譲)。"""
+        return read_text(path)
 
     def _ensure_clean_dir(self, path: Path) -> None:
         """出力ディレクトリを空で作り直す。"""
@@ -88,14 +90,45 @@ class KeywordIndexBuilder:
         return splitter.split_documents(docs)
 
     def _tokenize_text(self, text: str) -> list[str]:
-        """テキストをトークン化する。日本語対応の簡易実装。"""
-        # 簡易的なトークン化（単語境界で分割）
-        # より高度なトークン化が必要な場合は、MeCabやSudachiPyなどを使用
+        """テキストをトークン化する。日本語対応の改善実装。"""
+        tokens = []
 
-        # 英数字と日本語文字を分離
-        tokens = re.findall(r'\w+|[^\w\s]', text)
-        # 空白文字や短すぎるトークンを除去
-        return [token.lower() for token in tokens if len(token) > 1]
+        # 英数字のトークンを抽出
+        tokens.extend(self._extract_alphanumeric_tokens(text))
+
+        # 日本語のトークンを抽出
+        tokens.extend(self._extract_japanese_tokens(text))
+
+        # 短すぎるトークンや空白のみのトークンを除去
+        return [token for token in tokens if len(token) > 1 and token.strip()]
+
+    def _extract_alphanumeric_tokens(self, text: str) -> list[str]:
+        """英数字のトークンを抽出する。"""
+        tokens = []
+        for match in re.finditer(r'[a-zA-Z0-9]+', text):
+            tokens.append(match.group().lower())
+        return tokens
+
+    def _extract_japanese_tokens(self, text: str) -> list[str]:
+        """日本語のトークンを抽出する。"""
+        tokens = []
+        for match in re.finditer(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+', text):
+            token = match.group()
+            if len(token) > self.MAX_JAPANESE_TOKEN_LENGTH:
+                tokens.extend(self._split_long_japanese_token(token))
+            else:
+                tokens.append(token)
+        return tokens
+
+    def _split_long_japanese_token(self, token: str) -> list[str]:
+        """長い日本語トークンを分割する。"""
+        split_tokens = []
+        for i in range(0, len(token), self.JAPANESE_TOKEN_SPLIT_STEP):
+            if i + self.JAPANESE_TOKEN_SPLIT_STEP <= len(token):
+                split_tokens.append(token[i : i + self.JAPANESE_TOKEN_SPLIT_STEP])
+            else:
+                split_tokens.append(token[i:])
+        return split_tokens
 
     def _save_bm25_index(self, chunks: list[Document], index_dir: Path) -> None:
         """BM25インデックスを保存する。"""

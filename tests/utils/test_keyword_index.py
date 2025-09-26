@@ -19,7 +19,8 @@ class TestKeywordIndexBuilder:
         builder = KeywordIndexBuilder()
 
         # Assert
-        assert builder.target_exts == {'.md', '.txt', '.py'}
+        # 既定の3種を含みつつ、将来的な拡張（pdf/docx/xlsx等）も許容
+        assert {'.md', '.txt', '.py'}.issubset(builder.target_exts)
         assert builder.keyword_db_name == 'keyword_db'
 
     def test_無効なディレクトリの場合にインデックス生成をスキップする(self) -> None:

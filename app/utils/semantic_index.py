@@ -13,9 +13,11 @@ from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pydantic import SecretStr
 
 from app.config import config
 from app.types import LLMProviderName
+from app.utils.file_processor import read_text
 
 logger = logging.getLogger('aiman')
 
@@ -30,7 +32,7 @@ class SemanticIndexBuilder:
             provider: 埋め込みプロバイダ。
         """
         self.provider = provider
-        self.target_exts = {'.md', '.txt', '.py'}
+        self.target_exts = {'.md', '.txt', '.py', '.pdf', '.docx', '.xlsx'}
         self.vector_db_name = 'vector_db'
 
     def build_index(self, source_dir: Path, index_dir: Path) -> None:
@@ -57,20 +59,21 @@ class SemanticIndexBuilder:
     def _get_embeddings(self) -> Embeddings:
         """プロバイダに応じた埋め込みモデルを返す。"""
         if self.provider == LLMProviderName.OPENAI:
-            return OpenAIEmbeddings(model=config.openai_embedding_model)
+            return OpenAIEmbeddings(
+                model=config.openai_embedding_model,
+                api_key=SecretStr(config.openai_api_key) if config.openai_api_key else None,
+            )
         if self.provider == LLMProviderName.GEMINI:
-            return GoogleGenerativeAIEmbeddings(model=config.gemini_embedding_model)
+            return GoogleGenerativeAIEmbeddings(
+                model=config.gemini_embedding_model,
+                google_api_key=SecretStr(config.gemini_api_key) if config.gemini_api_key else None,
+            )
         # 将来的に他を追加する場合はここで分岐
         raise ValueError(f'Unsupported embedding provider: {self.provider}')
 
     def _read_text(self, path: Path) -> str:
-        """テキストファイルを読み込む。"""
-        try:
-            with open(path, encoding='utf-8') as f:
-                return f.read()
-        except Exception as e:
-            logger.warning(f'テキスト読込失敗: {path} ({e})')
-            return ''
+        """ファイルからテキストを抽出する(拡張子に応じて委譲)。"""
+        return read_text(path)
 
     def _ensure_clean_dir(self, path: Path) -> None:
         """出力ディレクトリを空で作り直す。"""

@@ -184,7 +184,7 @@ vulture path='':
 
     if [[ '{{path}}' == '' ]]; then
         # テストを除外してアプリケーションコードのみをチェック
-        vulture app app.py
+        vulture app pages app.py
     else
         vulture {{path}}
     fi

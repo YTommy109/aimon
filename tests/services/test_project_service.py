@@ -47,7 +47,8 @@ class TestProjectService:
         assert result is not None
         assert result.name == 'テストプロジェクト'
         assert result.source == '/path/to/source'
-        mock_repository.save.assert_called_once()
+        # インデックス作成の開始・終了で2回saveが呼ばれる
+        assert mock_repository.save.call_count == 2
 
     def test_無効な入力でプロジェクト作成が失敗する(self, project_service: ProjectService) -> None:
         # Arrange
@@ -77,7 +78,8 @@ class TestProjectService:
         assert result.name == name
         assert result.source == source
         assert result.tool == tool
-        mock_repository.save.assert_called_once_with(result)
+        # インデックス作成の開始・終了で2回saveが呼ばれる
+        assert mock_repository.save.call_count == 2
 
     def test_プロジェクト作成でエラーが発生した場合はNoneを返す(
         self, project_service: ProjectService, mock_repository: Mock
@@ -161,7 +163,8 @@ class TestProjectService:
         assert result.name == name
         assert result.source == source
         assert result.tool == ToolType.OVERVIEW
-        mock_repository.save.assert_called_once()
+        # インデックス作成の開始・終了で2回saveが呼ばれる
+        assert mock_repository.save.call_count == 2
 
     def test_プロジェクト作成時にベクタDBが構築される(
         self, mocker: MockerFixture, project_service: ProjectService, mock_repository: Mock

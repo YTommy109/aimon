@@ -24,6 +24,8 @@ class Project(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(JST))
     executed_at: datetime | None = None
     finished_at: datetime | None = None
+    index_started_at: datetime | None = None
+    index_finished_at: datetime | None = None
 
     @property
     def status(self) -> ProjectStatus:
@@ -57,3 +59,13 @@ class Project(BaseModel):
             self.executed_at = datetime.now(JST)
         self.result = error
         self.finished_at = datetime.now(JST)
+
+    def start_indexing(self) -> None:
+        """インデックス作成を開始します。"""
+        self.index_started_at = datetime.now(JST)
+
+    def finish_indexing(self) -> None:
+        """インデックス作成を完了します。"""
+        if self.index_started_at is None:
+            self.index_started_at = datetime.now(JST)
+        self.index_finished_at = datetime.now(JST)

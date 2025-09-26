@@ -36,6 +36,8 @@ class TestProject:
         assert project.created_at is not None
         assert project.executed_at is None
         assert project.finished_at is None
+        assert project.index_started_at is None
+        assert project.index_finished_at is None
 
     def test_プロジェクトが正常に作成される(self) -> None:
         # Arrange
@@ -56,6 +58,8 @@ class TestProject:
         assert project.created_at is not None
         assert project.executed_at is None
         assert project.finished_at is None
+        assert project.index_started_at is None
+        assert project.index_finished_at is None
 
     def test_プロジェクトの初期ステータス(self) -> None:
         # Arrange
@@ -254,3 +258,54 @@ class TestProject:
         project.fail({'error': 'エラーが発生'})
         # 失敗時はresultにエラーが格納されることを検証
         assert project.result == {'error': 'エラーが発生'}
+
+    def test_インデックス作成の開始(self) -> None:
+        """インデックス作成開始のテスト。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            tool=ToolType.OVERVIEW,
+        )
+
+        # Act
+        project.start_indexing()
+
+        # Assert
+        assert project.index_started_at is not None
+        assert project.index_finished_at is None
+
+    def test_インデックス作成の完了(self) -> None:
+        """インデックス作成完了のテスト。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            tool=ToolType.OVERVIEW,
+        )
+
+        # Act
+        project.start_indexing()
+        project.finish_indexing()
+
+        # Assert
+        assert project.index_started_at is not None
+        assert project.index_finished_at is not None
+        assert project.index_finished_at > project.index_started_at
+
+    def test_インデックス作成完了時に開始時刻が設定される(self) -> None:
+        """インデックス作成完了時に開始時刻が自動設定されるテスト。"""
+        # Arrange
+        project = Project(
+            name='テストプロジェクト',
+            source='/path/to/source',
+            tool=ToolType.OVERVIEW,
+        )
+
+        # Act
+        project.finish_indexing()
+
+        # Assert
+        assert project.index_started_at is not None
+        assert project.index_finished_at is not None
+        assert project.index_finished_at > project.index_started_at

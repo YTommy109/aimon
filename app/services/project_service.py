@@ -49,10 +49,13 @@ class ProjectService:
 
         try:
             project = Project(name=name, source=source, tool=tool)
-            self.repository.save(project)
             # 作成直後にインデックスを構築（失敗しても作成は成功扱い）
+            project.start_indexing()
+            self.repository.save(project)
             self._build_project_vector_index(project)
             self._build_project_keyword_index(project)
+            project.finish_indexing()
+            self.repository.save(project)
             result = project
         except Exception as e:
             logger.error(f'[ERROR] プロジェクト作成エラー: {e}')

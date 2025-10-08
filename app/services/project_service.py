@@ -13,6 +13,7 @@ from app.errors import (
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 from app.types import LLMProviderName, ProjectID, ToolType
+from app.utils.file_system import FileSystemProtocol, RealFileSystem
 from app.utils.keyword_index import build_keyword_index
 from app.utils.llm_client import LLMClient
 from app.utils.prompt_manager import PromptManager
@@ -24,14 +25,31 @@ logger = logging.getLogger('aiman')
 class ProjectService:
     """プロジェクトのビジネスロジックを管理するサービス。"""
 
-    def __init__(self, repository: JsonProjectRepository):
+    def __init__(
+        self,
+        repository: JsonProjectRepository,
+        file_system: FileSystemProtocol | None = None,
+        llm_client_factory: Callable[[], LLMClient] | None = None,
+    ):
         """サービスを初期化します。
 
         Args:
             repository: プロジェクトリポジトリ。
+            file_system: ファイルシステム。指定しない場合は実ファイルシステムを使用。
+            llm_client_factory: LLMClientのファクトリ関数。指定しない場合はデフォルトを使用。
         """
         self.repository = repository
+        self.file_system = file_system or RealFileSystem()
+        self.llm_client_factory = llm_client_factory or self._default_llm_client_factory
         self.prompt_manager = PromptManager()
+
+    def _default_llm_client_factory(self) -> LLMClient:
+        """デフォルトのLLMClientファクトリ。
+
+        Returns:
+            LLMClient。
+        """
+        return LLMClient(LLMProviderName(config.llm_provider))
 
     def create_project(self, name: str, source: str, tool: ToolType) -> Project | None:
         """プロジェクトを作成する。
@@ -181,8 +199,7 @@ class ProjectService:
             LLMError: LLM呼び出し時にエラーが発生した場合。
         """
         try:
-            # テストでのモックを反映させるため、呼び出し毎にLLMClientを生成
-            llm_client = LLMClient(LLMProviderName(config.llm_provider))
+            llm_client = self.llm_client_factory()
             return self._execute_async_llm_call(llm_client, prompt)
 
         except Exception as err:
@@ -331,8 +348,8 @@ class ProjectService:
         file_list: list[str] = []
         file_contents: dict[str, str] = {}
 
-        for file_path in source_path.rglob(pattern):
-            if file_path.is_file():
+        for file_path in self.file_system.list_files(source_path, pattern):
+            if self.file_system.is_file(file_path):
                 self._process_file(
                     file_path, source_path, (file_list, file_contents), include_content
                 )
@@ -370,7 +387,7 @@ class ProjectService:
         Returns:
             有効な場合はTrue。
         """
-        return source_path.exists() and source_path.is_dir()
+        return self.file_system.exists(source_path) and self.file_system.is_dir(source_path)
 
     def _read_file_content_if_text(
         self, file_path: Path, relative_path: str, file_contents: dict[str, str]
@@ -384,9 +401,8 @@ class ProjectService:
         """
         if file_path.suffix in ['.txt', '.md', '.py', '.js', '.html', '.css']:
             try:
-                with open(file_path, encoding='utf-8') as f:
-                    content = f.read()
-                    file_contents[relative_path] = content
+                content = self.file_system.read_file(file_path)
+                file_contents[relative_path] = content
             except Exception as e:
                 logger.warning(f'[WARNING] ファイル読み込みエラー {file_path}: {e}')
 
@@ -441,11 +457,9 @@ class ProjectService:
         # 出力先は対象ディレクトリ配下の固定ファイル名
         output_filename = 'overview.txt' if project.tool == ToolType.OVERVIEW else 'review.txt'
         output_path = Path(project.source) / output_filename
-        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         content = f'# {project.tool} result\n\n{response}\n'
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(content)
+        self.file_system.write_file(output_path, content)
 
     def _is_valid_input(self, name: str, source: str, tool: ToolType) -> bool:
         """入力値の妥当性チェック。"""

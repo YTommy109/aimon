@@ -13,6 +13,7 @@ import streamlit as st
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 from rank_bm25 import BM25Okapi
 
 from app.config import config
@@ -292,9 +293,17 @@ class RAGChatPage:
         provider = LLMProviderName(config.llm_provider)
         match provider:
             case LLMProviderName.OPENAI:
-                return OpenAIEmbeddings(model=config.openai_embedding_model)
+                return OpenAIEmbeddings(
+                    model=config.openai_embedding_model,
+                    api_key=SecretStr(config.openai_api_key) if config.openai_api_key else None,
+                )
             case LLMProviderName.GEMINI:
-                return GoogleGenerativeAIEmbeddings(model=config.gemini_embedding_model)
+                return GoogleGenerativeAIEmbeddings(
+                    model=config.gemini_embedding_model,
+                    google_api_key=SecretStr(config.gemini_api_key)
+                    if config.gemini_api_key
+                    else None,
+                )
 
     def _search_faiss_index(
         self,

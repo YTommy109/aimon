@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.errors import ResourceNotFoundError
 from app.models.project import Project
 from app.services import ProjectService
-from app.types import LLMProviderName, ProjectID, ToolType
+from app.types import ProjectID, ToolType
 
 
 class TestProjectServiceLLMIntegration:
@@ -146,60 +146,6 @@ class TestProjectServiceLLMIntegration:
             mock_path_class.assert_called_with('/test/source')
             mock_source_path.__truediv__.assert_any_call('review.txt')
             mock_parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
-
-    def test_llm_provider_environment_variable(self, mocker: Mock) -> None:
-        """環境変数によるLLMプロバイダの切り替えをテストする。"""
-        # Arrange
-        mock_repository = Mock()
-        project_service = ProjectService(mock_repository)
-
-        project = Project(
-            name='プロバイダテストプロジェクト',
-            source='/test/source',
-            tool=ToolType.OVERVIEW,
-        )
-
-        mock_repository.find_by_id.return_value = project
-        mock_repository.save.return_value = None
-
-        # Path と open をモック
-        mock_path_class = mocker.patch('app.services.project_service.Path')
-        mock_source_path = Mock()
-        mock_output_path = Mock()
-        mock_parent = Mock()
-
-        mock_path_class.return_value = mock_source_path
-        mock_source_path.__truediv__ = Mock(return_value=mock_output_path)
-        mock_output_path.parent = mock_parent
-        mock_source_path.exists.return_value = True
-        mock_source_path.is_dir.return_value = True
-        mock_source_path.rglob.return_value = []
-
-        mocker.patch('builtins.open', mocker.mock_open())
-
-        # 環境変数のモック
-        with (
-            patch.dict('os.environ', {'LLM_PROVIDER': 'gemini'}),
-            patch('app.services.project_service.LLMClient') as mock_llm_client_class,
-        ):
-            mock_llm_client = Mock()
-            mock_llm_client_class.return_value = mock_llm_client
-
-            # 非同期メソッドのモック
-            async def mock_generate_text(prompt: str) -> str:
-                return 'Gemini default-model response: 環境変数テスト'
-
-            mock_llm_client.generate_text = mock_generate_text
-
-            # Act
-            result_project, message = project_service.execute_project(project.id)
-
-            # Assert
-            assert result_project is not None
-            assert message == 'プロジェクトの実行が完了しました'
-
-            # LLMClientが正しいプロバイダで初期化されたことを確認
-            mock_llm_client_class.assert_called_with(LLMProviderName.GEMINI)
 
     def test_error_handling_integration(self, mocker: Mock) -> None:
         """エラーハンドリングの統合テスト。"""

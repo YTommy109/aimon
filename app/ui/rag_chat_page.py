@@ -65,7 +65,7 @@ class RAGChatPage:
         selected_project = self._render_project_selection()
 
         if selected_project:
-            # インデックス作成日時表示
+            # インデックス作成日時表示と再構築ボタン
             self._render_index_status(selected_project)
 
             # チャット対話欄と入力欄（画面の上2/3）
@@ -102,7 +102,7 @@ class RAGChatPage:
             選択されたプロジェクト、未選択の場合はNone。
         """
         # プロジェクト選択用の辞書を作成
-        project_options = {f'{p.name} ({p.id})': p for p in projects}
+        project_options = {p.name: p for p in projects}
         project_names = list(project_options.keys())
 
         # デフォルト選択を設定
@@ -137,17 +137,68 @@ class RAGChatPage:
         return default_index
 
     def _render_index_status(self, project: Project) -> None:
-        """インデックス作成日時を表示する。
+        """インデックス作成日時を表示し、再構築ボタンを配置する。
 
         Args:
             project: 対象プロジェクト。
         """
-        if project.index_finished_at:
-            st.success(
-                f'インデックス作成完了: {project.index_finished_at.strftime("%Y-%m-%d %H:%M:%S")}'
-            )
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            if project.index_finished_at:
+                st.success(
+                    f'インデックス作成完了: '
+                    f'{project.index_finished_at.strftime("%Y-%m-%d %H:%M:%S")}'
+                )
+            else:
+                st.warning('インデックス未作成')
+
+        with col2:
+            if st.button('インデックス再構築', key='rebuild_indexes'):
+                self._rebuild_indexes(project)
+
+    def _rebuild_indexes(self, project: Project) -> None:
+        """インデックスを再構築する。
+
+        Args:
+            project: 対象プロジェクト。
+        """
+        try:
+            self._start_rebuild_process()
+            updated_project, message = self.project_service.rebuild_project_indexes(project.id)
+            self._handle_rebuild_result(updated_project, message)
+        except Exception as e:
+            self._handle_rebuild_error(e)
+
+    def _start_rebuild_process(self) -> None:
+        """インデックス再構築プロセスを開始する。"""
+        st.session_state.rag_logs = []
+        self._add_log('インデックス再構築を開始します...')
+
+    def _handle_rebuild_result(self, updated_project: Project | None, message: str) -> None:
+        """インデックス再構築結果を処理する。
+
+        Args:
+            updated_project: 更新されたプロジェクト。
+            message: メッセージ。
+        """
+        if updated_project:
+            self._add_log(f'インデックス再構築完了: {message}')
+            st.success(message)
+            st.rerun()
         else:
-            st.warning('インデックス未作成')
+            self._add_log(f'インデックス再構築失敗: {message}')
+            st.error(message)
+
+    def _handle_rebuild_error(self, error: Exception) -> None:
+        """インデックス再構築エラーを処理する。
+
+        Args:
+            error: エラー。
+        """
+        logger.error(f'インデックス再構築エラー: {error}')
+        self._add_log(f'インデックス再構築エラー: {error!s}')
+        st.error(f'インデックス再構築エラー: {error!s}')
 
     def _render_chat_area(self, project: Project) -> None:
         """チャット対話欄と入力欄をレンダリングする。

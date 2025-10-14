@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from pytest_mock import MockerFixture
@@ -413,3 +413,70 @@ class TestProjectService:
         mock_repository.save.assert_called()
         saved_project = mock_repository.save.call_args[0][0]
         assert saved_project.result == {'error': 'Permission denied'}
+
+    def test_インデックス再構築が正常に実行される(
+        self, project_service: ProjectService, mock_repository: Mock, mock_file_system: Mock
+    ) -> None:
+        """インデックス再構築が正常に実行されることをテストする。"""
+        # Arrange
+        project_id = ProjectID(uuid4())
+        project = Project(
+            id=project_id, name='テストプロジェクト', source='/test/source', tool=ToolType.OVERVIEW
+        )
+
+        mock_repository.find_by_id.return_value = project
+        mock_repository.save.return_value = None
+
+        # Act
+        result_project, message = project_service.rebuild_project_indexes(project_id)
+
+        # Assert
+        assert result_project is not None
+        assert str(result_project.id) == str(project_id)
+        assert message == 'インデックスの再構築が完了しました'
+        mock_repository.find_by_id.assert_called_once_with(project_id)
+        # インデックス構築開始と完了で2回保存される
+        assert mock_repository.save.call_count == 2
+
+    def test_インデックス再構築でプロジェクトが見つからない場合(
+        self, project_service: ProjectService, mock_repository: Mock
+    ) -> None:
+        """インデックス再構築でプロジェクトが見つからない場合の処理をテストする。"""
+        # Arrange
+        project_id = ProjectID(uuid4())
+        mock_repository.find_by_id.return_value = None
+
+        # Act
+        result_project, message = project_service.rebuild_project_indexes(project_id)
+
+        # Assert
+        assert result_project is None
+        assert message == f'プロジェクトが見つかりません: {project_id}'
+        mock_repository.find_by_id.assert_called_once_with(project_id)
+        mock_repository.save.assert_not_called()
+
+    def test_インデックス再構築でエラーが発生した場合(
+        self, project_service: ProjectService, mock_repository: Mock, mock_file_system: Mock
+    ) -> None:
+        """インデックス再構築でエラーが発生した場合の処理をテストする。"""
+        # Arrange
+        project_id = ProjectID(uuid4())
+        project = Project(
+            id=project_id, name='テストプロジェクト', source='/test/source', tool=ToolType.OVERVIEW
+        )
+
+        mock_repository.find_by_id.return_value = project
+        mock_repository.save.return_value = None
+
+        # インデックス構築でエラーを発生させる
+        mock_file_system.exists.return_value = False
+
+        # Act
+        result_project, message = project_service.rebuild_project_indexes(project_id)
+
+        # Assert
+        assert result_project is not None
+        assert 'インデックスの再構築が完了しました' in message
+        mock_repository.find_by_id.assert_called_once_with(project_id)
+        # エラー時でもプロジェクトは保存される
+        assert mock_repository.save.call_count == 2

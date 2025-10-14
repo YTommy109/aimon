@@ -108,6 +108,82 @@ class ProjectService:
         except Exception as ie:
             logger.error(f'[ERROR] キーワードインデックス作成エラー: {ie}')
 
+    def rebuild_project_indexes(self, project_id: ProjectID) -> tuple[Project | None, str]:
+        """プロジェクトのインデックスを再構築する。
+
+        Args:
+            project_id: プロジェクトID。
+
+        Returns:
+            (更新されたプロジェクト, メッセージ)
+        """
+        logger.debug(f'[DEBUG] rebuild_project_indexes開始: project_id={project_id}')
+        project: Project | None = None
+
+        try:
+            return self._execute_rebuild_process(project_id)
+        except Exception as e:
+            return self._handle_rebuild_error(project, e)
+
+    def _execute_rebuild_process(self, project_id: ProjectID) -> tuple[Project | None, str]:
+        """インデックス再構築プロセスを実行する。
+
+        Args:
+            project_id: プロジェクトID。
+
+        Returns:
+            (更新されたプロジェクト, メッセージ)
+        """
+        project = self._get_project_for_rebuild(project_id)
+        if project:
+            self._rebuild_indexes_for_project(project)
+            return project, 'インデックスの再構築が完了しました'
+        return None, f'プロジェクトが見つかりません: {project_id}'
+
+    def _get_project_for_rebuild(self, project_id: ProjectID) -> Project | None:
+        """再構築用のプロジェクトを取得する。
+
+        Args:
+            project_id: プロジェクトID。
+
+        Returns:
+            プロジェクト、見つからない場合はNone。
+        """
+        return self.repository.find_by_id(project_id)
+
+    def _rebuild_indexes_for_project(self, project: Project) -> None:
+        """プロジェクトのインデックスを再構築する。
+
+        Args:
+            project: 対象プロジェクト。
+        """
+        project.start_indexing()
+        self.repository.save(project)
+
+        self._build_project_vector_index(project)
+        self._build_project_keyword_index(project)
+
+        project.finish_indexing()
+        self.repository.save(project)
+
+    def _handle_rebuild_error(
+        self, project: Project | None, error: Exception
+    ) -> tuple[Project | None, str]:
+        """インデックス再構築エラーを処理する。
+
+        Args:
+            project: プロジェクト。
+            error: エラー。
+
+        Returns:
+            (プロジェクト, エラーメッセージ)
+        """
+        logger.error(f'[ERROR] インデックス再構築エラー: {error}')
+        if project:
+            project.finish_indexing()
+            self.repository.save(project)
+        return project, f'インデックス再構築エラー: {error!s}'
+
     def execute_project(self, project_id: ProjectID) -> tuple[Project | None, str]:
         """プロジェクトを実行する。
 

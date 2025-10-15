@@ -62,6 +62,7 @@ class SemanticIndexBuilder:
             return OpenAIEmbeddings(
                 model=config.openai_embedding_model,
                 api_key=SecretStr(config.openai_api_key) if config.openai_api_key else None,
+                base_url=config.openai_api_base,
             )
         if self.provider == LLMProviderName.GEMINI:
             return GoogleGenerativeAIEmbeddings(

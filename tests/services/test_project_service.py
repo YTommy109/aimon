@@ -438,23 +438,6 @@ class TestProjectService:
         # インデックス構築開始と完了で2回保存される
         assert mock_repository.save.call_count == 2
 
-    def test_インデックス再構築でプロジェクトが見つからない場合(
-        self, project_service: ProjectService, mock_repository: Mock
-    ) -> None:
-        """インデックス再構築でプロジェクトが見つからない場合の処理をテストする。"""
-        # Arrange
-        project_id = ProjectID(uuid4())
-        mock_repository.find_by_id.return_value = None
-
-        # Act
-        result_project, message = project_service.rebuild_project_indexes(project_id)
-
-        # Assert
-        assert result_project is None
-        assert message == f'プロジェクトが見つかりません: {project_id}'
-        mock_repository.find_by_id.assert_called_once_with(project_id)
-        mock_repository.save.assert_not_called()
-
     def test_インデックス再構築でエラーが発生した場合(
         self, project_service: ProjectService, mock_repository: Mock, mock_file_system: Mock
     ) -> None:

@@ -4,32 +4,34 @@ from __future__ import annotations
 
 import logging
 import pickle
-import re
-import shutil
-from contextlib import suppress
 from pathlib import Path
 
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rank_bm25 import BM25Okapi
 
-from app.utils.file_processor import read_text
+from app.utils.base_index_builder import BaseIndexBuilder
+from app.utils.tokenizer import JapaneseTokenizer
 
 logger = logging.getLogger('aiman')
 
 
-class KeywordIndexBuilder:
+class KeywordIndexBuilder(BaseIndexBuilder):
     """BM25キーワードインデックスの構築を管理するクラス。"""
-
-    # 日本語トークンの最大長（これ以上は分割）
-    MAX_JAPANESE_TOKEN_LENGTH = 10
-    # 日本語トークンの分割ステップ
-    JAPANESE_TOKEN_SPLIT_STEP = 2
 
     def __init__(self) -> None:
         """ビルダーを初期化する。"""
-        self.target_exts = {'.md', '.txt', '.py', '.pdf', '.docx', '.xlsx'}
+        super().__init__()
+        self.tokenizer = JapaneseTokenizer()
+        # 後方互換性のための属性
         self.keyword_db_name = 'keyword_db'
+
+    def _get_index_db_name(self) -> str:
+        """インデックスディレクトリ名を返す。
+
+        Returns:
+            インデックスディレクトリ名。
+        """
+        return self.keyword_db_name
 
     def build_index(self, source_dir: Path, index_dir: Path) -> None:
         """指定ディレクトリのテキストを分割・トークン化し、BM25インデックスを保存する。
@@ -48,87 +50,20 @@ class KeywordIndexBuilder:
             self._ensure_clean_dir(index_dir)
             return
 
-        chunks = self._split_documents(docs)
+        # BM25に最適化された設定でチャンク分割
+        chunks = self._split_documents(docs, chunk_size=400, chunk_overlap=50)
         self._save_bm25_index(chunks, index_dir)
 
-    def _read_text(self, path: Path) -> str:
-        """ファイルからテキストを抽出する(拡張子に応じて委譲)。"""
-        return read_text(path)
-
-    def _ensure_clean_dir(self, path: Path) -> None:
-        """出力ディレクトリを空で作り直す。"""
-        with suppress(Exception):
-            shutil.rmtree(path, ignore_errors=True)
-        path.mkdir(parents=True, exist_ok=True)
-
-    def _collect_documents(self, source_dir: Path) -> list[Document]:
-        """対象ディレクトリからドキュメントを収集する。"""
-        collected: list[Document] = []
-
-        def _should_include(p: Path) -> bool:
-            return (
-                p.is_file()
-                and (p.suffix in self.target_exts)
-                and (self.keyword_db_name not in p.parts)
-            )
-
-        for path in filter(_should_include, source_dir.rglob('*')):
-            text = self._read_text(path)
-            if not text:
-                continue
-            rel = str(path.relative_to(source_dir))
-            collected.append(Document(page_content=text, metadata={'path': rel}))
-        return collected
-
-    def _split_documents(self, docs: list[Document]) -> list[Document]:
-        """ドキュメントをチャンクに分割する。BM25に最適化された設定を使用。"""
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=400,  # BM25には小さめのチャンクが効果的
-            chunk_overlap=50,  # オーバーラップも小さめに設定
-            separators=['\n\n', '\n', ' ', ''],
-        )
-        return splitter.split_documents(docs)
-
     def _tokenize_text(self, text: str) -> list[str]:
-        """テキストをトークン化する。日本語対応の改善実装。"""
-        tokens = []
+        """テキストをトークン化する。
 
-        # 英数字のトークンを抽出
-        tokens.extend(self._extract_alphanumeric_tokens(text))
+        Args:
+            text: トークン化するテキスト。
 
-        # 日本語のトークンを抽出
-        tokens.extend(self._extract_japanese_tokens(text))
-
-        # 短すぎるトークンや空白のみのトークンを除去
-        return [token for token in tokens if len(token) > 1 and token.strip()]
-
-    def _extract_alphanumeric_tokens(self, text: str) -> list[str]:
-        """英数字のトークンを抽出する。"""
-        tokens = []
-        for match in re.finditer(r'[a-zA-Z0-9]+', text):
-            tokens.append(match.group().lower())
-        return tokens
-
-    def _extract_japanese_tokens(self, text: str) -> list[str]:
-        """日本語のトークンを抽出する。"""
-        tokens = []
-        for match in re.finditer(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+', text):
-            token = match.group()
-            if len(token) > self.MAX_JAPANESE_TOKEN_LENGTH:
-                tokens.extend(self._split_long_japanese_token(token))
-            else:
-                tokens.append(token)
-        return tokens
-
-    def _split_long_japanese_token(self, token: str) -> list[str]:
-        """長い日本語トークンを分割する。"""
-        split_tokens = []
-        for i in range(0, len(token), self.JAPANESE_TOKEN_SPLIT_STEP):
-            if i + self.JAPANESE_TOKEN_SPLIT_STEP <= len(token):
-                split_tokens.append(token[i : i + self.JAPANESE_TOKEN_SPLIT_STEP])
-            else:
-                split_tokens.append(token[i:])
-        return split_tokens
+        Returns:
+            トークンのリスト。
+        """
+        return self.tokenizer.tokenize_text(text)
 
     def _save_bm25_index(self, chunks: list[Document], index_dir: Path) -> None:
         """BM25インデックスを保存する。"""

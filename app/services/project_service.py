@@ -1,6 +1,5 @@
 """プロジェクトのビジネスロジックを管理するサービス。"""
 
-import asyncio
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -13,6 +12,7 @@ from app.errors import (
 from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 from app.types import LLMProviderName, ProjectID, ToolType
+from app.utils.async_helper import run_async
 from app.utils.file_system import FileSystemProtocol, RealFileSystem
 from app.utils.keyword_index import build_keyword_index
 from app.utils.llm_client import LLMClient
@@ -68,18 +68,28 @@ class ProjectService:
         try:
             project = Project(name=name, source=source, tool=tool)
             # 作成直後にインデックスを構築（失敗しても作成は成功扱い）
-            project.start_indexing()
-            self.repository.save(project)
-            self._build_project_vector_index(project)
-            self._build_project_keyword_index(project)
-            project.finish_indexing()
-            self.repository.save(project)
+            self.build_project_index(project)
             result = project
         except Exception as e:
             logger.error(f'[ERROR] プロジェクト作成エラー: {e}')
             result = None
 
         return result
+
+    def build_project_index(self, project: Project) -> None:
+        """プロジェクトのインデックスを構築する。
+
+        Args:
+            project: 対象プロジェクト。
+        """
+        project.start_indexing()
+        self.repository.save(project)
+
+        self._build_project_vector_index(project)
+        self._build_project_keyword_index(project)
+
+        project.finish_indexing()
+        self.repository.save(project)
 
     def _build_project_vector_index(self, project: Project) -> None:
         """プロジェクト用のFAISSインデックスを構築する。
@@ -134,37 +144,9 @@ class ProjectService:
         Returns:
             (更新されたプロジェクト, メッセージ)
         """
-        project = self._get_project_for_rebuild(project_id)
-        if project:
-            self._rebuild_indexes_for_project(project)
-            return project, 'インデックスの再構築が完了しました'
-        return None, f'プロジェクトが見つかりません: {project_id}'
-
-    def _get_project_for_rebuild(self, project_id: ProjectID) -> Project | None:
-        """再構築用のプロジェクトを取得する。
-
-        Args:
-            project_id: プロジェクトID。
-
-        Returns:
-            プロジェクト、見つからない場合はNone。
-        """
-        return self.repository.find_by_id(project_id)
-
-    def _rebuild_indexes_for_project(self, project: Project) -> None:
-        """プロジェクトのインデックスを再構築する。
-
-        Args:
-            project: 対象プロジェクト。
-        """
-        project.start_indexing()
-        self.repository.save(project)
-
-        self._build_project_vector_index(project)
-        self._build_project_keyword_index(project)
-
-        project.finish_indexing()
-        self.repository.save(project)
+        project = self.repository.find_by_id(project_id)
+        self.build_project_index(project)
+        return project, 'インデックスの再構築が完了しました'
 
     def _handle_rebuild_error(
         self, project: Project | None, error: Exception
@@ -303,19 +285,7 @@ class ProjectService:
         Returns:
             LLMからの応答。
         """
-        # テスト環境では常にasyncio.runを使用し、本番環境では既存のループを使用
-        try:
-            # 既存のループが実行中かチェック
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                # 既存のループが実行中の場合は、新しいループを作成
-                response = asyncio.run(llm_client.generate_text(prompt))
-            else:
-                response = loop.run_until_complete(llm_client.generate_text(prompt))
-            return response
-        except RuntimeError:
-            # ループが存在しない場合は新しく作成
-            return asyncio.run(llm_client.generate_text(prompt))
+        return run_async(llm_client.generate_text(prompt))
 
     def _handle_execution_error(
         self, project: Project | None, error: Exception
@@ -369,11 +339,13 @@ class ProjectService:
         Returns:
             生成されたプロンプト。
         """
-        if project.tool == ToolType.OVERVIEW:
-            return self._generate_overview_prompt(project)
-        if project.tool == ToolType.REVIEW:
-            return self._generate_review_prompt(project)
-        raise ValueError(f'Unsupported tool type: {project.tool}')
+        match project.tool:
+            case ToolType.OVERVIEW:
+                return self._generate_overview_prompt(project)
+            case ToolType.REVIEW:
+                return self._generate_review_prompt(project)
+            case _:
+                raise ValueError(f'Unsupported tool type: {project.tool}')
 
     def _generate_overview_prompt(self, project: Project) -> str:
         """OVERVIEWツール用プロンプトを生成する。

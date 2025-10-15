@@ -1,19 +1,14 @@
 """RAGチャットページのUIを管理するモジュール。"""
 
-import asyncio
 import logging
 import pickle
-import re
-from contextlib import suppress
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import streamlit as st
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_openai import OpenAIEmbeddings
-from pydantic import SecretStr
+from langchain_core.embeddings import Embeddings
 from rank_bm25 import BM25Okapi
 
 from app.config import config
@@ -21,7 +16,10 @@ from app.models.project import Project
 from app.repositories.project_repository import JsonProjectRepository
 from app.services.project_service import ProjectService
 from app.types import LLMProviderName
+from app.utils.async_helper import run_async
+from app.utils.embeddings_factory import get_embeddings_model
 from app.utils.llm_client import LLMClient
+from app.utils.tokenizer import JapaneseTokenizer
 
 # 日本標準時のタイムゾーン
 JST = ZoneInfo('Asia/Tokyo')
@@ -32,11 +30,6 @@ logger = logging.getLogger('aiman')
 class RAGChatPage:
     """RAGチャットページのUIを管理するクラス。"""
 
-    # 日本語トークンの最大長（これ以上は分割）
-    MAX_JAPANESE_TOKEN_LENGTH = 10
-    # 日本語トークンの分割ステップ
-    JAPANESE_TOKEN_SPLIT_STEP = 2
-
     def __init__(self, project_service: ProjectService, project_repo: JsonProjectRepository):
         """RAGチャットページを初期化する。
 
@@ -46,6 +39,7 @@ class RAGChatPage:
         """
         self.project_service = project_service
         self.project_repo = project_repo
+        self.tokenizer = JapaneseTokenizer()
         self._initialize_session_state()
 
     def _initialize_session_state(self) -> None:
@@ -335,32 +329,20 @@ class RAGChatPage:
             preview = doc.get('content', '')[:200]
             self._add_log(f'参考文書: {path} [score={score:.3f}]\n{preview}...')
 
-    def _get_embeddings_model(self) -> OpenAIEmbeddings | GoogleGenerativeAIEmbeddings | None:
+    def _get_embeddings_model(self) -> Embeddings | None:
         """埋め込みモデルを取得する。
 
         Returns:
             埋め込みモデル、取得できない場合はNone。
         """
-        provider = LLMProviderName(config.llm_provider)
-        match provider:
-            case LLMProviderName.OPENAI:
-                return OpenAIEmbeddings(
-                    model=config.openai_embedding_model,
-                    api_key=SecretStr(config.openai_api_key) if config.openai_api_key else None,
-                )
-            case LLMProviderName.GEMINI:
-                return GoogleGenerativeAIEmbeddings(
-                    model=config.gemini_embedding_model,
-                    google_api_key=SecretStr(config.gemini_api_key)
-                    if config.gemini_api_key
-                    else None,
-                )
+        try:
+            provider = LLMProviderName(config.llm_provider)
+            return get_embeddings_model(provider)
+        except ValueError:
+            return None
 
     def _search_faiss_index(
-        self,
-        index_dir: Path,
-        embeddings: OpenAIEmbeddings | GoogleGenerativeAIEmbeddings,
-        query: str,
+        self, index_dir: Path, embeddings: Embeddings, query: str
     ) -> list[dict[str, Any]]:
         """FAISSインデックスで検索を実行する。
 
@@ -500,7 +482,7 @@ class RAGChatPage:
         return results
 
     def _tokenize_text(self, text: str) -> list[str]:
-        """テキストをトークン化する。日本語対応の改善実装。
+        """テキストをトークン化する。
 
         Args:
             text: トークン化するテキスト。
@@ -508,44 +490,7 @@ class RAGChatPage:
         Returns:
             トークンのリスト。
         """
-        tokens = []
-
-        # 英数字のトークンを抽出
-        tokens.extend(self._extract_alphanumeric_tokens(text))
-
-        # 日本語のトークンを抽出
-        tokens.extend(self._extract_japanese_tokens(text))
-
-        # 短すぎるトークンや空白のみのトークンを除去
-        return [token for token in tokens if len(token) > 1 and token.strip()]
-
-    def _extract_alphanumeric_tokens(self, text: str) -> list[str]:
-        """英数字のトークンを抽出する。"""
-        tokens = []
-        for match in re.finditer(r'[a-zA-Z0-9]+', text):
-            tokens.append(match.group().lower())
-        return tokens
-
-    def _extract_japanese_tokens(self, text: str) -> list[str]:
-        """日本語のトークンを抽出する。"""
-        tokens = []
-        for match in re.finditer(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+', text):
-            token = match.group()
-            if len(token) > self.MAX_JAPANESE_TOKEN_LENGTH:
-                tokens.extend(self._split_long_japanese_token(token))
-            else:
-                tokens.append(token)
-        return tokens
-
-    def _split_long_japanese_token(self, token: str) -> list[str]:
-        """長い日本語トークンを分割する。"""
-        split_tokens = []
-        for i in range(0, len(token), self.JAPANESE_TOKEN_SPLIT_STEP):
-            if i + self.JAPANESE_TOKEN_SPLIT_STEP <= len(token):
-                split_tokens.append(token[i : i + self.JAPANESE_TOKEN_SPLIT_STEP])
-            else:
-                split_tokens.append(token[i:])
-        return split_tokens
+        return self.tokenizer.tokenize_text(text)
 
     def _combine_search_results(
         self, semantic_results: list[dict[str, Any]], keyword_results: list[dict[str, Any]]
@@ -639,17 +584,16 @@ class RAGChatPage:
             return f'LLM呼び出しエラー: {e!s}'
 
     def _await_llm(self, llm_client: LLMClient, prompt: str) -> str:
-        """イベントループの有無に応じて非同期LLM呼び出しを行う。"""
-        loop = None
-        with suppress(RuntimeError):
-            loop = asyncio.get_running_loop()
-        if loop is not None and loop.is_running():
-            result = asyncio.run(llm_client.generate_text(prompt))
-        elif loop is not None:
-            result = loop.run_until_complete(llm_client.generate_text(prompt))
-        else:
-            result = asyncio.run(llm_client.generate_text(prompt))
-        return result
+        """イベントループの有無に応じて非同期LLM呼び出しを行う。
+
+        Args:
+            llm_client: LLMクライアント。
+            prompt: プロンプト。
+
+        Returns:
+            LLMからの応答。
+        """
+        return run_async(llm_client.generate_text(prompt))
 
     def _format_context_for_prompt(self, context: list[dict[str, Any]]) -> str:
         """コンテキストをプロンプト用にフォーマットする。

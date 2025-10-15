@@ -70,42 +70,6 @@ def _create_project_with_validation(
         return False, 'プロジェクトの作成に失敗しました。'
 
 
-def _display_result_message(*, success: bool, message: str) -> None:
-    """結果メッセージを表示する。"""
-    if success:
-        st.success(message)
-    else:
-        st.error(message)
-
-
-def _handle_project_creation_button(
-    project: Project | None,
-    project_service: ProjectService,
-) -> None:
-    """プロジェクト作成ボタンの処理。
-
-    Args:
-        project: 作成するプロジェクトオブジェクト
-        project_service: プロジェクトサービス
-    """
-    if project is not None:
-        _handle_form_submission(project, project_service)
-
-
-def _handle_form_submission(
-    project: Project,
-    project_service: ProjectService,
-) -> None:
-    """フォーム送信の処理。
-
-    Args:
-        project: 作成するプロジェクトオブジェクト
-        project_service: プロジェクトサービス
-    """
-    success, message = _create_project_with_validation(project, project_service)
-    _display_result_message(success=success, message=message)
-
-
 def _render_form_inputs(
     projects_root: Path | None,
 ) -> tuple[str | None, str | None, ToolType | None]:
@@ -140,7 +104,7 @@ def _render_form_inputs(
     return project_name, source_dir, selected_tool_type
 
 
-def _handle_form_submission_logic(
+def _handle_form_submission_logic(  # noqa: PLR0915
     inputs: ProjectFormInputs,
     project_service: ProjectService,
     projects_root: Path | None = None,
@@ -150,6 +114,7 @@ def _handle_form_submission_logic(
     Args:
         inputs: フォーム入力値
         project_service: プロジェクトサービス
+        projects_root: プロジェクトルートディレクトリ
     """
     # 入力値の検証
     is_valid, error_message = _validate_project_inputs(
@@ -176,7 +141,13 @@ def _handle_form_submission_logic(
     )
 
     # プロジェクト作成の実行
-    _handle_project_creation_button(project, project_service)
+    success, message = _create_project_with_validation(project, project_service)
+
+    # 結果メッセージを表示
+    if success:
+        st.success(message)
+    else:
+        st.error(message)
 
 
 def render_project_creation_form(

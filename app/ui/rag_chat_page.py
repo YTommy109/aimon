@@ -280,7 +280,9 @@ class RAGChatPage:
 
         # 件数・参考文書ログ
         self._log_search_counts(len(semantic_results), len(keyword_results), len(combined_context))
-        self._log_references(combined_context)
+        self._log_semantic_results(semantic_results)
+        self._log_keyword_results(keyword_results)
+        self._log_combined_results(combined_context)
 
         # LLM問い合わせ
         self._add_log('LLM問い合わせを実行中...')
@@ -318,16 +320,44 @@ class RAGChatPage:
         """検索件数のサマリログを出力する。"""
         self._add_log(f'検索件数: セマンティック={sem_n} キーワード={kw_n} 統合後={merged_n}')
 
-    def _log_references(self, combined_context: list[dict[str, Any]]) -> None:
-        """参考文書のログを出力する。"""
-        if not combined_context:
-            self._add_log('参考文書: 見つかりませんでした')
+    def _log_semantic_results(self, semantic_results: list[dict[str, Any]]) -> None:
+        """セマンティック検索結果のログを出力する。"""
+        self._add_log('【セマンティック検索結果】')
+        if not semantic_results:
+            self._add_log('  見つかりませんでした')
             return
-        for doc in combined_context:
+        for i, doc in enumerate(semantic_results, 1):
             path = doc.get('path', '')
             score = float(doc.get('score', 0.0))
-            preview = doc.get('content', '')[:200]
-            self._add_log(f'参考文書: {path} [score={score:.3f}]\n{preview}...')
+            preview = doc.get('content', '')
+            self._add_log(f'  [{i}] {path} [score={score:.3f}]')
+            self._add_log(f'     {preview}...')
+
+    def _log_keyword_results(self, keyword_results: list[dict[str, Any]]) -> None:
+        """キーワード検索結果のログを出力する。"""
+        self._add_log('【キーワード検索結果】')
+        if not keyword_results:
+            self._add_log('  見つかりませんでした')
+            return
+        for i, doc in enumerate(keyword_results, 1):
+            path = doc.get('path', '')
+            score = float(doc.get('score', 0.0))
+            preview = doc.get('content', '')
+            self._add_log(f'  [{i}] {path} [score={score:.3f}]')
+            self._add_log(f'     {preview}...')
+
+    def _log_combined_results(self, combined_context: list[dict[str, Any]]) -> None:
+        """統合後の検索結果のログを出力する。"""
+        self._add_log('【統合後の検索結果】')
+        if not combined_context:
+            self._add_log('  見つかりませんでした')
+            return
+        for i, doc in enumerate(combined_context, 1):
+            path = doc.get('path', '')
+            score = float(doc.get('score', 0.0))
+            preview = doc.get('content', '')
+            self._add_log(f'  [{i}] {path} [score={score:.3f}]')
+            self._add_log(f'     {preview}...')
 
     def _get_embeddings_model(self) -> Embeddings | None:
         """埋め込みモデルを取得する。

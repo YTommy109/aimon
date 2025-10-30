@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 仮想環境
+.venv/
+venv/
+ENV/
+
+# 環境変数ファイル（セキュリティのため除外、実行時にマウント）
+.env
+.env.*
+!.env_sample
+
+# テスト関連
+.pytest_cache/
+.coverage/
+.coverage.*
+htmlcov/
+.tox/
+tests/
+tests_e2e/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# バージョン管理（jj）
+.jj/
+.jjfile
+
+# ドキュメント生成
+docs/
+
+# ログファイル
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# データディレクトリ（実行時にマウントする可能性があるため除外）
+.data/
+
+# justfile は不要（Docker 内では使用しない）
+justfile
+
+# Cursor 関連
+.cursor/

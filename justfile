@@ -197,3 +197,19 @@ ty:
 # HTMLドキュメント生成
 docs:
     pdoc app --html --output-dir docs
+
+# Docker イメージのビルド
+# just docker-build -> Docker イメージをビルド
+docker-build:
+    docker build -t aiman:latest .
+
+# Docker コンテナの起動
+# just docker-run -> Docker コンテナを起動（ポート8501で公開）
+docker-run:
+    #!/usr/bin/env zsh
+    set -euo pipefail
+    docker run -d --rm \
+        --name aiman \
+        -p 8501:8501 \
+        --env-file .env \
+        aiman:latest

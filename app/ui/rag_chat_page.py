@@ -389,17 +389,17 @@ class RAGChatPage:
             str(index_dir), embeddings, allow_dangerous_deserialization=True
         )
 
-        # 類似検索の実行
-        docs = vectorstore.similarity_search(query, k=5)
+        # 類似検索の実行（スコア付き）
+        docs_with_scores = vectorstore.similarity_search_with_score(query, k=5)
 
         # 結果を辞書形式に変換
         results = []
-        for doc in docs:
+        for doc, score in docs_with_scores:
             results.append(
                 {
                     'path': doc.metadata.get('path', ''),
                     'content': doc.page_content,
-                    'score': 1.0,  # FAISSはスコアを返さないため固定値
+                    'score': float(score),
                 }
             )
 
@@ -544,7 +544,7 @@ class RAGChatPage:
         # キーワードサーチ結果を追加（重複を除く）
         self._add_keyword_results(keyword_results, seen_paths, combined_results)
 
-        # スコア順にソート（セマンティックサーチのスコアは固定値1.0）
+        # スコア順にソート
         combined_results.sort(key=lambda x: x['score'], reverse=True)
 
         # 最大10件に制限
